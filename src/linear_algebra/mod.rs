@@ -84,6 +84,24 @@ pub fn get_column(m: &Matrix, j: usize) -> Vector {
     m.iter().map(|v| v[j]).collect()
 }
 
+///Returns a num_r x num_cols matrix
+/// whose (i,j)-th entry is entry_fn(i, j)
+pub fn make_matrix(num_r: usize, num_c: usize, entry_fn: &dyn Fn((usize, usize)) -> f64) -> Matrix {
+    let mut m : Matrix = vec![];
+    for i in 0..num_r {
+        m.push(vec![]);
+        for j in 0..num_c {
+            m[i].push(entry_fn((i, j)));
+        }
+    }
+    m
+ }
+
+///Returns the n x n identity matrix
+pub fn identity_matrix(n: usize) -> Matrix {
+    make_matrix(n, n, &|(i, j)| if i == j { 1 } else { 0 } as f64)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -186,6 +204,20 @@ mod tests {
         let m: Matrix = vec![vec![1 as f64, 2 as f64, 3 as f64], vec![4 as f64, 5 as f64, 6 as f64]];
 
         assert_eq!(get_column(&m, 1), vec![2 as f64, 5 as f64]);
+    }
+
+    #[test]
+    fn identity_matrix_test(){
+        let zero = 0 as f64;
+        let one = 1 as f64;
+        let n = 5;
+        let m: Matrix = vec![vec![one, zero, zero, zero, zero],
+                             vec![zero, one, zero, zero, zero],
+                             vec![zero, zero, one, zero, zero],
+                             vec![zero, zero, zero, one, zero],
+                             vec![zero, zero, zero, zero, one]];
+
+        assert_eq!(identity_matrix(n), m);
     }
 
 }
