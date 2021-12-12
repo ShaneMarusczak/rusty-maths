@@ -1,7 +1,7 @@
 use crate::equations::square_root;
 
-type Vector = Vec<f64>;
-type Matrix = Vec<Vector>;
+pub type Vector = Vec<f64>;
+pub type Matrix = Vec<Vector>;
 
 ///Adds corresponding elements
 pub fn vec_add(v: &Vector, w: &Vector) -> Vector {
