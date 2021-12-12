@@ -61,9 +61,7 @@ pub fn linear_gradient(x: f64, y: f64, theta: &Vector) -> Vector {
     vec![2_f64 * error * x, 2_f64 * error]
 }
 
-pub fn minibatches(data_set: &Vec<(f64, f64)>, batch_size: usize, shuffle: bool) -> Vec<Vec<(f64, f64)>> {
-    //Might need to write a ton of these for each type of vec
-    //Can how can I get a Vec<Any>?
+pub fn mini_batches<T: Clone>(data_set: &Vec<T>, batch_size: usize, shuffle: bool) -> Vec<Vec<T>> {
     let mut batch_starts = vec![];
     for start in 0..data_set.len() {
         if start % batch_size == 0 {
@@ -73,7 +71,7 @@ pub fn minibatches(data_set: &Vec<(f64, f64)>, batch_size: usize, shuffle: bool)
     if shuffle {
         batch_starts = shuffle_vector(&mut batch_starts);
     }
-    let mut rv: Vec<Vec<(f64, f64)>> = vec![];
+    let mut rv: Vec<Vec<T>> = vec![];
     for start in batch_starts {
         let end = start as usize + batch_size;
         rv.push(data_set[start as usize..end as usize].to_vec());
@@ -86,6 +84,16 @@ mod tests {
     use crate::linear_algebra::{distance, vector_mean};
     use rand::Rng;
     use super::*;
+
+    const LEARNING_RATE: f64 = 0.001;
+
+    fn get_inputs() -> Vec<(f64, f64)> {
+        let mut inputs = vec![];
+        for x in -50..50 {
+            inputs.push((x as f64, (20 * x + 5) as f64));
+        }
+        inputs
+    }
 
     #[test]
     fn gradient_test() {
@@ -106,13 +114,8 @@ mod tests {
 
     #[test]
     fn linear_gradient_test() {
-        const LEARNING_RATE: f64 = 0.001;
 
-        let mut inputs = vec![];
-        for x in -50..50 {
-            inputs.push((x as f64, (20 * x + 5) as f64));
-        }
-
+        let inputs = get_inputs();
 
         let mut rng = rand::thread_rng();
 
@@ -139,18 +142,14 @@ mod tests {
 
     #[test]
     fn mini_batch_test(){
-        const LEARNING_RATE: f64 = 0.001;
+        let inputs = get_inputs();
 
-        let mut inputs = vec![];
-        for x in -50..50 {
-            inputs.push((x as f64, (20 * x + 5) as f64));
-        }
         let mut rng = rand::thread_rng();
 
         let mut theta = vec![rng.gen_range(-1_f64..1_f64), rng.gen_range(-1_f64..1_f64)];
 
         for _ in 0..1000 {
-            let m_b = minibatches(&inputs, 20, true);
+            let m_b: Vec<Vec<(f64, f64)>> = mini_batches(&inputs, 20, true);
             for batch in m_b {
                 let mut l_g = vec![];
                 for (x, y) in &batch {
@@ -173,12 +172,8 @@ mod tests {
 
     #[test]
     fn mini_batch_test_stochastic(){
-        const LEARNING_RATE: f64 = 0.001;
+        let inputs = get_inputs();
 
-        let mut inputs = vec![];
-        for x in -50..50 {
-            inputs.push((x as f64, (20 * x + 5) as f64));
-        }
         let mut rng = rand::thread_rng();
 
         let mut theta = vec![rng.gen_range(-1_f64..1_f64), rng.gen_range(-1_f64..1_f64)];
