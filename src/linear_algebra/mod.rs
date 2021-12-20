@@ -1,4 +1,4 @@
-use crate::equations::square_root;
+use crate::utilities::square_root;
 
 pub type Vector = Vec<f64>;
 pub type Matrix = Vec<Vector>;

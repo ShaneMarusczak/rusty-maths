@@ -1,47 +1,9 @@
-use crate::equations::square_root;
+use crate::utilities::{sort_vec_cop, square_root};
 use crate::linear_algebra::{dot_product, sum_of_squares, Vector};
 
 ///Returns the mean of a Vector
 pub fn mean(v: &Vector) -> f64 {
     v.iter().fold(0 as f64, |acc, x| acc + x) / v.len() as f64
-}
-
-///Returns a sorted copy of a Vector
-pub fn sort_vec_cop(v: &Vector) -> Vector {
-    let mut v_c = v.clone();
-    let mut slow_p : usize = 0;
-    let mut fast_p: usize = 1;
-    while slow_p < v_c.len() {
-        while fast_p < v_c.len() {
-            if v_c[fast_p] < v_c[slow_p] {
-                let temp = v_c[slow_p];
-                v_c[slow_p] = v_c[fast_p];
-                v_c[fast_p] = temp;
-            }
-            fast_p += 1;
-        }
-        slow_p += 1;
-        fast_p = slow_p + 1;
-    }
-    v_c
-}
-
-///Sorts a vector in place
-pub fn sort_vec(v: &mut Vector) {
-    let mut slow_p : usize = 0;
-    let mut fast_p: usize = 1;
-    while slow_p < v.len() {
-        while fast_p < v.len() {
-            if v[fast_p] < v[slow_p] {
-                let temp = v[slow_p];
-                v[slow_p] = v[fast_p];
-                v[fast_p] = temp;
-            }
-            fast_p += 1;
-        }
-        slow_p += 1;
-        fast_p = slow_p + 1;
-    }
 }
 
 fn median_odd(v: &Vector) -> f64 {
@@ -127,7 +89,7 @@ mod tests {
     fn vec_sort_test() {
         let mut v = vec![9 as f64, 5 as f64, 3 as f64, 2 as f64, 1 as f64];
         let z = vec![1 as f64, 2 as f64, 3 as f64, 5 as f64, 9 as f64];
-        sort_vec(&mut v);
+        let v = sort_vec_cop(&mut v);
         assert_eq!(v, z);
     }
 

@@ -1,6 +1,5 @@
-use rand::distributions::Uniform;
-use rand::Rng;
 use crate::linear_algebra::{dot_product, scalar_multiply, vec_add, Vector};
+use crate::utilities::shuffle_vector;
 
 const H_RES: f64 = 0.0001;
 
@@ -39,17 +38,6 @@ pub fn sum_of_squares_gradient(v: &Vector) -> Vector {
     v.iter().map(|v_i| 2_f64 * v_i).collect()
 }
 
-pub fn shuffle_vector(v: &mut Vec<usize>) -> Vec<usize> {
-    let n = v.len();
-    let mut rng = rand::thread_rng();
-    for i in 0..(n - 1) {
-        let uniform = Uniform::from(i..n);
-        let j = rng.sample(uniform);
-        v.swap(i, j);
-    }
-    v.clone()
-}
-
 pub fn linear_gradient(x: f64, y: f64, theta: &Vector) -> Vector {
     let slope= theta[0];
     let intercept = theta[1];
@@ -69,7 +57,7 @@ pub fn mini_batches<T: Clone>(data_set: &Vec<T>, batch_size: usize, shuffle: boo
         }
     }
     if shuffle {
-        batch_starts = shuffle_vector(&mut batch_starts);
+        batch_starts = shuffle_vector(&batch_starts);
     }
     let mut rv: Vec<Vec<T>> = vec![];
     for start in batch_starts {
