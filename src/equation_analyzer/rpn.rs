@@ -86,18 +86,13 @@ pub fn get_rpn(eq: String) -> Result<Vec<String>,String> {
             ")" => {
                 paren_depth -= 1;
 
-                let e = format!("Invalid Closing Parenthesis at character {}", i + 1);
-
                 if paren_depth < 0 {
-                    return Err(e);
+                    return Err(format!("Invalid Closing Parenthesis at character {}", i + 1));
                 }
 
                 while operator_stack.last().unwrap().token != "(" {
                     let op = operator_stack.pop().unwrap();
                     output.push(op.token);
-                    if operator_stack.is_empty() {
-                        return Err(e);
-                    }
                 }
 
                 operator_stack.pop();
