@@ -14,7 +14,7 @@ pub fn difference_quotient(f:&dyn Fn(f64) -> f64, x: f64, h: f64) -> f64 {
 
 ///Returns the i-th partial difference quotient of f at v
 pub fn partial_difference_quotient(f: &dyn Fn(Vector) -> f64, v: &Vector, i: usize, h: f64) -> f64 {
-    let f_v = f(v.clone());
+    let f_v = f(v.to_owned());
     let w = v.iter().enumerate().map(|(j, v_j)| v_j + if j == i {h} else {0_f64}).collect::<Vec<f64>>();
     (f(w) - f_v) / h
 }

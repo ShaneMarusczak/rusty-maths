@@ -16,7 +16,7 @@ fn median_even(v: &Vector) -> f64 {
     let v_sort = sort_vec_cop(v);
     let hi_midp = v_sort.len() / 2;
 
-    (v_sort[hi_midp - 1] + v_sort[hi_midp]) / 2 as f64
+    (v_sort[hi_midp - 1] + v_sort[hi_midp]) / 2_f64
 }
 
 ///Returns the median of a Vector
@@ -66,7 +66,7 @@ pub fn correlation(v: &Vector, w: &Vector) -> f64 {
     let std_v = standard_deviation(v);
     let std_w = standard_deviation(w);
 
-    return if std_v > 0_f64 && std_w > 0_f64 {
+    if std_v > 0_f64 && std_w > 0_f64 {
         covariance(v, w) / std_v / std_w
     } else {
         0_f64

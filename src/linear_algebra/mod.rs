@@ -17,14 +17,14 @@ pub fn vec_subtract(v: &Vector, w: &Vector) -> Vector {
 
 ///Sums all corresponding elements
 pub fn vector_sum(vectors: &Matrix) -> Vector {
-    assert!(vectors.len() > 0, "no vectors provided");
+    assert!(!vectors.is_empty(), "no vectors provided");
     let num_elems = vectors[0].len();
     assert!(vectors.iter().all(|v| v.len() == num_elems), "vectors must be the same length");
 
     let mut vec: Vector = Vec::with_capacity(num_elems);
 
     for i in 0..num_elems {
-        vec.push(0 as f64);
+        vec.push(0_f64);
         for v in vectors {
             vec[i] += v[i];
         }
@@ -40,13 +40,13 @@ pub fn scalar_multiply(c: f64, vector: &Vector) -> Vector {
 ///Computes element-wise average
 pub fn vector_mean(vectors: &Matrix) -> Vector {
     let n = vectors.len();
-    scalar_multiply(1 as f64 / n as f64, &vector_sum(&vectors))
+    scalar_multiply(1_f64 / n as f64, &vector_sum(vectors))
 }
 
 ///Computes v_1 * w_1 + ... + v_n * w_n
 pub fn dot_product(v: &Vector, w: &Vector) -> f64 {
     assert_eq!(v.len(), w.len(), "vectors must be the same length");
-    v.iter().zip(w).fold(0 as f64, |acc, t| acc + (t.0 * t.1))
+    v.iter().zip(w).fold(0_f64, |acc, t| acc + (t.0 * t.1))
 }
 
 ///Computes v_1 * v_1 + ... + v_n * v_n
@@ -108,108 +108,108 @@ mod tests {
 
     #[test]
     fn vec_add_test(){
-        let v: Vector = vec![1 as f64, 2 as f64, 3 as f64];
-        let w: Vector = vec![4 as f64, 5 as f64, 6 as f64];
-        let z: Vector = vec![5 as f64, 7 as f64, 9 as f64];
+        let v: Vector = vec![1_f64, 2_f64, 3_f64];
+        let w: Vector = vec![4_f64, 5_f64, 6_f64];
+        let z: Vector = vec![5_f64, 7_f64, 9_f64];
 
         assert_eq!(vec_add(&v, &w), z);
     }
 
     #[test]
     fn vec_sub_test(){
-        let v: Vector = vec![5 as f64, 7 as f64, 9 as f64];
-        let w: Vector = vec![4 as f64, 5 as f64, 6 as f64];
-        let z: Vector = vec![1 as f64, 2 as f64, 3 as f64];
+        let v: Vector = vec![5_f64, 7_f64, 9_f64];
+        let w: Vector = vec![4_f64, 5_f64, 6_f64];
+        let z: Vector = vec![1_f64, 2_f64, 3_f64];
 
         assert_eq!(vec_subtract(&v, &w), z);
     }
 
     #[test]
     fn vector_sum_test(){
-        let v1: Vector = vec![1 as f64, 2 as f64];
-        let v2: Vector = vec![3 as f64, 4 as f64];
-        let v3: Vector = vec![5 as f64, 6 as f64];
-        let v4: Vector = vec![7 as f64, 8 as f64];
+        let v1: Vector = vec![1_f64, 2_f64];
+        let v2: Vector = vec![3_f64, 4_f64];
+        let v3: Vector = vec![5_f64, 6_f64];
+        let v4: Vector = vec![7_f64, 8_f64];
 
         let vectors: Matrix = vec![v1, v2, v3, v4];
 
-        let v5: Vector = vec![16 as f64, 20 as f64];
+        let v5: Vector = vec![16_f64, 20_f64];
 
         assert_eq!(vector_sum(&vectors), v5);
     }
 
     #[test]
     fn scalar_multiply_test(){
-        let c = 2 as f64;
-        let vector = vec![1 as f64, 2 as f64, 3 as f64];
+        let c = 2_f64;
+        let vector = vec![1_f64, 2_f64, 3_f64];
 
-        let z = vec![2 as f64, 4 as f64, 6 as f64];
+        let z = vec![2_f64, 4_f64, 6_f64];
 
         assert_eq!(scalar_multiply(c, &vector), z);
     }
 
     #[test]
     fn vector_mean_test(){
-        let v1 = vec![1 as f64, 2 as f64];
-        let v2 = vec![3 as f64, 4 as f64];
-        let v3 = vec![5 as f64, 6 as f64];
+        let v1 = vec![1_f64, 2_f64];
+        let v2 = vec![3_f64, 4_f64];
+        let v3 = vec![5_f64, 6_f64];
 
         let vectors = vec![v1, v2, v3];
 
-        let z = vec![3 as f64, 4 as f64];
+        let z = vec![3_f64, 4_f64];
 
         assert_eq!(vector_mean(&vectors), z);
     }
 
     #[test]
     fn dot_product_test(){
-        let v = vec![1 as f64, 2 as f64, 3 as f64];
-        let w = vec![4 as f64, 5 as f64, 6 as f64];
+        let v = vec![1_f64, 2_f64, 3_f64];
+        let w = vec![4_f64, 5_f64, 6_f64];
 
-        assert_eq!(dot_product(&v, &w), 32 as f64);
+        assert_eq!(dot_product(&v, &w), 32_f64);
     }
 
     #[test]
     fn sum_of_squares_test(){
-        let v: Vector = vec![1 as f64, 2 as f64, 3 as f64];
+        let v: Vector = vec![1_f64, 2_f64, 3_f64];
 
-        assert_eq!(sum_of_squares(&v), 14 as f64);
+        assert_eq!(sum_of_squares(&v), 14_f64);
     }
 
     #[test]
     fn magnitude_test(){
-        let v: Vector = vec![3 as f64, 4 as f64];
+        let v: Vector = vec![3_f64, 4_f64];
 
-        assert_eq!(magnitude(&v), 5 as f64);
+        assert_eq!(magnitude(&v), 5_f64);
     }
 
     #[test]
     fn shape_test(){
-        let m: Matrix = vec![vec![1 as f64, 2 as f64, 3 as f64], vec![4 as f64, 5 as f64, 6 as f64]];
+        let m: Matrix = vec![vec![1_f64, 2_f64, 3_f64], vec![4_f64, 5_f64, 6_f64]];
 
         assert_eq!(shape(m), (2 as usize, 3 as usize));
     }
 
     #[test]
     fn get_row_test(){
-        let r1 = vec![1 as f64, 2 as f64, 3 as f64];
-        let r2 = vec![4 as f64, 5 as f64, 6 as f64];
+        let r1 = vec![1_f64, 2_f64, 3_f64];
+        let r2 = vec![4_f64, 5_f64, 6_f64];
         let m: Matrix = vec![r1,r2];
 
-        assert_eq!(get_row(&m, 1), &vec![4 as f64, 5 as f64, 6 as f64]);
+        assert_eq!(get_row(&m, 1), &vec![4_f64, 5_f64, 6_f64]);
     }
 
     #[test]
     fn get_column_test(){
-        let m: Matrix = vec![vec![1 as f64, 2 as f64, 3 as f64], vec![4 as f64, 5 as f64, 6 as f64]];
+        let m: Matrix = vec![vec![1_f64, 2_f64, 3_f64], vec![4_f64, 5_f64, 6_f64]];
 
-        assert_eq!(get_column(&m, 1), vec![2 as f64, 5 as f64]);
+        assert_eq!(get_column(&m, 1), vec![2_f64, 5_f64]);
     }
 
     #[test]
     fn identity_matrix_test(){
-        let zero = 0 as f64;
-        let one = 1 as f64;
+        let zero = 0_f64;
+        let one = 1_f64;
         let n = 5;
         let m: Matrix = vec![vec![one, zero, zero, zero, zero],
                              vec![zero, one, zero, zero, zero],

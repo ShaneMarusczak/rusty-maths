@@ -24,7 +24,7 @@ pub fn f1_score(t_p: isize, f_p: isize) -> f64 {
     2_f64 * p * r / (p + r)
 }
 
-pub fn train_test_split<X: Clone, Y: Clone>(xs: &Vec<X>, ys: &Vec<Y>, test_pct: f64) -> (Vec<X>, Vec<X>, Vec<Y>, Vec<Y>) {
+pub fn train_test_split<X: Clone, Y: Clone>(xs: &[X], ys: &[Y], test_pct: f64) -> (Vec<X>, Vec<X>, Vec<Y>, Vec<Y>) {
     let mut idxs = vec![];
     for i in 0..xs.len() {
         idxs.push(i);
@@ -58,9 +58,7 @@ pub fn sort_vec_cop(v: &Vector) -> Vector {
     while slow_p < v_c.len() {
         while fast_p < v_c.len() {
             if v_c[fast_p] < v_c[slow_p] {
-                let temp = v_c[slow_p];
-                v_c[slow_p] = v_c[fast_p];
-                v_c[fast_p] = temp;
+                v_c.swap(slow_p,fast_p);
             }
             fast_p += 1;
         }
@@ -72,7 +70,7 @@ pub fn sort_vec_cop(v: &Vector) -> Vector {
 
 ///Split data into fractions [prob, 1 - prob]
 pub fn split_data<T: Clone>(data: &Vec<T>, prob: f64) -> (Vec<T>, Vec<T>) {
-    let shuffled = shuffle_vector(&data);
+    let shuffled = shuffle_vector(data);
     let cut = (data.len() as f64 * prob).floor() as usize;
 
     let front = shuffled[..cut].to_vec();
@@ -98,7 +96,7 @@ pub fn shuffle_vector<T: Clone>(v: &Vec<T>) -> Vec<T> {
 ///
 /// ```
 ///# use rusty_maths::utilities::abs;
-///assert_eq!(abs(-747 as f64), 747 as f64);
+///assert_eq!(abs(-747_f64), 747_f64);
 ///assert_eq!(abs(-45.43), 45.43);
 ///assert_eq!(abs(101.41), 101.41);
 /// ```
@@ -109,15 +107,30 @@ pub fn abs(num: f64) -> f64{
     num
 }
 
-///Returns the square root of an f64
+///Returns the absolute value of an f32
 ///
 /// ```
-///# use rusty_maths::utilities::{abs, square_root};///
-///assert_eq!(square_root(625 as f64), 25 as f64);
-///assert!(abs(square_root(1.23456789) - f64::sqrt(1.23456789)) <= 0.0000001);
+///# use rusty_maths::utilities::abs_f32;
+///assert_eq!(abs_f32(-747_f32), 747_f32);
+///assert_eq!(abs_f32(-45.43), 45.43);
+///assert_eq!(abs_f32(101.41), 101.41);
 /// ```
-pub fn square_root(num: f64) -> f64 {
-    let mut i = 1 as f64;
+pub fn abs_f32(num: f32) -> f32{
+    if num < 0 as f32 {
+        return -num;
+    }
+    num
+}
+
+///Returns the square root of an f32
+///
+/// ```
+///# use rusty_maths::utilities::{abs_f32, square_root_f32};///
+///assert_eq!(square_root_f32(625_f32), 25_f32);
+///assert!(abs_f32(square_root_f32(1.23456) - f32::sqrt(1.23456)) <= 0.0001);
+/// ```
+pub fn square_root_f32(num: f32) -> f32 {
+    let mut i = 1_f32;
 
     loop {
         if i * i == num {
@@ -125,17 +138,52 @@ pub fn square_root(num: f64) -> f64 {
         }
         else if i * i > num
         {
-            return square(num, i - 1 as f64, i);
+            return square_f32(num, i - 1_f32, i);
         }
-        i += 1 as f64;
+        i += 1_f32;
+    }
+}
+
+fn square_f32(num: f32, i: f32, j: f32) -> f32{
+    let mid = (i + j) / 2_f32;
+    let mul = mid * mid;
+
+    if mul == num || abs_f32(mul - num) < 0.0000001 {
+        mid
+    } else if mul < num {
+        square_f32(num, mid, j)
+    } else {
+        square_f32(num, i, mid)
+    }
+}
+
+///Returns the square root of an f64
+///
+/// ```
+///# use rusty_maths::utilities::{abs, square_root};///
+///assert_eq!(square_root(625_f64), 25_f64);
+///assert!(abs(square_root(1.23456789) - f64::sqrt(1.23456789)) <= 0.0000001);
+/// ```
+pub fn square_root(num: f64) -> f64 {
+    let mut i = 1_f64;
+
+    loop {
+        if i * i == num {
+            return i;
+        }
+        else if i * i > num
+        {
+            return square(num, i - 1_f64, i);
+        }
+        i += 1_f64;
     }
 }
 
 fn square(num: f64, i: f64, j: f64) -> f64{
-    let mid = (i + j) / 2 as f64;
+    let mid = (i + j) / 2_f64;
     let mul = mid * mid;
 
-    return if mul == num || abs(mul - num) < 0.0000001 {
+    if mul == num || abs(mul - num) < 0.0000001 {
         mid
     } else if mul < num {
         square(num, mid, j)
@@ -160,12 +208,12 @@ fn square(num: f64, i: f64, j: f64) -> f64{
 pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String>{
     let neg_b = -b;
     let b_sq = b * b;
-    let four_a_c = 4 as f64 * a * c;
-    let two_a = 2 as f64 * a;
-    if b_sq - four_a_c < 0 as f64 {
+    let four_a_c = 4_f64 * a * c;
+    let two_a = 2_f64 * a;
+    if b_sq - four_a_c < 0_f64 {
         return Err(String::from("No Real Solutions"));
     }
-    if b_sq - four_a_c == 0 as f64 {
+    if b_sq - four_a_c == 0_f64 {
         #[allow(deprecated)] return Ok((neg_b / two_a, f64::NAN ));
     }
     let sqrt__ = square_root(b_sq - four_a_c);
