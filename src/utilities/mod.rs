@@ -148,7 +148,7 @@ fn square_f32(num: f32, i: f32, j: f32) -> f32{
     let mid = (i + j) / 2_f32;
     let mul = mid * mid;
 
-    if mul == num || abs_f32(mul - num) < 0.0000001 {
+    if mul == num || abs_f32(mul - num) < 0.0001 {
         mid
     } else if mul < num {
         square_f32(num, mid, j)
@@ -194,16 +194,44 @@ fn square(num: f64, i: f64, j: f64) -> f64{
 
 ///Solves for x in ax² + bx + c = 0
 ///
+/// Returns an Option<(f32, f32), String>
+///
+/// ```
+///# use rusty_maths::utilities::quadratic_eq_f32;
+///assert_eq!(quadratic_eq_f32(2.0, 3.0, -5.0).unwrap(), (1.0, -2.5));
+///
+///assert_eq!(quadratic_eq_f32(-0.5, 1.0, -0.5).unwrap().0, 1_f32);
+///assert!(quadratic_eq_f32(-0.5, 1.0, -0.5).unwrap().1.is_nan());
+///
+///assert_eq!(quadratic_eq_f32(-1_f32, 0_f32, -1_f32).unwrap_err(), "No Real Solutions");
+/// ```
+pub fn quadratic_eq_f32(a: f32, b: f32, c: f32) -> Result<(f32, f32), String>{
+    let neg_b = -b;
+    let b_sq = b * b;
+    let four_a_c = 4_f32 * a * c;
+    let two_a = 2_f32 * a;
+    if b_sq - four_a_c < 0_f32 {
+        return Err(String::from("No Real Solutions"));
+    }
+    if b_sq - four_a_c == 0_f32 {
+        #[allow(deprecated)] return Ok((neg_b / two_a, f32::NAN ));
+    }
+    let sqrt__ = square_root_f32(b_sq - four_a_c);
+    Ok(( (neg_b + sqrt__) / two_a, (neg_b - sqrt__ ) / two_a))
+}
+
+///Solves for x in ax² + bx + c = 0
+///
 /// Returns an Option<(f64, f64), String>
 ///
 /// ```
 ///# use rusty_maths::utilities::quadratic_eq;
 ///assert_eq!(quadratic_eq(2.0, 3.0, -5.0).unwrap(), (1.0, -2.5));
 ///
-///assert_eq!(quadratic_eq(-0.5, 1.0, -0.5).unwrap().0, 1 as f64);
+///assert_eq!(quadratic_eq(-0.5, 1.0, -0.5).unwrap().0, 1_f64);
 ///assert!(quadratic_eq(-0.5, 1.0, -0.5).unwrap().1.is_nan());
 ///
-///assert_eq!(quadratic_eq(-1 as f64, 0 as f64, -1 as f64).unwrap_err(), "No Real Solutions");
+///assert_eq!(quadratic_eq(-1_f64, 0_f64, -1_f64).unwrap_err(), "No Real Solutions");
 /// ```
 pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String>{
     let neg_b = -b;
@@ -241,6 +269,20 @@ mod tests {
         //no real solutions, this does not handle imaginary values    yet.....
         //Todo: Implement imaginary numbers
         assert_eq!(quadratic_eq(-2.0, 2.0, -2.0).unwrap_err(), "No Real Solutions");
+    }
+
+    #[test]
+    fn quadratic_eq_f32_test(){
+        //Two real solutions
+        assert_eq!(quadratic_eq_f32(-2.0, 1.0, 6.0).unwrap(), (-1.5, 2.0));
+
+        //one real solution, first item is solution, second item in tuple will be NaN
+        assert_eq!(quadratic_eq_f32(-2.0, 2.0, -0.5).unwrap().0, 0.5);
+        assert!(quadratic_eq_f32(-2.0, 2.0, -0.5).unwrap().1.is_nan());
+
+        //no real solutions, this does not handle imaginary values    yet.....
+        //Todo: Implement imaginary numbers
+        assert_eq!(quadratic_eq_f32(-2.0, 2.0, -2.0).unwrap_err(), "No Real Solutions");
     }
 
     #[test]
