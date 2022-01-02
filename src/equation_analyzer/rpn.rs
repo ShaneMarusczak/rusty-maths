@@ -359,6 +359,15 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_log_add_2(){
+        let test = "log_10 ( 10 ) + log_10 ( 10 ) + log_10 10";
+        let rpn = get_rpn(test).unwrap();
+        let ans = eval_rpn(&rpn, f32::NAN).unwrap();
+        println!("{}", ans);
+        assert!(is_close(ans, 3_f32));
+    }
+
+    #[test]
+    fn eval_rpn_test_log_add_3(){
         let test = "log_10 ( 10 ) + log_10 ( 5 + 5 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
