@@ -49,7 +49,7 @@ pub fn eval_rpn(tokens: &Vec<String>, x: f32) -> Result<f32, String> {
             let temp = stack.pop().unwrap();
             stack.push(temp.log(base));
         }
-        else if token.contains("x") && token != "max" {
+        else if token.contains("x^") {
             let split_token = token.split('x').collect::<Vec<&str>>();
 
             let coeff = split_token[0].parse::<f32>().unwrap();
@@ -68,7 +68,7 @@ pub fn eval_rpn(tokens: &Vec<String>, x: f32) -> Result<f32, String> {
                 "^" => stack.push(lhs.powf(rhs)),
                 "max" => stack.push(lhs.max(rhs)),
                 "min" => stack.push(lhs.min(rhs)),
-                _ => return Err(format!("Unknown token: {}", token))
+                _ => return Err(format!("unknown token: {}", token))
 
             }
         }
@@ -115,7 +115,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                 paren_depth -= 1;
 
                 if paren_depth < 0 {
-                    return Err(format!("Invalid Closing Parenthesis at character {}", i + 1));
+                    return Err(format!("invalid closing parenthesis at character {}", i + 1));
                 }
 
                 while operator_stack.last().unwrap().token != "(" {
@@ -136,7 +136,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                 }
                 else if term.starts_with("log_") {
                     if term.split('_').nth(1).unwrap().parse::<f32>().is_err() {
-                        return  Err(String::from("Invalid use of log"))
+                        return  Err(String::from("invalid use of log"))
                     }
                     operator_stack.push(get_operator(&term));
                 }
@@ -155,7 +155,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                     if split_term.len() == 2 {
                         if split_term[0].len() > 0 {
                             if split_term[0].parse::<f32>().is_err() {
-                                return Err(String::from("Invalid x coefficient"));
+                                return Err(String::from("invalid x coefficient"));
                             }
                             string_to_push += split_term[0];
                         }
@@ -165,8 +165,8 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                         string_to_push += "x";
 
                         if split_term[1].len() > 0 {
-                            if !split_term[1].contains('^') {
-                                return  Err(String::from("Invalid x power"));
+                            if !split_term[1].starts_with('^') || split_term[1][1..].parse::<f32>().is_err() {
+                                return  Err(String::from("invalid x power"));
                             }
                             string_to_push += split_term[1];
                         }
@@ -178,7 +178,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
 
                 }
                 else{
-                    return Err(format!("Unknown term: {}", term));
+                    return Err(format!("unknown term: {}", term));
                 }
             }
         }
@@ -187,7 +187,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
     while !operator_stack.is_empty() {
         let op = operator_stack.pop().unwrap();
         if op.token == "(" {
-            return Err("Invalid Opening Parenthesis".to_string());
+            return Err("invalid opening parenthesis".to_string());
         }
         output.push(op.token.to_string());
     }
@@ -205,13 +205,13 @@ mod tests {
     #[test]
     fn get_rpn_invalid_closing_parens_test(){
         let test = "( 3 + 4 ) )";
-        assert_eq!(get_rpn(test).unwrap_err(), String::from("Invalid Closing Parenthesis at character 6"));
+        assert_eq!(get_rpn(test).unwrap_err(), "invalid closing parenthesis at character 6");
     }
 
     #[test]
     fn get_rpn_invalid_closing_parens_test_2(){
         let test = ")";
-        assert_eq!(get_rpn(test).unwrap_err(), String::from("Invalid Closing Parenthesis at character 1"));
+        assert_eq!(get_rpn(test).unwrap_err(), "invalid closing parenthesis at character 1");
     }
 
     #[test]
@@ -229,13 +229,13 @@ mod tests {
     #[test]
     fn get_rpn_invalid_opening_parens_test(){
         let test = "( ( 3 + 4 )";
-        assert_eq!(get_rpn(test).unwrap_err(), String::from("Invalid Opening Parenthesis"));
+        assert_eq!(get_rpn(test).unwrap_err(), "invalid opening parenthesis");
     }
 
     #[test]
     fn get_rpn_invalid_opening_parens_test_2(){
         let test = "( 3 + 4 ( ( )";
-        assert_eq!(get_rpn(test).unwrap_err(), String::from("Invalid Opening Parenthesis"));
+        assert_eq!(get_rpn(test).unwrap_err(), "invalid opening parenthesis");
     }
 
     #[test]
@@ -458,5 +458,19 @@ mod tests {
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 2_f32));
+    }
+
+    #[test]
+    fn eval_rpn_test_invalid_coeff(){
+        let test = "y = ax^2";
+        let rpn = get_rpn(test).unwrap_err();
+        assert_eq!(rpn, "invalid x coefficient");
+    }
+
+    #[test]
+    fn eval_rpn_test_invalid_power(){
+        let test = "y = 3x^a";
+        let rpn = get_rpn(test).unwrap_err();
+        assert_eq!(rpn, "invalid x power");
     }
 }
