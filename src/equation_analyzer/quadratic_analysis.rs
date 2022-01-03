@@ -1,6 +1,6 @@
 //This all still needs a lot of work, tons of edge cases
 
-///Detects if given equation is in the form 'y = ax^2 + bx + c'
+///Detects if the given equation is in the form 'y = ax^2 + bx + c'
 /// Note: a can not be 0
 pub fn detect_quad(eq: &str) -> bool {
     if !eq.contains("x^2") ||
@@ -30,7 +30,7 @@ pub fn detect_quad(eq: &str) -> bool {
         return false;
     }
 
-    return true;
+    true
 }
 
 pub fn get_abc(eq: &str) -> (f32, f32, f32) {
@@ -48,7 +48,7 @@ pub fn get_abc(eq: &str) -> (f32, f32, f32) {
             a = 1_f32;
         }
         else if term.contains("x^2") {
-            a = term.split("x^2").nth(0).unwrap().parse::<f32>().unwrap() * get_multiplier(i, &split_eq);
+            a = term.split("x^2").next().unwrap().parse::<f32>().unwrap() * get_multiplier(i, &split_eq);
         }
         else if term == "-x" {
             b = -1_f32;
@@ -57,17 +57,17 @@ pub fn get_abc(eq: &str) -> (f32, f32, f32) {
             b = 1_f32;
         }
         else if term.contains('x') {
-            b = term.split('x').nth(0).unwrap().parse::<f32>().unwrap() * get_multiplier(i, &split_eq);
+            b = term.split('x').next().unwrap().parse::<f32>().unwrap() * get_multiplier(i, &split_eq);
         }
-        else if term.parse::<f32>().is_ok() {
-            c = term.parse::<f32>().unwrap() * get_multiplier(i, &split_eq);
+        else if let Ok(n) = term.parse::<f32>() {
+            c = n * get_multiplier(i, &split_eq);
         }
     }
 
     (a, b, c)
 }
 
-fn get_multiplier(i: usize, split_eq: &Vec<&str>) -> f32 {
+fn get_multiplier(i: usize, split_eq: &[&str]) -> f32 {
     let mut multiplier = 1_f32;
     if i != 0 && split_eq[i - 1] == "-" {
         multiplier = -1_f32;

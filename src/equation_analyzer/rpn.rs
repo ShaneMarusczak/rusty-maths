@@ -2,7 +2,7 @@ use std::f32::consts::{E, PI};
 use crate::equation_analyzer::operands::{get_operator, Operand};
 use crate::utilities::{abs_f32, square_root_f32};
 
-pub fn eval_rpn(tokens: &Vec<String>, x: f32) -> Result<f32, String> {
+pub fn eval_rpn(tokens: &[String], x: f32) -> Result<f32, String> {
     let mut stack: Vec<f32> = Vec::with_capacity(tokens.len());
     for token in tokens {
         if let Ok(n) = token.parse() {
@@ -98,11 +98,11 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                     paren_depth += 1;
                 }
 
-                operator_stack.push(get_operator(&term));
+                operator_stack.push(get_operator(term));
             },
             "*" | "/" | "+" | "-" | "^" => {
                 //TODO: Write this cleaner
-                let o_1 = get_operator(&term);
+                let o_1 = get_operator(term);
                 while !operator_stack.is_empty() && operator_stack.last().unwrap().token != "(" &&
                     ( operator_stack.last().unwrap().prec > o_1.prec || (operator_stack.last().unwrap().prec == o_1.prec && o_1.assoc == "l")) {
                     let o_2_new = operator_stack.pop().unwrap();
@@ -138,9 +138,9 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                     if term.split('_').nth(1).unwrap().parse::<f32>().is_err() {
                         return  Err(String::from("invalid use of log"))
                     }
-                    operator_stack.push(get_operator(&term));
+                    operator_stack.push(get_operator(term));
                 }
-                else if term.contains("x") {
+                else if term.contains('x') {
                     if term == "x" {
                         output.push("1x^1".to_string());
                         continue;
@@ -153,7 +153,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                     let mut string_to_push = String::new();
 
                     if split_term.len() == 2 {
-                        if split_term[0].len() > 0 {
+                        if !split_term[0].is_empty() {
                             if split_term[0].parse::<f32>().is_err() {
                                 return Err(String::from("invalid x coefficient"));
                             }
@@ -164,7 +164,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                         }
                         string_to_push += "x";
 
-                        if split_term[1].len() > 0 {
+                        if !split_term[1].is_empty() {
                             if !split_term[1].starts_with('^') || split_term[1][1..].parse::<f32>().is_err() {
                                 return  Err(String::from("invalid x power"));
                             }

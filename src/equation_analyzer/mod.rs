@@ -1,3 +1,4 @@
+use crate::equation_analyzer::linear_analysis::detect_linear;
 use crate::equation_analyzer::rpn::{eval_rpn, get_rpn};
 use crate::equation_analyzer::quadratic_analysis::{detect_quad, get_abc};
 use crate::utilities::quadratic_eq_f32;
@@ -5,6 +6,7 @@ use crate::utilities::quadratic_eq_f32;
 mod rpn;
 mod operands;
 mod quadratic_analysis;
+mod linear_analysis;
 
 pub fn get_eq_data(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<EquationData, String> {
     let rpn = get_rpn(eq)?;
@@ -12,7 +14,14 @@ pub fn get_eq_data(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<E
     let mut points = vec![];
     let mut zeros = vec![];
 
-    if detect_quad(eq) {
+    //TODO: Should these be REGEX?
+    if detect_linear(eq){
+        let z = linear_analysis::get_zero(eq);
+        if !z.is_nan() {
+            zeros.push(z);
+        }
+    }
+    else if detect_quad(eq) {
         let (a, b, c) = get_abc(eq);
 
         if let Ok(z) = quadratic_eq_f32(a, b, c) {
@@ -55,7 +64,7 @@ mod tests {
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
         assert_eq!(actual.points, points);
-        assert!(actual.zeros.is_empty());
+        assert_eq!(actual.zeros, vec![-0.5_f32]);
     }
 
     #[test]
@@ -66,7 +75,7 @@ mod tests {
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
         assert_eq!(actual.points, ans);
-        assert!(actual.zeros.is_empty());
+        assert_eq!(actual.zeros, vec![0.5_f32]);
     }
 
     #[test]
@@ -77,7 +86,7 @@ mod tests {
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
         assert_eq!(actual.points, ans);
-        assert!(actual.zeros.is_empty());
+        assert_eq!(actual.zeros, vec![1_f32]);
     }
 
     #[test]

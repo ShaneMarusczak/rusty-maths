@@ -192,6 +192,7 @@ fn square(num: f64, i: f64, j: f64) -> f64{
     }
 }
 
+//TODO: Move these to quadratic_analysis.rs
 ///Solves for x in ax² + bx + c = 0
 ///
 /// Returns an Option<(f32, f32), String>
