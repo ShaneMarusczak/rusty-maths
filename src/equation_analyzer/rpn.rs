@@ -106,7 +106,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                 while !operator_stack.is_empty() && operator_stack.last().unwrap().token != "(" &&
                     ( operator_stack.last().unwrap().prec > o_1.prec || (operator_stack.last().unwrap().prec == o_1.prec && o_1.assoc == "l")) {
                     let o_2_new = operator_stack.pop().unwrap();
-                    output.push(o_2_new.token.to_string());
+                    output.push(o_2_new.token);
                 }
 
                 operator_stack.push(o_1);
@@ -120,14 +120,14 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
 
                 while operator_stack.last().unwrap().token != "(" {
                     let op = operator_stack.pop().unwrap();
-                    output.push(op.token.to_string());
+                    output.push(op.token);
                 }
 
                 operator_stack.pop();
 
                 if !operator_stack.is_empty() && operator_stack.last().unwrap().is_func {
                     let func = operator_stack.pop().unwrap();
-                    output.push(func.token.to_string());
+                    output.push(func.token);
                 }
             }
             _ => {
@@ -189,7 +189,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
         if op.token == "(" {
             return Err("invalid opening parenthesis".to_string());
         }
-        output.push(op.token.to_string());
+        output.push(op.token);
     }
     Ok(output)
 }
