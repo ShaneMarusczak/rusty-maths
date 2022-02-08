@@ -20,32 +20,34 @@ pub fn eval_rpn(tokens: &[String], x: f32) -> Result<f32, String> {
         else if *token == "-e" {
             stack.push(-E);
         }
-        else if *token == "sin" {
+        else if *token == "sin(" {
             let temp = stack.pop().unwrap();
             stack.push(temp.sin());
         }
-        else if *token == "cos" {
+        else if *token == "cos(" {
             let temp = stack.pop().unwrap();
             stack.push(temp.cos());
         }
-        else if *token == "tan" {
+        else if *token == "tan(" {
             let temp = stack.pop().unwrap();
             stack.push(temp.tan());
         }
-        else if *token == "abs" {
+        else if *token == "abs(" {
             let temp = stack.pop().unwrap();
             stack.push(abs_f32(temp));
         }
-        else if *token == "sqrt" {
+        else if *token == "sqrt(" {
             let temp = stack.pop().unwrap();
             stack.push(square_root_f32(temp));
         }
-        else if *token == "ln" {
+        else if *token == "ln(" {
             let temp = stack.pop().unwrap();
             stack.push(temp.ln());
         }
         else if token.starts_with("log_") {
-            let base = token.split('_').nth(1).unwrap().parse::<f32>().unwrap();
+            let mut new_token = token.to_string();
+            new_token.pop();
+            let base = new_token.split('_').nth(1).unwrap().parse::<f32>().unwrap();
             let temp = stack.pop().unwrap();
             stack.push(temp.log(base));
         }
@@ -66,8 +68,8 @@ pub fn eval_rpn(tokens: &[String], x: f32) -> Result<f32, String> {
                 "*" => stack.push(lhs * rhs),
                 "/" => stack.push(lhs / rhs),
                 "^" => stack.push(lhs.powf(rhs)),
-                "max" => stack.push(lhs.max(rhs)),
-                "min" => stack.push(lhs.min(rhs)),
+                "max(" => stack.push(lhs.max(rhs)),
+                "min(" => stack.push(lhs.min(rhs)),
                 _ => return Err(format!("unknown token: {}", token))
 
             }
@@ -93,10 +95,8 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
         match term {
             "y" | "=" | "," => continue,
             "π" | "-π" | "e" | "-e" => output.push(term.to_string()),
-            "sin" | "cos" | "tan" | "(" | "max" | "abs" | "sqrt" | "min" | "ln" => {
-                if term == "(" {
-                    paren_depth += 1;
-                }
+            "sin(" | "cos(" | "tan(" | "(" | "max(" | "abs(" | "sqrt(" | "min(" | "ln(" => {
+                paren_depth += 1;
 
                 operator_stack.push(get_operator(term));
             },
@@ -118,12 +118,15 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                     return Err(format!("invalid closing parenthesis at character {}", i + 1));
                 }
 
-                while operator_stack.last().unwrap().token != "(" {
+                while !operator_stack.is_empty() && !operator_stack.last().unwrap().paren_opener {
                     let op = operator_stack.pop().unwrap();
                     output.push(op.token);
                 }
 
-                operator_stack.pop();
+                if operator_stack.last().unwrap().token == "(" {
+                    operator_stack.pop();
+                    continue;
+                }
 
                 if !operator_stack.is_empty() && operator_stack.last().unwrap().is_func {
                     let func = operator_stack.pop().unwrap();
@@ -135,7 +138,10 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                     output.push(term.to_string());
                 }
                 else if term.starts_with("log_") {
-                    if term.split('_').nth(1).unwrap().parse::<f32>().is_err() {
+                    paren_depth += 1;
+                    let mut new_term = term.to_string();
+                    new_term.pop();
+                    if new_term.split('_').nth(1).unwrap().parse::<f32>().is_err() {
                         return  Err(String::from("invalid use of log"))
                     }
                     operator_stack.push(get_operator(term));
@@ -254,8 +260,8 @@ mod tests {
 
     #[test]
     fn get_rpn_test_trig(){
-        let test = "sin ( max ( 2 , 3 ) / 3 * π )";
-        let ans = vec!["2", "3", "max", "3", "/", "π", "*", "sin"];
+        let test = "sin( max( 2 , 3 ) / 3 * π )";
+        let ans = vec!["2", "3", "max(", "3", "/", "π", "*", "sin("];
         assert_eq!(get_rpn(test).unwrap(),ans);
     }
 
@@ -318,7 +324,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_2(){
-        let test = "sin π";
+        let test = "sin( π )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 0_f32));
@@ -326,7 +332,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_3(){
-        let test = " sin ( π ) / 2";
+        let test = " sin( π ) / 2";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 0_f32));
@@ -334,7 +340,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_4(){
-        let test = "sin ( π / 2 )";
+        let test = "sin( π / 2 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 1_f32));
@@ -342,7 +348,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_5(){
-        let test = "cos ( π ) / 2";
+        let test = "cos( π ) / 2";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, -0.5f32));
@@ -350,7 +356,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_6(){
-        let test = "tan ( π ) + cos ( π + π ) + sin ( 2 * π )";
+        let test = "tan( π ) + cos( π + π ) + sin( 2 * π )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 1_f32));
@@ -358,7 +364,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_7(){
-        let test = "sin -π";
+        let test = "sin( -π )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 0_f32));
@@ -366,7 +372,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_max(){
-        let test = "tan ( π ) + max ( 0 , π ) + sin ( 2 * π )";
+        let test = "tan( π ) + max( 0 , π ) + sin( 2 * π )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, PI));
@@ -374,7 +380,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_max_2(){
-        let test = "max ( sin ( π ) , max ( ( 2 ^ 3 ) , 6 ) )";
+        let test = "max( sin( π ) , max( ( 2 ^ 3 ) , 6 ) )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 8_f32));
@@ -382,7 +388,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_abs(){
-        let test = "abs ( 2 - 3 ^ 2 )";
+        let test = "abs( 2 - 3 ^ 2 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert_eq!(ans, 7_f32);
@@ -390,7 +396,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_abs_2(){
-        let test = "abs ( 2 * 3 - 3 ^ 2 )";
+        let test = "abs( 2 * 3 - 3 ^ 2 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert_eq!(ans, 3_f32);
@@ -398,7 +404,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_sqrt(){
-        let test = "sqrt 1764";
+        let test = "sqrt( 1764 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert_eq!(ans, 42_f32);
@@ -406,7 +412,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_min(){
-        let test = "min ( max ( 5 , 8 ) , max ( 7 , 9 ) )";
+        let test = "min( max( 5 , 8 ) , max( 7 , 9 ) )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert_eq!(ans, 8_f32);
@@ -414,7 +420,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_ln(){
-        let test = "ln e";
+        let test = "ln( e )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 1_f32));
@@ -422,7 +428,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_log(){
-        let test = "log_10 10";
+        let test = "log_10( 10 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 1_f32));
@@ -430,7 +436,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_log_add(){
-        let test = "log_10 ( 10 ) + log_10 10";
+        let test = "log_10( 10 ) + log_10( 10 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 2_f32));
@@ -438,7 +444,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_log_add_2(){
-        let test = "log_10 ( 10 ) + log_10 ( 10 ) + log_10 10";
+        let test = "log_10( 10 ) + log_10( 10 ) + log_10( 10 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 3_f32));
@@ -446,7 +452,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_log_add_3(){
-        let test = "log_10 ( 10 ) + log_10 ( 5 + 5 )";
+        let test = "log_10( 10 ) + log_10( 5 + 5 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 2_f32));
@@ -454,7 +460,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_log_base_7(){
-        let test = "log_7 49";
+        let test = "log_7( 49 )";
         let rpn = get_rpn(test).unwrap();
         let ans = eval_rpn(&rpn, f32::NAN).unwrap();
         assert!(is_close(ans, 2_f32));

@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn detect_linear_3() {
-        let test_eq = "y = sin ( x^2 )";
+        let test_eq = "y = sin( x^2 )";
         assert_eq!(detect_linear(test_eq), false);
     }
 
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn detect_linear_10() {
-        let test_eq = "y = max ( x^2 , 10 )";
+        let test_eq = "y = max( x^2 , 10 )";
         assert_eq!(detect_linear(test_eq), false);
     }
 

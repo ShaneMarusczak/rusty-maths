@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn get_eq_data_test_sin() {
-        let test_eq = "y = sin ( x )";
+        let test_eq = "y = sin( x )";
         let expected = vec![(-PI, 0_f32), (-PI / 2_f32, -1_f32), (0_f32, 0_f32) , (PI / 2_f32, 1_f32), (PI, 0_f32)];
 
         let actual = get_eq_data(test_eq, -PI, PI, PI / 2_f32).unwrap();
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn get_eq_data_test_cos() {
-        let test_eq = "y = cos ( x + π )";
+        let test_eq = "y = cos( x + π )";
         let expected = vec![(-PI, 1_f32), (-PI / 2_f32, 0_f32), (0_f32, -1_f32) , (PI / 2_f32, 0_f32), (PI, 1_f32)];
 
         let actual = get_eq_data(test_eq, -PI, PI, PI / 2_f32).unwrap();
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn get_eq_data_test_sqrt() {
-        let test_eq = "y = sqrt ( x^2 )";
+        let test_eq = "y = sqrt( x^2 )";
         let expected = vec![(2_f32, 2_f32), (2.25_f32, 2.25_f32), (2.5_f32, 2.5_f32) , (2.75_f32, 2.75_f32), (3_f32, 3_f32)];
 
         let actual = get_eq_data(test_eq, 2_f32, 3_f32, 0.25_f32).unwrap();
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn get_eq_data_test_log() {
-        let test_eq = "y = log_10 ( 10 ^ x ) + x";
+        let test_eq = "y = log_10( 10 ^ x ) + x";
         let expected = vec![(1_f32, 2_f32), (2_f32, 4_f32),
                                       (3_f32, 6_f32), (4_f32, 8_f32),
                                       (5_f32, 10_f32), (6_f32, 12_f32),
