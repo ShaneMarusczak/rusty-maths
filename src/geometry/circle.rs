@@ -1,5 +1,8 @@
+use crate::geometry::traits::{
+    ArcLengthDegrees, ArcLengthRadians, Area, Circumference, Diameter, SectorAreaDegrees,
+    SectorAreaRadians,
+};
 use std::f32::consts::PI;
-use crate::geometry::traits::{ArcLengthDegrees, ArcLengthRadians, Area, Circumference, Diameter, SectorAreaDegrees, SectorAreaRadians};
 
 ///A struct representing a circle
 pub struct Circle {
@@ -71,53 +74,78 @@ mod tests {
     use super::*;
 
     #[test]
-    fn area_test(){
-        let circle = Circle { center: (1.0, 1.0), radius: 1.0};
+    fn area_test() {
+        let circle = Circle {
+            center: (1.0, 1.0),
+            radius: 1.0,
+        };
         assert_eq!(circle.area(), 1.0 * 1.0 * PI);
     }
 
     #[test]
-    fn circumference_test(){
-        let circle = Circle { center: (1.0, 1.0), radius: 1.0};
+    fn circumference_test() {
+        let circle = Circle {
+            center: (1.0, 1.0),
+            radius: 1.0,
+        };
         assert_eq!(circle.circumference(), 2.0 * 1.0 * PI);
     }
 
     #[test]
-    fn arc_len_deg_test(){
-        let circle = Circle { center: (1.0, 1.0), radius: 1.0};
-        assert_eq!(circle.arc_len_deg(75.0), circle.circumference() * (75.0 / 360.0) )
+    fn arc_len_deg_test() {
+        let circle = Circle {
+            center: (1.0, 1.0),
+            radius: 1.0,
+        };
+        assert_eq!(
+            circle.arc_len_deg(75.0),
+            circle.circumference() * (75.0 / 360.0)
+        )
     }
 
     #[test]
-    fn arc_len_rad_test(){
-        let circle = Circle { center: (1.0, 1.0), radius: 1.0};
-        assert_eq!(circle.arc_len_rad(PI / 4.0), 1.0 * PI / 4.0 );
+    fn arc_len_rad_test() {
+        let circle = Circle {
+            center: (1.0, 1.0),
+            radius: 1.0,
+        };
+        assert_eq!(circle.arc_len_rad(PI / 4.0), 1.0 * PI / 4.0);
     }
 
     #[test]
-    fn arc_len_compare_test(){
-        let circle = Circle { center: (1.0, 1.0), radius: 1.0};
+    fn arc_len_compare_test() {
+        let circle = Circle {
+            center: (1.0, 1.0),
+            radius: 1.0,
+        };
         assert_eq!(circle.arc_len_deg(30.0), circle.arc_len_rad(PI / 6.0));
         assert_eq!(circle.arc_len_deg(180.0), circle.arc_len_rad(PI));
     }
 
     #[test]
     fn sect_area_deg_test() {
-        let circle = Circle { center: (1.0, 1.0), radius: 1.0};
-        assert_eq!(circle.sect_area_deg(30.0), deg_to_rad(30.0) / 2.0 );
+        let circle = Circle {
+            center: (1.0, 1.0),
+            radius: 1.0,
+        };
+        assert_eq!(circle.sect_area_deg(30.0), deg_to_rad(30.0) / 2.0);
     }
 
     #[test]
     fn sect_area_rad_test() {
-        let circle = Circle { center: (1.0, 1.0), radius: 1.0};
-        assert_eq!(circle.sect_area_rad(PI / 6.0), (PI / 6.0) / 2.0 );
+        let circle = Circle {
+            center: (1.0, 1.0),
+            radius: 1.0,
+        };
+        assert_eq!(circle.sect_area_rad(PI / 6.0), (PI / 6.0) / 2.0);
     }
 
     #[test]
     fn sect_area_compare_test() {
-        let circle = Circle { center: (1.0, 1.0), radius: 1.0};
-        assert_eq!(circle.sect_area_rad(PI / 6.0), circle.sect_area_deg(30.0) );
+        let circle = Circle {
+            center: (1.0, 1.0),
+            radius: 1.0,
+        };
+        assert_eq!(circle.sect_area_rad(PI / 6.0), circle.sect_area_deg(30.0));
     }
 }
-
-

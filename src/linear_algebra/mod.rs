@@ -19,7 +19,10 @@ pub fn vec_subtract(v: &Vector, w: &Vector) -> Vector {
 pub fn vector_sum(vectors: &Matrix) -> Vector {
     assert!(!vectors.is_empty(), "no vectors provided");
     let num_elems = vectors[0].len();
-    assert!(vectors.iter().all(|v| v.len() == num_elems), "vectors must be the same length");
+    assert!(
+        vectors.iter().all(|v| v.len() == num_elems),
+        "vectors must be the same length"
+    );
 
     let mut vec: Vector = Vec::with_capacity(num_elems);
 
@@ -71,7 +74,7 @@ pub fn distance(v: &Vector, w: &Vector) -> f64 {
 
 ///Returns (number of rows, number of columns) in m
 pub fn shape(m: Matrix) -> (usize, usize) {
-    (m.len(), if !m.is_empty()  { m[0].len() } else { 0 })
+    (m.len(), if !m.is_empty() { m[0].len() } else { 0 })
 }
 
 ///Returns a reference to the i-th row of m
@@ -87,7 +90,7 @@ pub fn get_column(m: &Matrix, j: usize) -> Vector {
 ///Returns a num_r x num_cols matrix
 /// whose (i,j)-th entry is entry_fn(i, j)
 pub fn make_matrix(num_r: usize, num_c: usize, entry_fn: &dyn Fn((usize, usize)) -> f64) -> Matrix {
-    let mut m : Matrix = vec![];
+    let mut m: Matrix = vec![];
     for i in 0..num_r {
         m.push(vec![]);
         for j in 0..num_c {
@@ -95,7 +98,7 @@ pub fn make_matrix(num_r: usize, num_c: usize, entry_fn: &dyn Fn((usize, usize))
         }
     }
     m
- }
+}
 
 ///Returns the n x n identity matrix
 pub fn identity_matrix(n: usize) -> Matrix {
@@ -107,7 +110,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vec_add_test(){
+    fn vec_add_test() {
         let v: Vector = vec![1_f64, 2_f64, 3_f64];
         let w: Vector = vec![4_f64, 5_f64, 6_f64];
         let z: Vector = vec![5_f64, 7_f64, 9_f64];
@@ -116,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn vec_sub_test(){
+    fn vec_sub_test() {
         let v: Vector = vec![5_f64, 7_f64, 9_f64];
         let w: Vector = vec![4_f64, 5_f64, 6_f64];
         let z: Vector = vec![1_f64, 2_f64, 3_f64];
@@ -125,7 +128,7 @@ mod tests {
     }
 
     #[test]
-    fn vector_sum_test(){
+    fn vector_sum_test() {
         let v1: Vector = vec![1_f64, 2_f64];
         let v2: Vector = vec![3_f64, 4_f64];
         let v3: Vector = vec![5_f64, 6_f64];
@@ -139,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn scalar_multiply_test(){
+    fn scalar_multiply_test() {
         let c = 2_f64;
         let vector = vec![1_f64, 2_f64, 3_f64];
 
@@ -149,7 +152,7 @@ mod tests {
     }
 
     #[test]
-    fn vector_mean_test(){
+    fn vector_mean_test() {
         let v1 = vec![1_f64, 2_f64];
         let v2 = vec![3_f64, 4_f64];
         let v3 = vec![5_f64, 6_f64];
@@ -162,7 +165,7 @@ mod tests {
     }
 
     #[test]
-    fn dot_product_test(){
+    fn dot_product_test() {
         let v = vec![1_f64, 2_f64, 3_f64];
         let w = vec![4_f64, 5_f64, 6_f64];
 
@@ -170,54 +173,55 @@ mod tests {
     }
 
     #[test]
-    fn sum_of_squares_test(){
+    fn sum_of_squares_test() {
         let v: Vector = vec![1_f64, 2_f64, 3_f64];
 
         assert_eq!(sum_of_squares(&v), 14_f64);
     }
 
     #[test]
-    fn magnitude_test(){
+    fn magnitude_test() {
         let v: Vector = vec![3_f64, 4_f64];
 
         assert_eq!(magnitude(&v), 5_f64);
     }
 
     #[test]
-    fn shape_test(){
+    fn shape_test() {
         let m: Matrix = vec![vec![1_f64, 2_f64, 3_f64], vec![4_f64, 5_f64, 6_f64]];
 
         assert_eq!(shape(m), (2 as usize, 3 as usize));
     }
 
     #[test]
-    fn get_row_test(){
+    fn get_row_test() {
         let r1 = vec![1_f64, 2_f64, 3_f64];
         let r2 = vec![4_f64, 5_f64, 6_f64];
-        let m: Matrix = vec![r1,r2];
+        let m: Matrix = vec![r1, r2];
 
         assert_eq!(get_row(&m, 1), &vec![4_f64, 5_f64, 6_f64]);
     }
 
     #[test]
-    fn get_column_test(){
+    fn get_column_test() {
         let m: Matrix = vec![vec![1_f64, 2_f64, 3_f64], vec![4_f64, 5_f64, 6_f64]];
 
         assert_eq!(get_column(&m, 1), vec![2_f64, 5_f64]);
     }
 
     #[test]
-    fn identity_matrix_test(){
+    fn identity_matrix_test() {
         let zero = 0_f64;
         let one = 1_f64;
         let n = 5;
-        let m: Matrix = vec![vec![one, zero, zero, zero, zero],
-                             vec![zero, one, zero, zero, zero],
-                             vec![zero, zero, one, zero, zero],
-                             vec![zero, zero, zero, one, zero],
-                             vec![zero, zero, zero, zero, one]];
+        let m: Matrix = vec![
+            vec![one, zero, zero, zero, zero],
+            vec![zero, one, zero, zero, zero],
+            vec![zero, zero, one, zero, zero],
+            vec![zero, zero, zero, one, zero],
+            vec![zero, zero, zero, zero, one],
+        ];
 
         assert_eq!(identity_matrix(n), m);
     }
-
 }

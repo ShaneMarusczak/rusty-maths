@@ -1,7 +1,7 @@
-use std::f64;
+use crate::linear_algebra::Vector;
 use rand::distributions::Uniform;
 use rand::Rng;
-use crate::linear_algebra::Vector;
+use std::f64;
 
 pub fn accuracy(t_p: isize, f_p: isize, f_n: isize, t_n: isize) -> f64 {
     let correct = t_p + t_n;
@@ -19,12 +19,16 @@ pub fn recall(t_p: isize, f_n: isize) -> f64 {
 
 pub fn f1_score(t_p: isize, f_p: isize) -> f64 {
     let p = precision(t_p, f_p);
-    let r = precision(t_p,f_p);
+    let r = precision(t_p, f_p);
 
     2_f64 * p * r / (p + r)
 }
 
-pub fn train_test_split<X: Clone, Y: Clone>(xs: &[X], ys: &[Y], test_pct: f64) -> (Vec<X>, Vec<X>, Vec<Y>, Vec<Y>) {
+pub fn train_test_split<X: Clone, Y: Clone>(
+    xs: &[X],
+    ys: &[Y],
+    test_pct: f64,
+) -> (Vec<X>, Vec<X>, Vec<Y>, Vec<Y>) {
     let mut idxs = vec![];
     for i in 0..xs.len() {
         idxs.push(i);
@@ -53,12 +57,12 @@ pub fn train_test_split<X: Clone, Y: Clone>(xs: &[X], ys: &[Y], test_pct: f64) -
 ///Returns a sorted copy of a Vector
 pub fn sort_vec_cop(v: &Vector) -> Vector {
     let mut v_c = v.to_vec();
-    let mut slow_p : usize = 0;
+    let mut slow_p: usize = 0;
     let mut fast_p: usize = 1;
     while slow_p < v_c.len() {
         while fast_p < v_c.len() {
             if v_c[fast_p] < v_c[slow_p] {
-                v_c.swap(slow_p,fast_p);
+                v_c.swap(slow_p, fast_p);
             }
             fast_p += 1;
         }
@@ -100,7 +104,7 @@ pub fn shuffle_vector<T: Clone>(v: &Vec<T>) -> Vec<T> {
 ///assert_eq!(abs(-45.43), 45.43);
 ///assert_eq!(abs(101.41), 101.41);
 /// ```
-pub fn abs(num: f64) -> f64{
+pub fn abs(num: f64) -> f64 {
     if num < 0 as f64 {
         return -num;
     }
@@ -115,7 +119,7 @@ pub fn abs(num: f64) -> f64{
 ///assert_eq!(abs_f32(-45.43), 45.43);
 ///assert_eq!(abs_f32(101.41), 101.41);
 /// ```
-pub fn abs_f32(num: f32) -> f32{
+pub fn abs_f32(num: f32) -> f32 {
     if num < 0 as f32 {
         return -num;
     }
@@ -135,16 +139,14 @@ pub fn square_root_f32(num: f32) -> f32 {
     loop {
         if i * i == num {
             return i;
-        }
-        else if i * i > num
-        {
+        } else if i * i > num {
             return square_f32(num, i - 1_f32, i);
         }
         i += 1_f32;
     }
 }
 
-fn square_f32(num: f32, i: f32, j: f32) -> f32{
+fn square_f32(num: f32, i: f32, j: f32) -> f32 {
     let mid = (i + j) / 2_f32;
     let mul = mid * mid;
 
@@ -170,16 +172,14 @@ pub fn square_root(num: f64) -> f64 {
     loop {
         if i * i == num {
             return i;
-        }
-        else if i * i > num
-        {
+        } else if i * i > num {
             return square(num, i - 1_f64, i);
         }
         i += 1_f64;
     }
 }
 
-fn square(num: f64, i: f64, j: f64) -> f64{
+fn square(num: f64, i: f64, j: f64) -> f64 {
     let mid = (i + j) / 2_f64;
     let mul = mid * mid;
 
@@ -206,7 +206,7 @@ fn square(num: f64, i: f64, j: f64) -> f64{
 ///
 ///assert_eq!(quadratic_eq_f32(-1_f32, 0_f32, -1_f32).unwrap_err(), "No Real Solutions");
 /// ```
-pub fn quadratic_eq_f32(a: f32, b: f32, c: f32) -> Result<(f32, f32), String>{
+pub fn quadratic_eq_f32(a: f32, b: f32, c: f32) -> Result<(f32, f32), String> {
     let neg_b = -b;
     let b_sq = b * b;
     let four_a_c = 4_f32 * a * c;
@@ -215,10 +215,11 @@ pub fn quadratic_eq_f32(a: f32, b: f32, c: f32) -> Result<(f32, f32), String>{
         return Err(String::from("No Real Solutions"));
     }
     if b_sq - four_a_c == 0_f32 {
-        #[allow(deprecated)] return Ok((neg_b / two_a, f32::NAN ));
+        #[allow(deprecated)]
+        return Ok((neg_b / two_a, f32::NAN));
     }
     let sqrt__ = square_root_f32(b_sq - four_a_c);
-    Ok(( (neg_b + sqrt__) / two_a, (neg_b - sqrt__ ) / two_a))
+    Ok(((neg_b + sqrt__) / two_a, (neg_b - sqrt__) / two_a))
 }
 
 ///Solves for x in ax² + bx + c = 0
@@ -234,7 +235,7 @@ pub fn quadratic_eq_f32(a: f32, b: f32, c: f32) -> Result<(f32, f32), String>{
 ///
 ///assert_eq!(quadratic_eq(-1_f64, 0_f64, -1_f64).unwrap_err(), "No Real Solutions");
 /// ```
-pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String>{
+pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String> {
     let neg_b = -b;
     let b_sq = b * b;
     let four_a_c = 4_f64 * a * c;
@@ -243,10 +244,11 @@ pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String>{
         return Err(String::from("No Real Solutions"));
     }
     if b_sq - four_a_c == 0_f64 {
-        #[allow(deprecated)] return Ok((neg_b / two_a, f64::NAN ));
+        #[allow(deprecated)]
+        return Ok((neg_b / two_a, f64::NAN));
     }
     let sqrt__ = square_root(b_sq - four_a_c);
-    Ok(( (neg_b + sqrt__) / two_a, (neg_b - sqrt__ ) / two_a))
+    Ok(((neg_b + sqrt__) / two_a, (neg_b - sqrt__) / two_a))
 }
 
 #[cfg(test)]
@@ -254,7 +256,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn quadratic_eq_test(){
+    fn quadratic_eq_test() {
         //Two real solutions
         assert_eq!(quadratic_eq(-2.0, 1.0, 6.0).unwrap(), (-1.5, 2.0));
 
@@ -269,11 +271,14 @@ mod tests {
 
         //no real solutions, this does not handle imaginary values    yet.....
         //Todo: Implement imaginary numbers
-        assert_eq!(quadratic_eq(-2.0, 2.0, -2.0).unwrap_err(), "No Real Solutions");
+        assert_eq!(
+            quadratic_eq(-2.0, 2.0, -2.0).unwrap_err(),
+            "No Real Solutions"
+        );
     }
 
     #[test]
-    fn quadratic_eq_f32_test(){
+    fn quadratic_eq_f32_test() {
         //Two real solutions
         assert_eq!(quadratic_eq_f32(-2.0, 1.0, 6.0).unwrap(), (-1.5, 2.0));
 
@@ -283,19 +288,22 @@ mod tests {
 
         //no real solutions, this does not handle imaginary values    yet.....
         //Todo: Implement imaginary numbers
-        assert_eq!(quadratic_eq_f32(-2.0, 2.0, -2.0).unwrap_err(), "No Real Solutions");
+        assert_eq!(
+            quadratic_eq_f32(-2.0, 2.0, -2.0).unwrap_err(),
+            "No Real Solutions"
+        );
     }
 
     #[test]
-    fn square_root_test(){
+    fn square_root_test() {
         assert_eq!(square_root(144 as f64), 12 as f64);
-        assert_eq!(square_root( 1764 as f64), 42 as f64);
+        assert_eq!(square_root(1764 as f64), 42 as f64);
         assert!(abs(square_root(14.5) - f64::sqrt(14.5)) <= 0.0000001);
         assert!(abs(square_root(214.532) - f64::sqrt(214.532)) <= 0.0000001);
     }
 
     #[test]
-    fn split_data_test(){
+    fn split_data_test() {
         let mut data = vec![];
         for n in 0..1000 {
             data.push(n as f64);
@@ -311,9 +319,8 @@ mod tests {
         assert_eq!(sort_vec_cop(&train), data);
     }
 
-
     #[test]
-    fn test_train_test(){
+    fn test_train_test() {
         let mut xs = vec![];
         let mut ys = vec![];
 
@@ -335,17 +342,17 @@ mod tests {
     }
 
     #[test]
-    fn accuracy_test(){
+    fn accuracy_test() {
         assert_eq!(accuracy(70, 4930, 13930, 981070), 0.98114);
     }
 
     #[test]
-    fn precision_test(){
+    fn precision_test() {
         assert_eq!(precision(70, 4930), 0.014);
     }
 
     #[test]
-    fn recall_test(){
+    fn recall_test() {
         assert_eq!(recall(70, 13930), 0.005);
     }
 }

@@ -8,14 +8,18 @@ pub fn sum_of_squares(v: &Vector) -> f64 {
     dot_product(v, v)
 }
 
-pub fn difference_quotient(f:&dyn Fn(f64) -> f64, x: f64, h: f64) -> f64 {
+pub fn difference_quotient(f: &dyn Fn(f64) -> f64, x: f64, h: f64) -> f64 {
     (f(x + h) - f(x)) / h
 }
 
 ///Returns the i-th partial difference quotient of f at v
 pub fn partial_difference_quotient(f: &dyn Fn(Vector) -> f64, v: &Vector, i: usize, h: f64) -> f64 {
     let f_v = f(v.to_owned());
-    let w = v.iter().enumerate().map(|(j, v_j)| v_j + if j == i {h} else {0_f64}).collect::<Vec<f64>>();
+    let w = v
+        .iter()
+        .enumerate()
+        .map(|(j, v_j)| v_j + if j == i { h } else { 0_f64 })
+        .collect::<Vec<f64>>();
     (f(w) - f_v) / h
 }
 
@@ -28,7 +32,7 @@ pub fn estimate_gradient(f: &dyn Fn(Vector) -> f64, v: &Vector) -> Vector {
 }
 
 ///Moves 'step_size' in the 'gradient' direction from v
-pub fn gradient_step(v: &Vector, gradient: &Vector, step_size:f64) -> Vector {
+pub fn gradient_step(v: &Vector, gradient: &Vector, step_size: f64) -> Vector {
     assert_eq!(v.len(), gradient.len(), "vectors must be the same length");
     let step = scalar_multiply(step_size, gradient);
     vec_add(v, &step)
@@ -39,7 +43,7 @@ pub fn sum_of_squares_gradient(v: &Vector) -> Vector {
 }
 
 pub fn linear_gradient(x: f64, y: f64, theta: &Vector) -> Vector {
-    let slope= theta[0];
+    let slope = theta[0];
     let intercept = theta[1];
 
     let predicted = (slope * x) + intercept;
@@ -69,9 +73,9 @@ pub fn mini_batches<T: Clone>(data_set: &Vec<T>, batch_size: usize, shuffle: boo
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::linear_algebra::{distance, vector_mean};
     use rand::Rng;
-    use super::*;
 
     const LEARNING_RATE: f64 = 0.001;
 
@@ -102,7 +106,6 @@ mod tests {
 
     #[test]
     fn linear_gradient_test() {
-
         let inputs = get_inputs();
 
         let mut rng = rand::thread_rng();
@@ -118,7 +121,6 @@ mod tests {
             let grad = vector_mean(&l_g);
 
             theta = gradient_step(&theta, &grad, -LEARNING_RATE);
-
         }
 
         let slope = theta[0];
@@ -129,7 +131,7 @@ mod tests {
     }
 
     #[test]
-    fn mini_batch_test(){
+    fn mini_batch_test() {
         let inputs = get_inputs();
 
         let mut rng = rand::thread_rng();
@@ -147,7 +149,6 @@ mod tests {
                 let grad = vector_mean(&l_g);
 
                 theta = gradient_step(&theta, &grad, -LEARNING_RATE);
-
             }
         }
 
@@ -159,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn mini_batch_test_stochastic(){
+    fn mini_batch_test_stochastic() {
         let inputs = get_inputs();
 
         let mut rng = rand::thread_rng();
@@ -167,7 +168,7 @@ mod tests {
         let mut theta = vec![rng.gen_range(-1_f64..1_f64), rng.gen_range(-1_f64..1_f64)];
 
         for _ in 0..100 {
-            for (x,y) in &inputs {
+            for (x, y) in &inputs {
                 let grad = linear_gradient(*x, *y, &theta);
                 theta = gradient_step(&theta, &grad, -LEARNING_RATE);
             }

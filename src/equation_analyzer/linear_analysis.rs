@@ -1,10 +1,11 @@
 ///Detects if the given equation is in the form 'y = mx + b'
 pub fn detect_linear(eq: &str) -> bool {
-    if eq.split_whitespace().count() > 5 ||
-       eq.split_whitespace().count() < 3 ||
-       !(eq.starts_with("y =") || eq.ends_with("= y")) ||
-       eq.contains('^') {
-       return false;
+    if eq.split_whitespace().count() > 5
+        || eq.split_whitespace().count() < 3
+        || !(eq.starts_with("y =") || eq.ends_with("= y"))
+        || eq.contains('^')
+    {
+        return false;
     }
 
     let mut x_count = 0;
@@ -42,14 +43,12 @@ fn get_m_b(eq: &str) -> (f32, f32) {
     for (i, token) in eq.split_whitespace().enumerate() {
         if token == "x" {
             m = 1_f32;
-        }
-        else if token == "-x" {
+        } else if token == "-x" {
             m = -1_f32;
-        }
-        else if token.contains('x') {
-            m = token.split('x').next().unwrap().parse::<f32>().unwrap() * get_multiplier(i, &split_eq);
-        }
-        else if let Ok(n) = token.parse::<f32>() {
+        } else if token.contains('x') {
+            m = token.split('x').next().unwrap().parse::<f32>().unwrap()
+                * get_multiplier(i, &split_eq);
+        } else if let Ok(n) = token.parse::<f32>() {
             b = n;
         }
     }
@@ -156,7 +155,6 @@ mod tests {
         assert_eq!(detect_linear(test_eq), true);
         assert_eq!(get_m_b(test_eq), (1_f32, 12_f32));
         assert_eq!(get_zero(test_eq), -12_f32);
-
     }
 
     #[test]

@@ -1,5 +1,5 @@
-use crate::utilities::{sort_vec_cop, square_root};
 use crate::linear_algebra::{dot_product, sum_of_squares, Vector};
+use crate::utilities::{sort_vec_cop, square_root};
 
 ///Returns the mean of a Vector
 pub fn mean(v: &Vector) -> f64 {
@@ -21,17 +21,22 @@ fn median_even(v: &Vector) -> f64 {
 
 ///Returns the median of a Vector
 pub fn median(v: &Vector) -> f64 {
-    if v.len() % 2 == 0 {median_even(v)} else {median_odd(v)}
+    if v.len() % 2 == 0 {
+        median_even(v)
+    } else {
+        median_odd(v)
+    }
 }
 
 ///Returns the pth-percentile value in v
 pub fn quantile(v: &Vector, p: f64) -> f64 {
-    let p_index = (p  * v.len() as f64).floor() as usize;
+    let p_index = (p * v.len() as f64).floor() as usize;
     sort_vec_cop(v)[p_index]
 }
 
 pub fn data_range(v: &Vector) -> f64 {
-    v.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b)) - v.iter().fold(f64::INFINITY, |a, &b| a.min(b))
+    v.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b))
+        - v.iter().fold(f64::INFINITY, |a, &b| a.min(b))
 }
 
 ///Translates v by subtracting its mean (result has mean of 0)
@@ -95,7 +100,10 @@ mod tests {
 
     #[test]
     fn mean_test() {
-        assert_eq!(mean(&vec![2 as f64, 5 as f64, 7 as f64, 10 as f64]), 6 as f64);
+        assert_eq!(
+            mean(&vec![2 as f64, 5 as f64, 7 as f64, 10 as f64]),
+            6 as f64
+        );
     }
 
     #[test]
@@ -145,14 +153,20 @@ mod tests {
 
     #[test]
     fn interquartile_test() {
-        let v = vec![10_f64, 11_f64, 234_f64, 23_f64, 210_f64, 100_f64, 99_f64, 156_f64];
+        let v = vec![
+            10_f64, 11_f64, 234_f64, 23_f64, 210_f64, 100_f64, 99_f64, 156_f64,
+        ];
         assert_eq!(interquartile_range(&v), 187 as f64)
     }
 
     #[test]
     fn covariance_test() {
-        let v_1 = vec![1_f64, 3_f64, 2_f64, 5_f64, 8_f64, 7_f64, 12_f64, 2_f64, 4_f64];
-        let v_2 = vec![8_f64, 6_f64, 9_f64, 4_f64, 3_f64, 3_f64, 2_f64, 7_f64, 7_f64];
+        let v_1 = vec![
+            1_f64, 3_f64, 2_f64, 5_f64, 8_f64, 7_f64, 12_f64, 2_f64, 4_f64,
+        ];
+        let v_2 = vec![
+            8_f64, 6_f64, 9_f64, 4_f64, 3_f64, 3_f64, 2_f64, 7_f64, 7_f64,
+        ];
 
         let cov = covariance(&v_1, &v_2);
 
@@ -161,8 +175,12 @@ mod tests {
 
     #[test]
     fn correlation_test() {
-        let v_1 = vec![1_f64, 3_f64, 2_f64, 5_f64, 8_f64, 7_f64, 12_f64, 2_f64, 4_f64];
-        let v_2 = vec![8_f64, 6_f64, 9_f64, 4_f64, 3_f64, 3_f64, 2_f64, 7_f64, 7_f64];
+        let v_1 = vec![
+            1_f64, 3_f64, 2_f64, 5_f64, 8_f64, 7_f64, 12_f64, 2_f64, 4_f64,
+        ];
+        let v_2 = vec![
+            8_f64, 6_f64, 9_f64, 4_f64, 3_f64, 3_f64, 2_f64, 7_f64, 7_f64,
+        ];
 
         let cov = correlation(&v_1, &v_2);
 

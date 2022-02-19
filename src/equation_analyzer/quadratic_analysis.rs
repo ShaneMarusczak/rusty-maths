@@ -3,10 +3,11 @@
 ///Detects if the given equation is in the form 'y = ax^2 + bx + c'
 /// Note: a can not be 0
 pub fn detect_quad(eq: &str) -> bool {
-    if !eq.contains("x^2") ||
-        eq.split_whitespace().count() > 7 ||
-        eq.split_whitespace().count() < 3 ||
-        !(eq.starts_with("y =") || eq.ends_with("= y")){
+    if !eq.contains("x^2")
+        || eq.split_whitespace().count() > 7
+        || eq.split_whitespace().count() < 3
+        || !(eq.starts_with("y =") || eq.ends_with("= y"))
+    {
         return false;
     }
 
@@ -43,23 +44,19 @@ pub fn get_abc(eq: &str) -> (f32, f32, f32) {
     for (i, term) in eq.split_whitespace().enumerate() {
         if term == "-x^2" {
             a = -1_f32;
-        }
-        else if term == "x^2" {
+        } else if term == "x^2" {
             a = 1_f32;
-        }
-        else if term.contains("x^2") {
-            a = term.split("x^2").next().unwrap().parse::<f32>().unwrap() * get_multiplier(i, &split_eq);
-        }
-        else if term == "-x" {
+        } else if term.contains("x^2") {
+            a = term.split("x^2").next().unwrap().parse::<f32>().unwrap()
+                * get_multiplier(i, &split_eq);
+        } else if term == "-x" {
             b = -1_f32;
-        }
-        else if term == "x" {
+        } else if term == "x" {
             b = 1_f32;
-        }
-        else if term.contains('x') {
-            b = term.split('x').next().unwrap().parse::<f32>().unwrap() * get_multiplier(i, &split_eq);
-        }
-        else if let Ok(n) = term.parse::<f32>() {
+        } else if term.contains('x') {
+            b = term.split('x').next().unwrap().parse::<f32>().unwrap()
+                * get_multiplier(i, &split_eq);
+        } else if let Ok(n) = term.parse::<f32>() {
             c = n * get_multiplier(i, &split_eq);
         }
     }
