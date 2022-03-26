@@ -90,7 +90,8 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                 //TODO: Write this cleaner
                 let o_1 = get_operator(term);
                 while !operator_stack.is_empty()
-                    && operator_stack.last().unwrap().token != "("
+                    // && operator_stack.last().unwrap().token != "("
+                    && !operator_stack.last().unwrap().paren_opener
                     && (operator_stack.last().unwrap().prec > o_1.prec
                         || (operator_stack.last().unwrap().prec == o_1.prec && o_1.assoc == "l"))
                 {
@@ -175,7 +176,7 @@ pub fn get_rpn(eq: &str) -> Result<Vec<String>, String> {
                     output.push(string_to_push);
                 } else if term.contains('^') && !term.contains('x') {
                     let split_term = term.split('^').collect::<Vec<&str>>();
-                    if split_term.len() > 2
+                    if split_term.len() != 2
                         || split_term[0].parse::<f32>().is_err()
                         || split_term[1].parse::<f32>().is_err()
                     {
@@ -263,8 +264,10 @@ mod tests {
 
     #[test]
     fn get_rpn_test_1() {
-        let test = "3 + 4 * 2 / ( 1 - 5 ) ^ 2^3";
-        let ans = vec!["3", "4", "2", "*", "1", "5", "-", "8", "^", "/", "+"];
+        let test = "3 + 4 * 2 / ( 1 - 5 ) ^ 2 ^ 3";
+        let ans = vec![
+            "3", "4", "2", "*", "1", "5", "-", "2", "3", "^", "^", "/", "+",
+        ];
         assert_eq!(get_rpn(test).unwrap(), ans);
     }
 
@@ -277,8 +280,8 @@ mod tests {
 
     #[test]
     fn get_rpn_test_3() {
-        let test = "3^2 + 4 * ( 2 - 1 )";
-        let ans = vec!["9", "4", "2", "1", "-", "*", "+"];
+        let test = "3 ^ 2 + 4 * ( 2 - 1 )";
+        let ans = vec!["3", "2", "^", "4", "2", "1", "-", "*", "+"];
         assert_eq!(get_rpn(test).unwrap(), ans);
     }
 
@@ -295,10 +298,23 @@ mod tests {
     }
 
     #[test]
-    fn get_rpn_test_trig() {
-        let test = "sin( max( 2 , 3 ) / 3 * π )";
-        let ans = vec!["2", "3", "max(", "3", "/", "π", "*", "sin("];
-        assert_eq!(get_rpn(test).unwrap(), ans);
+    fn get_and_eval_rpn_test_trig() {
+        let test = "sin( max( ( 2 + 0 ) , 3 ) / ( 3 * π ) )";
+        let ans = vec!["2", "0", "+", "3", "max(", "3", "π", "*", "/", "sin("];
+        let rpn = get_rpn(test).unwrap();
+        let eval = eval_rpn(&rpn, f32::NAN);
+        assert_eq!(rpn, ans);
+        assert!(is_close(eval.unwrap(), (1_f32 / PI).sin()));
+    }
+
+    #[test]
+    fn get_and_eval_rpn_test_trig_2() {
+        let test = "1 + sin( max( 2 , 3 ) / 3 * π )";
+        let ans = vec!["1", "2", "3", "max(", "3", "/", "π", "*", "sin(", "+"];
+        let rpn = get_rpn(test).unwrap();
+        let eval = eval_rpn(&rpn, f32::NAN);
+        assert_eq!(rpn, ans);
+        assert!(is_close(eval.unwrap(), 1_f32));
     }
 
     #[test]

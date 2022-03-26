@@ -5,8 +5,11 @@ use crate::utilities::quadratic_eq_f32;
 
 mod linear_analysis;
 mod operands;
+mod parser;
 mod quadratic_analysis;
 mod rpn;
+mod structs;
+mod tokenizer;
 
 pub fn get_eq_data(
     eq: &str,
@@ -39,11 +42,17 @@ pub fn get_eq_data(
         points.push((x_cur, eval_rpn(&rpn, x_cur)?));
         x_cur += step_size;
     }
-    Ok(EquationData { points, zeros })
+    let literal = eq.to_string();
+    Ok(EquationData {
+        literal,
+        points,
+        zeros,
+    })
 }
 
 #[derive(Debug, PartialEq)]
 pub struct EquationData {
+    pub literal: String,
     pub points: Vec<(f32, f32)>,
     pub zeros: Vec<f32>,
 }
@@ -64,6 +73,7 @@ mod tests {
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
+        assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, points);
         assert_eq!(actual.zeros, vec![-0.5_f32]);
     }
@@ -75,6 +85,7 @@ mod tests {
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
+        assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, ans);
         assert_eq!(actual.zeros, vec![0.5_f32]);
     }
@@ -86,6 +97,7 @@ mod tests {
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
+        assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, ans);
         assert_eq!(actual.zeros, vec![1_f32]);
     }
@@ -97,6 +109,7 @@ mod tests {
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
+        assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, ans);
         assert_eq!(actual.zeros[0], -1_f32);
         assert!(actual.zeros[1].is_nan());
@@ -109,6 +122,7 @@ mod tests {
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
+        assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, points);
         assert!(actual.zeros.contains(&-0.36602783));
         assert!(actual.zeros.contains(&1.3660278));
@@ -121,6 +135,7 @@ mod tests {
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
+        assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, points);
         assert!(actual.zeros.contains(&1_f32));
         assert!(actual.zeros.contains(&-1_f32));
@@ -133,6 +148,7 @@ mod tests {
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
+        assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, points);
         assert!(actual.zeros.is_empty());
     }
@@ -154,6 +170,8 @@ mod tests {
             assert!(is_close(*x_1, x_2));
             assert!(is_close(*y_1, y_2));
         }
+
+        assert_eq!(actual.literal, test_eq);
         assert!(actual.zeros.is_empty());
     }
 
@@ -174,6 +192,8 @@ mod tests {
             assert!(is_close(*x_1, x_2));
             assert!(is_close(*y_1, y_2));
         }
+
+        assert_eq!(actual.literal, test_eq);
         assert!(actual.zeros.is_empty());
     }
 
@@ -194,6 +214,8 @@ mod tests {
             assert!(is_close(*x_1, x_2));
             assert!(is_close(*y_1, y_2));
         }
+
+        assert_eq!(actual.literal, test_eq);
         assert!(actual.zeros.is_empty());
     }
 
@@ -219,6 +241,8 @@ mod tests {
             assert_eq!(*x_1, x_2);
             assert_eq!(*y_1, y_2);
         }
+
+        assert_eq!(actual.literal, test_eq);
         assert!(actual.zeros.is_empty());
     }
 }
