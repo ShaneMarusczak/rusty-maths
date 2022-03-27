@@ -12,6 +12,8 @@ pub(crate) enum TokenType {
 
     _Pi,
     _E,
+    NegPi,
+    NegE,
 
     Sin,
     Cos,
