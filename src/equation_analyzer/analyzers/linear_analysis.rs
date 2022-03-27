@@ -1,3 +1,5 @@
+//TODO:THESE ARE BUSTED AFTER THE SCANNER, MAYBE PASS IN THE TOKENS?
+
 ///Detects if the given equation is in the form 'y = mx + b'
 pub fn detect_linear(eq: &str) -> bool {
     if eq.split_whitespace().count() > 5

@@ -1,4 +1,4 @@
-//This all still needs a lot of work, tons of edge cases
+//TODO:THESE ARE BUSTED AFTER THE SCANNER, MAYBE PASS IN THE TOKENS?
 
 ///Detects if the given equation is in the form 'y = ax^2 + bx + c'
 /// Note: a can not be 0

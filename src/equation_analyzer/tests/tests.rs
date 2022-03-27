@@ -554,7 +554,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_10() {
-        let test = "y = 2 ^ ( 2x + 1 )";
+        let test = "y = 2 ^ (2x + 1 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, 2_f32).unwrap();
@@ -563,7 +563,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_2() {
-        let test = "sin( 3.1415926 )";
+        let test = "sin( 3.1415926)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -572,7 +572,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_3() {
-        let test = " sin( 3.1415926 ) / 2";
+        let test = " sin( 3.1415926 )/ 2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -590,7 +590,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_5() {
-        let test = "cos( 3.1415926 ) / 2";
+        let test = "cos(3.1415926 ) / 2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -617,7 +617,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_max() {
-        let test = "tan( 3.1415926) +max( 0 ,3.1415926 ) + sin(2 * 3.1415926)";
+        let test = "tan( 3.1415926) +max( 0 ,3.1415926) +sin(2 * 3.1415926)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -644,7 +644,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_abs_2() {
-        let test = "abs(2 * 3 - 3^2)";
+        let test = "abs(2 *3 - 3^2)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
