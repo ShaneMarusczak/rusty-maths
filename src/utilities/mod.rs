@@ -251,6 +251,14 @@ pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String> {
     Ok(((neg_b + sqrt__) / two_a, (neg_b - sqrt__) / two_a))
 }
 
+pub fn is_dig(c: char) -> bool {
+    c >= '0' && c <= '9'
+}
+
+pub fn is_alpha(c: char) -> bool {
+    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

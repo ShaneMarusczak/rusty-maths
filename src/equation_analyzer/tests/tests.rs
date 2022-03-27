@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn get_eq_data_test_cos() {
-        let test_eq = "y = cos( x + π )";
+        let test_eq = "y = cos( x + 3.1415926 )";
         let expected = vec![
             (-PI, 1_f32),
             (-PI / 2_f32, 0_f32),
@@ -440,19 +440,30 @@ mod tests {
 
     #[test]
     fn get_and_eval_rpn_test_trig() {
-        let test = "sin( max( ( 2 + 0 ) , 3 ) / ( 3 * π ) )";
-        let ans = vec!["2", "0", "+", "3", "max(", "3", "π", "*", "/", "sin("];
+        let test = "min( (max( ( 2 + 0 ) , 3 ) / ( 3 * 3 )) , 2 )";
+        let ans = vec!["2", "0", "+", "3", "max(", "3", "3", "*", "/", "2", "min("];
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let eval = evaluate(&parsed_eq, f32::NAN);
         assert_eq!(parsed_eq, ans);
-        assert!(is_close(eval.unwrap(), (1_f32 / PI).sin()));
+        assert!(is_close(eval.unwrap(), 0.33333334));
     }
 
     #[test]
     fn get_and_eval_rpn_test_trig_2() {
-        let test = "1 + sin( max( 2 , 3 ) / 3 * π )";
-        let ans = vec!["1", "2", "3", "max(", "3", "/", "π", "*", "sin(", "+"];
+        let test = "1 + sin( max( 2 , 3 ) / 3 * 3.1415916 )";
+        let ans = vec![
+            "1",
+            "2",
+            "3",
+            "max(",
+            "3",
+            "/",
+            "3.1415916",
+            "*",
+            "sin(",
+            "+",
+        ];
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let eval = evaluate(&parsed_eq, f32::NAN);
@@ -552,7 +563,7 @@ mod tests {
 
     #[test]
     fn eval_rpn_test_trig_2() {
-        let test = "sin( π )";
+        let test = "sin( 3.1415926 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
