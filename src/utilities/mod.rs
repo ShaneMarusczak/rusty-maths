@@ -73,7 +73,7 @@ pub fn sort_vec_cop(v: &Vector) -> Vector {
 }
 
 ///Split data into fractions [prob, 1 - prob]
-pub fn split_data<T: Clone>(data: &Vec<T>, prob: f64) -> (Vec<T>, Vec<T>) {
+pub fn split_data<T: Clone>(data: &[T], prob: f64) -> (Vec<T>, Vec<T>) {
     let shuffled = shuffle_vector(data);
     let cut = (data.len() as f64 * prob).floor() as usize;
 
@@ -84,7 +84,7 @@ pub fn split_data<T: Clone>(data: &Vec<T>, prob: f64) -> (Vec<T>, Vec<T>) {
 }
 
 ///Returns a shuffled version of passed Vec
-pub fn shuffle_vector<T: Clone>(v: &Vec<T>) -> Vec<T> {
+pub fn shuffle_vector<T: Clone>(v: &[T]) -> Vec<T> {
     let mut v_clone = v.to_vec();
     let n = v.len();
     let mut rng = rand::thread_rng();
@@ -252,11 +252,11 @@ pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String> {
 }
 
 pub fn is_dig(c: char) -> bool {
-    c >= '0' && c <= '9'
+    ('0'..='9').contains(&c)
 }
 
 pub fn is_alpha(c: char) -> bool {
-    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+    ('a'..='z').contains(&c) || ('A'..='Z').contains(&c)
 }
 
 #[cfg(test)]

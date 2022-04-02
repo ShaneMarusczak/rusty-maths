@@ -30,8 +30,8 @@ impl Tokenizer for TokenizerState<'_> {
     fn advance(&mut self) -> Result<char, String> {
         let c = self.eq.chars().nth(self.current);
         self.current += 1;
-        return if c.is_some() {
-            Ok(c.unwrap())
+        return if let Some(c) = c {
+            Ok(c)
         } else {
             Err(format!("Invalid Input at {}", self.current))
         };
@@ -42,8 +42,8 @@ impl Tokenizer for TokenizerState<'_> {
             return Ok('\0');
         };
         let c = self.eq.chars().nth(self.current);
-        return if c.is_some() {
-            Ok(c.unwrap())
+        return if let Some(c) = c {
+            Ok(c)
         } else {
             Err(format!("Invalid Input at {}", self.current))
         };
@@ -54,8 +54,8 @@ impl Tokenizer for TokenizerState<'_> {
             return Ok('\0');
         };
         let c = self.eq.chars().nth(self.current + 1);
-        return if c.is_some() {
-            Ok(c.unwrap())
+        return if let Some(c) = c {
+            Ok(c)
         } else {
             Err(format!("Invalid Input at {}", self.current + 1))
         };
@@ -74,14 +74,13 @@ impl Tokenizer for TokenizerState<'_> {
     }
 
     fn take_x(&mut self, coefficient: String) -> Result<(), String> {
-        let pow_string;
-        if self.peek()? == '^' {
+        let pow_string = if self.peek()? == '^' {
             let pow_start = self.current;
             self.power()?;
-            pow_string = &self.eq[pow_start..self.current];
+            &self.eq[pow_start..self.current]
         } else {
-            pow_string = "^1";
-        }
+            "^1"
+        };
 
         let final_literal = coefficient + "x" + pow_string;
 
@@ -96,7 +95,7 @@ impl Tokenizer for TokenizerState<'_> {
             self.digit()?;
             Ok(())
         } else {
-            return Err(String::from("Invalid power"));
+            Err("Invalid power".to_string())
         }
     }
 

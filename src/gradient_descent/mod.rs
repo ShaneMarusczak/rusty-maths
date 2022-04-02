@@ -53,7 +53,7 @@ pub fn linear_gradient(x: f64, y: f64, theta: &Vector) -> Vector {
     vec![2_f64 * error * x, 2_f64 * error]
 }
 
-pub fn mini_batches<T: Clone>(data_set: &Vec<T>, batch_size: usize, shuffle: bool) -> Vec<Vec<T>> {
+pub fn mini_batches<T: Clone>(data_set: &[T], batch_size: usize, shuffle: bool) -> Vec<Vec<T>> {
     let mut batch_starts = vec![];
     for start in 0..data_set.len() {
         if start % batch_size == 0 {
