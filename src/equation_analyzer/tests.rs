@@ -731,6 +731,42 @@ mod tests {
     }
 
     #[test]
+    fn minus_test_1() {
+        let test = "3-3";
+        let tokens = get_tokens(test).unwrap();
+        let parsed_eq = parse(tokens).unwrap();
+        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        assert_eq!(ans, 0_f32);
+    }
+
+    #[test]
+    fn minus_test_2() {
+        let test = "3- 3";
+        let tokens = get_tokens(test).unwrap();
+        let parsed_eq = parse(tokens).unwrap();
+        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        assert_eq!(ans, 0_f32);
+    }
+
+    #[test]
+    fn minus_test_3() {
+        let test = "log_3(3)- 3";
+        let tokens = get_tokens(test).unwrap();
+        let parsed_eq = parse(tokens).unwrap();
+        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        assert_eq!(ans, -2_f32);
+    }
+
+    #[test]
+    fn minus_test_4() {
+        let test = "3--3";
+        let tokens = get_tokens(test).unwrap();
+        let parsed_eq = parse(tokens).unwrap();
+        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        assert_eq!(ans, 6_f32);
+    }
+
+    #[test]
     fn eval_rpn_test_invalid_power() {
         let test = "y = 3x^a";
         let tokens = get_tokens(test).unwrap_err();

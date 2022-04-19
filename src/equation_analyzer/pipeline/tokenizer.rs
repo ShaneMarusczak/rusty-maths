@@ -31,28 +31,30 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
 
             //negative pi or e?
             '-' => {
-                if state.peek()? == 'e' {
-                    state.advance()?;
-                    state.add_token(NegE, "-e");
-                } else if state.peek()? == 'π' {
-                    state.advance()?;
-                    state.add_token(NegPi, "-π");
-                } else if is_dig(state.peek()?) {
-                    state.digit()?;
-                    if state.peek()? != 'x' {
-                        state.add_token(Number, &eq[state.start..state.current]);
-                    } else {
-                        let coefficient = eq[state.start..state.current].to_owned();
-                        //consume the x
+                if state.previous_match(&[_E, Number, CloseParen, X]) {
+                    state.add_token(Minus, "-");
+                } else {
+                    if state.peek()? == 'e' {
+                        state.advance()?;
+                        state.add_token(NegE, "-e");
+                    } else if state.peek()? == 'π' {
+                        state.advance()?;
+                        state.add_token(NegPi, "-π");
+                    } else if is_dig(state.peek()?) {
+                        state.digit()?;
+                        if state.peek()? != 'x' {
+                            state.add_token(Number, &eq[state.start..state.current]);
+                        } else {
+                            let coefficient = eq[state.start..state.current].to_owned();
+                            //consume the x
+                            state.advance()?;
+                            state.take_x(coefficient)?;
+                        }
+                    } else if state.peek()? == 'x' {
+                        let coefficient = String::from("-1");
                         state.advance()?;
                         state.take_x(coefficient)?;
                     }
-                } else if state.peek()? == 'x' {
-                    let coefficient = String::from("-1");
-                    state.advance()?;
-                    state.take_x(coefficient)?;
-                } else {
-                    state.add_token(Minus, "-");
                 }
             }
 

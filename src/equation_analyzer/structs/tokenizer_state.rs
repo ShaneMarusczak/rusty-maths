@@ -15,6 +15,8 @@ pub(crate) trait Tokenizer {
 
     fn peek_next(&self) -> Result<char, String>;
 
+    fn previous_match(&self, types: &[TokenType]) -> bool;
+
     fn at_end(&self) -> bool;
 
     fn add_token(&mut self, token_type: TokenType, literal: &str);
@@ -35,6 +37,20 @@ impl Tokenizer for TokenizerState<'_> {
         } else {
             Err(format!("Invalid Input at {}", self.current))
         };
+    }
+
+    fn previous_match(&self, types: &[TokenType]) -> bool {
+        if self.tokens.is_empty() {
+            return false;
+        }
+        let prev = self.tokens.last().unwrap();
+
+        for tt in types {
+            if prev.token_type == *tt {
+                return true;
+            }
+        }
+        return false;
     }
 
     fn peek(&self) -> Result<char, String> {
