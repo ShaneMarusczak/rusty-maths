@@ -767,6 +767,24 @@ mod tests {
     }
 
     #[test]
+    fn extra_pow_test() {
+        let test = "2^2-3";
+        let tokens = get_tokens(test).unwrap();
+        let parsed_eq = parse(tokens).unwrap();
+        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        assert_eq!(ans, 1_f32);
+    }
+
+    #[test]
+    fn extra_pow_test_2() {
+        let test = "10^10-3";
+        let tokens = get_tokens(test).unwrap();
+        let parsed_eq = parse(tokens).unwrap();
+        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        assert_eq!(ans, 9999999997_f32);
+    }
+
+    #[test]
     fn eval_rpn_test_invalid_power() {
         let test = "y = 3x^a";
         let tokens = get_tokens(test).unwrap_err();
