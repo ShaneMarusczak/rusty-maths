@@ -8,6 +8,8 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
 
     let mut paren_depth = 0;
 
+    let mut found_end = false;
+
     for token in tokens {
         match token.token_type {
             TokenType::Y | TokenType::Equal | TokenType::Comma => continue,
@@ -57,7 +59,9 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
             | TokenType::Slash
             | TokenType::Plus
             | TokenType::Minus
-            | TokenType::Power => {
+            | TokenType::Power
+            | TokenType::Modulo
+            | TokenType::Percent => {
                 let o_1 = get_operator(&token.literal);
                 while !operator_stack.is_empty()
                     // && operator_stack.last().unwrap().token != "("
@@ -73,7 +77,9 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
             }
 
             TokenType::Number | TokenType::X => output.push(token.literal),
-            TokenType::End => {}
+            TokenType::End => {
+                found_end = true;
+            }
         }
     }
 
@@ -84,8 +90,13 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
         }
         output.push(op.token);
     }
+
     if paren_depth != 0 {
         return Err("invalid function".to_string());
+    }
+
+    if !found_end {
+        return Err("no end token found".to_string());
     }
 
     Ok(output)

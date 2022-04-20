@@ -33,6 +33,8 @@ pub(crate) enum TokenType {
     Plus,
     Minus,
     Power,
+    Modulo,
+    Percent,
 
     Number,
 

@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::equation_analyzer::calculator::calculate;
     use crate::equation_analyzer::eq_data_builder::get_eq_data;
     use crate::equation_analyzer::pipeline::evaluator::evaluate;
     use crate::equation_analyzer::pipeline::parser::parse;
@@ -231,6 +232,7 @@ mod tests {
             get_token(TokenType::Number, "2"),
             get_token(TokenType::Power, "^"),
             get_token(TokenType::X, "1x^1"),
+            get_token(TokenType::End, "end"),
         ];
         assert_eq!(parse(test).unwrap(), vec!["2", "1x^1", "^"]);
     }
@@ -782,6 +784,34 @@ mod tests {
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
         assert_eq!(ans, 9999999997_f32);
+    }
+
+    #[test]
+    fn extra_pow_test_3() {
+        let test = "10^10-3";
+        let ans = calculate(test).unwrap();
+        assert_eq!(ans, 9999999997.0);
+    }
+
+    #[test]
+    fn modulo_test() {
+        let test = "10 %% 3";
+        let ans = calculate(test).unwrap();
+        assert_eq!(ans, 1_f32);
+    }
+
+    #[test]
+    fn percent_test() {
+        let test = "10 % 30";
+        let ans = calculate(test).unwrap();
+        assert_eq!(ans, 3_f32);
+    }
+
+    #[test]
+    fn invalid_char_test() {
+        let test = "3 ? 3";
+        let tokens = get_tokens(test).unwrap_err();
+        assert_eq!(tokens, "Invalid input at character 3");
     }
 
     #[test]

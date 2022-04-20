@@ -28,6 +28,14 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
             '*' => state.add_token(Star, "*"),
             '/' => state.add_token(Slash, "/"),
             '+' => state.add_token(Plus, "+"),
+            '%' => {
+                if state.peek()? == '%' {
+                    state.advance()?;
+                    state.add_token(Modulo, "%");
+                } else {
+                    state.add_token(Percent, "%%");
+                }
+            },
 
             //negative pi or e?
             '-' => {
@@ -115,6 +123,8 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         "log" => state.add_token(Log, literal),
                         _ => return Err(format!("Invalid input at character {}", state.start)),
                     }
+                } else {
+                    return Err(format!("Invalid input at character {}", state.current));
                 }
             }
         }

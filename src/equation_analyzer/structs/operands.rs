@@ -11,7 +11,7 @@ pub(crate) fn get_operator(operator: &str) -> Operand {
     match operator {
         "(" => get_op(operator, 0, "r", false, true),
         "+" | "-" => get_op(operator, 2, "l", false, false),
-        "*" | "/" => get_op(operator, 3, "l", false, false),
+        "*" | "/" | "%" | "%%" => get_op(operator, 3, "l", false, false),
         "^" => get_op(operator, 4, "r", false, false),
         "sqrt(" | "ln(" | "abs(" | "max(" | "min(" | "sin(" | "cos(" | "tan(" => {
             get_op(operator, 0, "r", true, true)
