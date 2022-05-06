@@ -3,6 +3,9 @@ use crate::equation_analyzer::structs::tokenizer_state::{Tokenizer, TokenizerSta
 use crate::utilities::{is_alpha, is_dig};
 
 pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
+    if eq.is_empty() {
+        return Err(String::from("Invalid equation supplied"));
+    }
     let mut state = TokenizerState {
         tokens: Vec::with_capacity(eq.len()),
         start: 0,

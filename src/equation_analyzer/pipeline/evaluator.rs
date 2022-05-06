@@ -66,7 +66,7 @@ pub fn evaluate(parsed_eq: &[String], x: f32) -> Result<f32, String> {
                             "^" => stack.push(lhs.powf(rhs)),
                             "max(" => stack.push(lhs.max(rhs)),
                             "min(" => stack.push(lhs.min(rhs)),
-                            _ => return Err(format!("unknown token: {}", token)),
+                            _ => return Err(format!("Unknown token: {}", token)),
                         }
                     }
                 }
@@ -74,7 +74,7 @@ pub fn evaluate(parsed_eq: &[String], x: f32) -> Result<f32, String> {
         }
     }
     if stack.len() != 1 {
-        return Err(format!("invalid evaluation stack, big boo boo"));
+        return Err(format!("Invalid evaluation stack, big boo boo"));
     }
     Ok(stack[0])
 }

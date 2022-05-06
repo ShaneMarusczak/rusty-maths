@@ -36,7 +36,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
                 paren_depth -= 1;
 
                 if paren_depth < 0 {
-                    return Err("invalid closing parenthesis at character".to_string());
+                    return Err("Invalid closing parenthesis at character".to_string());
                 }
 
                 while !operator_stack.is_empty() && !operator_stack.last().unwrap().paren_opener {
@@ -86,17 +86,17 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
     while !operator_stack.is_empty() {
         let op = operator_stack.pop().unwrap();
         if op.token == "(" {
-            return Err("invalid opening parenthesis".to_string());
+            return Err("Invalid opening parenthesis".to_string());
         }
         output.push(op.token);
     }
 
     if paren_depth != 0 {
-        return Err("invalid function".to_string());
+        return Err("Invalid function".to_string());
     }
 
     if !found_end {
-        return Err("no end token found".to_string());
+        return Err("No end token found".to_string());
     }
 
     Ok(output)
