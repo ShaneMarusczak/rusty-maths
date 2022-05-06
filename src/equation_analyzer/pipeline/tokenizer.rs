@@ -6,135 +6,134 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
     if eq.is_empty() {
         return Err(String::from("Invalid equation supplied"));
     }
-    let mut state = TokenizerState {
+
+    let mut s = TokenizerState {
         tokens: Vec::with_capacity(eq.len()),
         start: 0,
         current: 0,
         eq,
     };
 
-    while !state.at_end() {
-        state.start = state.current;
-        let c = state.advance()?;
+    while !s.at_end() {
+        s.start = s.current;
+        let c = s.advance()?;
         match c {
             ' ' | '\r' | '\t' => (),
-            'y' => state.add_token(Y, "y"),
-            '=' => state.add_token(Equal, "="),
-            ',' => state.add_token(Comma, ","),
+            'y' => s.add_token(Y, "y"),
+            '=' => s.add_token(Equal, "="),
+            ',' => s.add_token(Comma, ","),
 
             //TODO: PI IS BUSTED!! THIS CHAR IS TOO BIG AND THE SCANNER GETS OUT OF SYNC
             // 'π' => {
             //     add_token(_Pi, "π", &mut tokens);
             //     current += 1;
             // }
-            'e' => state.add_token(_E, "e"),
-            '*' => state.add_token(Star, "*"),
-            '/' => state.add_token(Slash, "/"),
-            '+' => state.add_token(Plus, "+"),
+            'e' => s.add_token(_E, "e"),
+            '*' => s.add_token(Star, "*"),
+            '/' => s.add_token(Slash, "/"),
+            '+' => s.add_token(Plus, "+"),
             '%' => {
-                if state.peek()? == '%' {
-                    state.advance()?;
-                    state.add_token(Modulo, "%");
+                if s.peek()? == '%' {
+                    s.advance()?;
+                    s.add_token(Modulo, "%");
                 } else {
-                    state.add_token(Percent, "%%");
+                    s.add_token(Percent, "%%");
                 }
-            },
+            }
 
             //negative pi or e?
             '-' => {
-                if state.previous_match(&[_E, Number, CloseParen, X]) {
-                    state.add_token(Minus, "-");
-                } else {
-                    if state.peek()? == 'e' {
-                        state.advance()?;
-                        state.add_token(NegE, "-e");
-                    } else if state.peek()? == 'π' {
-                        state.advance()?;
-                        state.add_token(NegPi, "-π");
-                    } else if is_dig(state.peek()?) {
-                        state.digit()?;
-                        if state.peek()? != 'x' {
-                            state.add_token(Number, &eq[state.start..state.current]);
-                        } else {
-                            let coefficient = eq[state.start..state.current].to_owned();
-                            //consume the x
-                            state.advance()?;
-                            state.take_x(coefficient)?;
-                        }
-                    } else if state.peek()? == 'x' {
-                        let coefficient = String::from("-1");
-                        state.advance()?;
-                        state.take_x(coefficient)?;
+                if s.previous_match(&[_E, Number, CloseParen, X]) {
+                    s.add_token(Minus, "-");
+                } else if s.peek()? == 'e' {
+                    s.advance()?;
+                    s.add_token(NegE, "-e");
+                } else if s.peek()? == 'π' {
+                    s.advance()?;
+                    s.add_token(NegPi, "-π");
+                } else if is_dig(s.peek()?) {
+                    s.digit()?;
+                    if s.peek()? != 'x' {
+                        s.add_token(Number, &eq[s.start..s.current]);
+                    } else {
+                        let coefficient = eq[s.start..s.current].to_owned();
+                        //consume the x
+                        s.advance()?;
+                        s.take_x(coefficient)?;
                     }
+                } else if s.peek()? == 'x' {
+                    let coefficient = String::from("-1");
+                    s.advance()?;
+                    s.take_x(coefficient)?;
                 }
             }
 
-            '(' => state.add_token(OpenParen, "("),
-            ')' => state.add_token(CloseParen, ")"),
-            '^' => state.add_token(Power, "^"),
+            '(' => s.add_token(OpenParen, "("),
+            ')' => s.add_token(CloseParen, ")"),
+            '^' => s.add_token(Power, "^"),
             'x' => {
                 let coefficient = String::from("1");
-                state.take_x(coefficient)?;
+                s.take_x(coefficient)?;
             }
             _ => {
                 if is_dig(c) {
-                    state.digit()?;
-                    if state.peek()? != 'x' {
-                        let test = &eq[state.start..state.current];
-                        state.add_token(Number, test);
+                    s.digit()?;
+                    if s.peek()? != 'x' {
+                        let test = &eq[s.start..s.current];
+                        s.add_token(Number, test);
                     } else {
-                        let coefficient = eq[state.start..state.current].to_owned();
+                        let coefficient = eq[s.start..s.current].to_owned();
                         //consume the x
-                        state.advance()?;
-                        state.take_x(coefficient)?;
+                        s.advance()?;
+                        s.take_x(coefficient)?;
                     }
                 } else if is_alpha(c) {
-                    while is_alpha(state.peek()?) {
-                        state.advance()?;
+                    while is_alpha(s.peek()?) {
+                        s.advance()?;
                     }
-                    let name = &eq[state.start..state.current];
+                    let name = &eq[s.start..s.current];
 
-                    if state.peek()? == '_' {
+                    if s.peek()? == '_' {
                         if name != "log" {
-                            return Err(format!("Invalid input at character {}", state.start));
+                            return Err(format!("Invalid input at character {}", s.start));
                         }
                         //consume the _
-                        state.advance()?;
+                        s.advance()?;
 
-                        if is_dig(state.peek()?) {
-                            state.digit()?;
+                        if is_dig(s.peek()?) {
+                            s.digit()?;
                         } else {
                             return Err(String::from("Invalid use of log"));
                         }
                     }
-                    if state.peek()? != '(' {
-                        return Err(format!("Invalid input at character {}", state.start));
+                    if s.peek()? != '(' {
+                        return Err(format!("Invalid input at character {}", s.start));
                     }
 
                     //consume the (
-                    state.advance()?;
-                    let literal = &eq[state.start..state.current];
+                    s.advance()?;
+                    let literal = &eq[s.start..s.current];
                     match name {
-                        "sin" => state.add_token(Sin, literal),
-                        "cos" => state.add_token(Cos, literal),
-                        "tan" => state.add_token(Tan, literal),
-                        "max" => state.add_token(Max, literal),
-                        "abs" => state.add_token(Abs, literal),
-                        "sqrt" => state.add_token(Sqrt, literal),
-                        "min" => state.add_token(Min, literal),
-                        "ln" => state.add_token(Ln, literal),
-                        "log" => state.add_token(Log, literal),
-                        _ => return Err(format!("Invalid input at character {}", state.start)),
+                        "sin" => s.add_token(Sin, literal),
+                        "cos" => s.add_token(Cos, literal),
+                        "tan" => s.add_token(Tan, literal),
+                        "max" => s.add_token(Max, literal),
+                        "abs" => s.add_token(Abs, literal),
+                        "sqrt" => s.add_token(Sqrt, literal),
+                        "min" => s.add_token(Min, literal),
+                        "ln" => s.add_token(Ln, literal),
+                        "log" => s.add_token(Log, literal),
+                        _ => return Err(format!("Invalid input at character {}", s.start)),
                     }
                 } else {
-                    return Err(format!("Invalid input at character {}", state.current));
+                    return Err(format!("Invalid input at character {}", s.current));
                 }
             }
         }
     }
-    state.tokens.push(Token {
+    s.tokens.push(Token {
         token_type: End,
         literal: "end".to_owned(),
     });
-    Ok(state.tokens)
+    Ok(s.tokens)
 }

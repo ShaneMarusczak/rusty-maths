@@ -62,7 +62,7 @@ pub fn evaluate(parsed_eq: &[String], x: f32) -> Result<f32, String> {
                             "%%" => {
                                 let hundredth_of_rhs = rhs / 100_f32;
                                 stack.push(lhs * hundredth_of_rhs);
-                            },
+                            }
                             "^" => stack.push(lhs.powf(rhs)),
                             "max(" => stack.push(lhs.max(rhs)),
                             "min(" => stack.push(lhs.min(rhs)),
@@ -74,7 +74,7 @@ pub fn evaluate(parsed_eq: &[String], x: f32) -> Result<f32, String> {
         }
     }
     if stack.len() != 1 {
-        return Err(format!("Invalid evaluation stack, big boo boo"));
+        return Err("Invalid evaluation stack, big boo boo".to_string());
     }
     Ok(stack[0])
 }

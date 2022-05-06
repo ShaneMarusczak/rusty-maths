@@ -39,20 +39,6 @@ impl Tokenizer for TokenizerState<'_> {
         };
     }
 
-    fn previous_match(&self, types: &[TokenType]) -> bool {
-        if self.tokens.is_empty() {
-            return false;
-        }
-        let prev = self.tokens.last().unwrap();
-
-        for tt in types {
-            if prev.token_type == *tt {
-                return true;
-            }
-        }
-        return false;
-    }
-
     fn peek(&self) -> Result<char, String> {
         if self.at_end() {
             return Ok('\0');
@@ -75,6 +61,20 @@ impl Tokenizer for TokenizerState<'_> {
         } else {
             Err(format!("Invalid Input at {}", self.current + 1))
         };
+    }
+
+    fn previous_match(&self, types: &[TokenType]) -> bool {
+        if self.tokens.is_empty() {
+            return false;
+        }
+        let prev = self.tokens.last().unwrap();
+
+        for tt in types {
+            if prev.token_type == *tt {
+                return true;
+            }
+        }
+        false
     }
 
     fn at_end(&self) -> bool {
