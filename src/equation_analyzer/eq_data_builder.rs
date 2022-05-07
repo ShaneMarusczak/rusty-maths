@@ -13,25 +13,26 @@ pub fn get_eq_data(
     step_size: f32,
 ) -> Result<EquationData, String> {
     let tokens = get_tokens(eq)?;
-    let parsed_eq = parse(tokens)?;
 
     let mut points = vec![];
     let mut zeros = vec![];
     let literal = eq.to_string();
 
-    if detect_linear(eq) {
-        let z = linear_analysis::get_zero(eq);
+    if detect_linear(&tokens) {
+        let z = linear_analysis::get_zero(&tokens);
         if !z.is_nan() {
             zeros.push(z);
         }
-    } else if detect_quad(eq) {
-        let (a, b, c) = get_abc(eq);
+    } else if detect_quad(&tokens) {
+        let (a, b, c) = get_abc(&tokens);
 
         if let Ok(z) = quadratic_eq_f32(a, b, c) {
             zeros.push(z.0);
             zeros.push(z.1);
         }
     }
+
+    let parsed_eq = parse(tokens)?;
 
     let mut x_cur = x_min;
     while x_cur <= x_max {

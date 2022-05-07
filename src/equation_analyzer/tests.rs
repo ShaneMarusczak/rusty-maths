@@ -207,18 +207,18 @@ mod tests {
     fn parse_test_1() {
         //y = 3 + 4 * ( 2 - 1 )
         let test = vec![
-            get_token(TokenType::Y, "y"),
-            get_token(TokenType::Equal, "="),
-            get_token(TokenType::Number, "3"),
-            get_token(TokenType::Plus, "+"),
-            get_token(TokenType::Number, "4"),
-            get_token(TokenType::Star, "*"),
-            get_token(TokenType::OpenParen, "("),
-            get_token(TokenType::Number, "2"),
-            get_token(TokenType::Minus, "-"),
-            get_token(TokenType::Number, "1"),
-            get_token(TokenType::CloseParen, ")"),
-            get_token(TokenType::End, "end"),
+            get_token(Y, "y"),
+            get_token(Equal, "="),
+            get_token(Number, "3"),
+            get_token(Plus, "+"),
+            get_token(Number, "4"),
+            get_token(Star, "*"),
+            get_token(OpenParen, "("),
+            get_token(Number, "2"),
+            get_token(Minus, "-"),
+            get_token(Number, "1"),
+            get_token(CloseParen, ")"),
+            get_token(End, "end"),
         ];
         let ans = vec!["3", "4", "2", "1", "-", "*", "+"];
 
@@ -229,10 +229,10 @@ mod tests {
     fn parse_test_2() {
         //2 ^ x;
         let test = vec![
-            get_token(TokenType::Number, "2"),
-            get_token(TokenType::Power, "^"),
-            get_token(TokenType::X, "1x^1"),
-            get_token(TokenType::End, "end"),
+            get_token(Number, "2"),
+            get_token(Power, "^"),
+            get_token(X, "1x^1"),
+            get_token(End, "end"),
         ];
         assert_eq!(parse(test).unwrap(), vec!["2", "1x^1", "^"]);
     }
@@ -241,22 +241,22 @@ mod tests {
     fn parse_test_3() {
         //3 + 4 * 2 / ( 1 - 5 ) ^ 2 ^ 3;
         let test = vec![
-            get_token(TokenType::Number, "3"),
-            get_token(TokenType::Plus, "+"),
-            get_token(TokenType::Number, "4"),
-            get_token(TokenType::Star, "*"),
-            get_token(TokenType::Number, "2"),
-            get_token(TokenType::Slash, "/"),
-            get_token(TokenType::OpenParen, "("),
-            get_token(TokenType::Number, "1"),
-            get_token(TokenType::Minus, "-"),
-            get_token(TokenType::Number, "5"),
-            get_token(TokenType::CloseParen, ")"),
-            get_token(TokenType::Power, "^"),
-            get_token(TokenType::Number, "2"),
-            get_token(TokenType::Power, "^"),
-            get_token(TokenType::Number, "3"),
-            get_token(TokenType::End, "end"),
+            get_token(Number, "3"),
+            get_token(Plus, "+"),
+            get_token(Number, "4"),
+            get_token(Star, "*"),
+            get_token(Number, "2"),
+            get_token(Slash, "/"),
+            get_token(OpenParen, "("),
+            get_token(Number, "1"),
+            get_token(Minus, "-"),
+            get_token(Number, "5"),
+            get_token(CloseParen, ")"),
+            get_token(Power, "^"),
+            get_token(Number, "2"),
+            get_token(Power, "^"),
+            get_token(Number, "3"),
+            get_token(End, "end"),
         ];
         let ans = vec![
             "3", "4", "2", "*", "1", "5", "-", "2", "3", "^", "^", "/", "+",
@@ -269,18 +269,18 @@ mod tests {
     fn parse_test_4() {
         //"3 ^ 2 + 4 * ( 2 - 1 )";
         let test = vec![
-            get_token(TokenType::Number, "3"),
-            get_token(TokenType::Power, "^"),
-            get_token(TokenType::Number, "2"),
-            get_token(TokenType::Plus, "+"),
-            get_token(TokenType::Number, "4"),
-            get_token(TokenType::Star, "*"),
-            get_token(TokenType::OpenParen, "("),
-            get_token(TokenType::Number, "2"),
-            get_token(TokenType::Minus, "-"),
-            get_token(TokenType::Number, "1"),
-            get_token(TokenType::CloseParen, ")"),
-            get_token(TokenType::End, "end"),
+            get_token(Number, "3"),
+            get_token(Power, "^"),
+            get_token(Number, "2"),
+            get_token(Plus, "+"),
+            get_token(Number, "4"),
+            get_token(Star, "*"),
+            get_token(OpenParen, "("),
+            get_token(Number, "2"),
+            get_token(Minus, "-"),
+            get_token(Number, "1"),
+            get_token(CloseParen, ")"),
+            get_token(End, "end"),
         ];
 
         let ans = vec!["3", "2", "^", "4", "2", "1", "-", "*", "+"];
@@ -291,24 +291,24 @@ mod tests {
     fn parse_test_5() {
         //sin( max( ( 2 + 0 ) , 3 ) / ( 3 * π ) )
         let test = vec![
-            get_token(TokenType::Sin, "sin("),
+            get_token(Sin, "sin("),
             get_token(TokenType::Max, "max("),
-            get_token(TokenType::OpenParen, "("),
-            get_token(TokenType::Number, "2"),
-            get_token(TokenType::Plus, "+"),
-            get_token(TokenType::Number, "0"),
-            get_token(TokenType::CloseParen, ")"),
+            get_token(OpenParen, "("),
+            get_token(Number, "2"),
+            get_token(Plus, "+"),
+            get_token(Number, "0"),
+            get_token(CloseParen, ")"),
             get_token(TokenType::Comma, ","),
-            get_token(TokenType::Number, "3"),
-            get_token(TokenType::CloseParen, ")"),
-            get_token(TokenType::Slash, "/"),
-            get_token(TokenType::OpenParen, "("),
-            get_token(TokenType::Number, "3"),
-            get_token(TokenType::Star, "*"),
+            get_token(Number, "3"),
+            get_token(CloseParen, ")"),
+            get_token(Slash, "/"),
+            get_token(OpenParen, "("),
+            get_token(Number, "3"),
+            get_token(Star, "*"),
             get_token(TokenType::_Pi, "π"),
-            get_token(TokenType::CloseParen, ")"),
-            get_token(TokenType::CloseParen, ")"),
-            get_token(TokenType::End, "end"),
+            get_token(CloseParen, ")"),
+            get_token(CloseParen, ")"),
+            get_token(End, "end"),
         ];
 
         let ans = vec!["2", "0", "+", "3", "max(", "3", "π", "*", "/", "sin("];
