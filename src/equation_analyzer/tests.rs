@@ -316,6 +316,53 @@ mod tests {
     }
 
     #[test]
+    fn parse_test_6_no_eof() {
+        //2 ^ x;
+        let test = vec![
+            get_token(Number, "2"),
+            get_token(Power, "^"),
+            get_token(X, "1x^1"),
+        ];
+        assert_eq!(parse(test).unwrap_err(), "No end token found");
+    }
+
+    #[test]
+    fn parse_test_bad_function() {
+        //2 ^ x;
+        let test = vec![
+            get_token(Sin, "sin("),
+            get_token(Power, "^"),
+            get_token(X, "1x^1"),
+            get_token(End, "end"),
+        ];
+        assert_eq!(parse(test).unwrap_err(), "Invalid function");
+    }
+
+    #[test]
+    fn parse_test_bad_parens() {
+        //2 ^ x;
+        let test = vec![
+            get_token(OpenParen, "("),
+            get_token(Power, "^"),
+            get_token(X, "1x^1"),
+            get_token(End, "end"),
+        ];
+        assert_eq!(parse(test).unwrap_err(), "Invalid opening parenthesis");
+    }
+
+    #[test]
+    fn parse_test_bad_parens_2() {
+        //2 ^ x;
+        let test = vec![
+            get_token(CloseParen, ")"),
+            get_token(Power, "^"),
+            get_token(X, "1x^1"),
+            get_token(End, "end"),
+        ];
+        assert_eq!(parse(test).unwrap_err(), "Invalid closing parenthesis");
+    }
+
+    #[test]
     fn test_1() {
         let eq = "y = 32.2";
 
@@ -815,10 +862,38 @@ mod tests {
     }
 
     #[test]
+    fn eval_rpn_test_empty_eq() {
+        let test = "";
+        let tokens = get_tokens(test).unwrap_err();
+        assert_eq!(tokens, "Invalid equation supplied");
+    }
+
+    #[test]
+    fn eval_rpn_test_invalid_underscore() {
+        let test = "sin_(5)";
+        let tokens = get_tokens(test).unwrap_err();
+        assert_eq!(tokens, "Invalid input at character 3");
+    }
+
+    #[test]
+    fn eval_rpn_test_invalid_log() {
+        let test = "log_(5)";
+        let tokens = get_tokens(test).unwrap_err();
+        assert_eq!(tokens, "Invalid use of log");
+    }
+
+    #[test]
     fn eval_rpn_test_invalid_power() {
         let test = "y = 3x^a";
         let tokens = get_tokens(test).unwrap_err();
         assert_eq!(tokens, "Invalid power");
+    }
+
+    #[test]
+    fn eval_rpn_test_fn_name() {
+        let test = "cro(5)";
+        let tokens = get_tokens(test).unwrap_err();
+        assert_eq!(tokens, "Invalid function name");
     }
 
     #[test]

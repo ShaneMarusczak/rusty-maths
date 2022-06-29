@@ -1,4 +1,3 @@
-#[derive(Debug, PartialEq)]
 pub(crate) struct Operand {
     pub(crate) token: String,
     pub(crate) prec: usize,

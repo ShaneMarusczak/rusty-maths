@@ -36,7 +36,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
                 paren_depth -= 1;
 
                 if paren_depth < 0 {
-                    return Err("Invalid closing parenthesis at character".to_string());
+                    return Err("Invalid closing parenthesis".to_string());
                 }
 
                 while !operator_stack.is_empty() && !operator_stack.last().unwrap().paren_opener {

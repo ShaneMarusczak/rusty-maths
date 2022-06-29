@@ -95,7 +95,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
 
                     if s.peek()? == '_' {
                         if name != "log" {
-                            return Err(format!("Invalid input at character {}", s.start));
+                            return Err(format!("Invalid input at character {}", s.current));
                         }
                         //consume the _
                         s.advance()?;
@@ -123,7 +123,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         "min" => s.add_token(Min, literal),
                         "ln" => s.add_token(Ln, literal),
                         "log" => s.add_token(Log, literal),
-                        _ => return Err(format!("Invalid input at character {}", s.start)),
+                        _ => return Err("Invalid function name".to_string()),
                     }
                 } else {
                     return Err(format!("Invalid input at character {}", s.current));
