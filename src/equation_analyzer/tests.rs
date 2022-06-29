@@ -897,6 +897,13 @@ mod tests {
     }
 
     #[test]
+    fn evaluator_bad_token() {
+        let test = vec![String::from("5"), String::from("5"), String::from("cro(")];
+        let tokens = evaluate(&test, f32::NAN).unwrap_err();
+        assert_eq!(tokens, "Unknown token: cro(");
+    }
+
+    #[test]
     fn eval_rpn_test_power() {
         let test = "3^2";
         let tokens = get_tokens(test).unwrap();
