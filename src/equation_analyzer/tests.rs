@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::equation_analyzer::calculator::calculate;
+    use crate::equation_analyzer::calculator::{calculate, plot};
     use crate::equation_analyzer::eq_data_builder::get_eq_data;
     use crate::equation_analyzer::pipeline::evaluator::evaluate;
     use crate::equation_analyzer::pipeline::parser::parse;
@@ -852,6 +852,16 @@ mod tests {
         let test = "10 % 30";
         let ans = calculate(test).unwrap();
         assert_eq!(ans, 3_f32);
+    }
+
+    #[test]
+    fn plot_test_linear() {
+        let test_eq = "y = 2x +1";
+        let points = vec![(-1_f32, -1_f32), (0_f32, 1_f32), (1_f32, 3_f32)];
+
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+
+        assert_eq!(actual, points);
     }
 
     #[test]
