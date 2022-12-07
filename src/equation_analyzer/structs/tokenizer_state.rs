@@ -32,11 +32,11 @@ impl Tokenizer for TokenizerState<'_> {
     fn advance(&mut self) -> Result<char, String> {
         let c = self.eq.chars().nth(self.current);
         self.current += 1;
-        return if let Some(c) = c {
+        if let Some(c) = c {
             Ok(c)
         } else {
             Err(format!("Invalid Input at {}", self.current))
-        };
+        }
     }
 
     fn peek(&self) -> Result<char, String> {
@@ -44,11 +44,11 @@ impl Tokenizer for TokenizerState<'_> {
             return Ok('\0');
         };
         let c = self.eq.chars().nth(self.current);
-        return if let Some(c) = c {
+        if let Some(c) = c {
             Ok(c)
         } else {
             Err(format!("Invalid Input at {}", self.current))
-        };
+        }
     }
 
     fn peek_next(&self) -> Result<char, String> {
@@ -56,11 +56,11 @@ impl Tokenizer for TokenizerState<'_> {
             return Ok('\0');
         };
         let c = self.eq.chars().nth(self.current + 1);
-        return if let Some(c) = c {
+        if let Some(c) = c {
             Ok(c)
         } else {
             Err(format!("Invalid Input at {}", self.current + 1))
-        };
+        }
     }
 
     fn previous_match(&self, types: &[TokenType]) -> bool {

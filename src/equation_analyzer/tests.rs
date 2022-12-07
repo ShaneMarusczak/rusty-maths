@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod rm_tests {
     use crate::equation_analyzer::calculator::{calculate, plot};
     use crate::equation_analyzer::eq_data_builder::get_eq_data;
     use crate::equation_analyzer::pipeline::evaluator::evaluate;

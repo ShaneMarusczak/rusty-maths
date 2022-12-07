@@ -190,7 +190,7 @@ mod tests {
     fn shape_test() {
         let m: Matrix = vec![vec![1_f64, 2_f64, 3_f64], vec![4_f64, 5_f64, 6_f64]];
 
-        assert_eq!(shape(m), (2 as usize, 3 as usize));
+        assert_eq!(shape(m), (2_usize, 3_usize));
     }
 
     #[test]

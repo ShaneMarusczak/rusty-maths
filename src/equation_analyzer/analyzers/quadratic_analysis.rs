@@ -90,77 +90,77 @@ mod tests {
     fn detect_quad_1() {
         let test_eq = "y = x^2 + x + 42";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_2() {
         let test_eq = "y = 2x^2 + 3";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_3() {
         let test_eq = "y = sin( x^2 )";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), false);
+        assert!(!detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_4() {
         let test_eq = "y = x^3 + x^2";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), false);
+        assert!(!detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_5() {
         let test_eq = "y = -2x^2 + 3x + 2";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_6() {
         let test_eq = "y = x + 17";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), false);
+        assert!(!detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_7() {
         let test_eq = "y = x^3";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), false);
+        assert!(!detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_8() {
         let test_eq = "x^2 = y";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_9() {
         let test_eq = "x^2 = y + 1";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), false);
+        assert!(!detect_quad(&tokens));
     }
 
     #[test]
     fn detect_quad_10() {
         let test_eq = "y = x^2 + x + x";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), false);
+        assert!(!detect_quad(&tokens));
     }
 
     #[test]
     fn get_abc_test() {
         let test_eq = "y = -2x^2 + 3x + 2";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
         assert_eq!(get_abc(&tokens), (-2_f32, 3_f32, 2_f32));
     }
 
@@ -168,7 +168,7 @@ mod tests {
     fn get_abc_test_2() {
         let test_eq = "y = x^2 + x + 2";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
         assert_eq!(get_abc(&tokens), (1_f32, 1_f32, 2_f32));
     }
 
@@ -176,7 +176,7 @@ mod tests {
     fn get_abc_test_3() {
         let test_eq = "y = x^2";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
         assert_eq!(get_abc(&tokens), (1_f32, 0_f32, 0_f32));
     }
 
@@ -184,7 +184,7 @@ mod tests {
     fn get_abc_test_4() {
         let test_eq = "y = x^2 + 7x";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
         assert_eq!(get_abc(&tokens), (1_f32, 7_f32, 0_f32));
     }
 
@@ -192,7 +192,7 @@ mod tests {
     fn get_abc_test_5() {
         let test_eq = "y = x^2 - 7x";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
         assert_eq!(get_abc(&tokens), (1_f32, -7_f32, 0_f32));
     }
 
@@ -200,7 +200,7 @@ mod tests {
     fn get_abc_test_6() {
         let test_eq = "y = -x^2 - 7x - 2";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
         assert_eq!(get_abc(&tokens), (-1_f32, -7_f32, -2_f32));
     }
 
@@ -208,7 +208,7 @@ mod tests {
     fn get_abc_test_7() {
         let test_eq = "y = -x^2 - -7x - 2";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
         assert_eq!(get_abc(&tokens), (-1_f32, 7_f32, -2_f32));
     }
 
@@ -216,7 +216,7 @@ mod tests {
     fn get_abc_test_8() {
         let test_eq = "y = 2 + x^2 + 3x";
         let tokens = get_tokens(test_eq).unwrap();
-        assert_eq!(detect_quad(&tokens), true);
+        assert!(detect_quad(&tokens));
         assert_eq!(get_abc(&tokens), (1_f32, 3_f32, 2_f32));
     }
 }

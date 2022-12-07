@@ -304,8 +304,8 @@ mod tests {
 
     #[test]
     fn square_root_test() {
-        assert_eq!(square_root(144 as f64), 12 as f64);
-        assert_eq!(square_root(1764 as f64), 42 as f64);
+        assert_eq!(square_root(144_f64), 12_f64);
+        assert_eq!(square_root(1764_f64), 42_f64);
         assert!(abs(square_root(14.5) - f64::sqrt(14.5)) <= 0.0000001);
         assert!(abs(square_root(214.532) - f64::sqrt(214.532)) <= 0.0000001);
     }

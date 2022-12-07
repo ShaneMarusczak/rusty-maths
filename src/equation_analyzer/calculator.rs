@@ -11,11 +11,7 @@ pub fn calculate(eq: &str) -> Result<f32, String> {
 }
 
 pub fn plot(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<Vec<(f32, f32)>, String> {
-    let eq_data = get_eq_data(eq, x_min, x_max, step_size);
+    let eq_data = get_eq_data(eq, x_min, x_max, step_size)?;
 
-    return if eq_data.is_err() {
-        Err(eq_data.unwrap_err())
-    } else {
-        Ok(eq_data.unwrap().points)
-    };
+    Ok(eq_data.points)
 }

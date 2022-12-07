@@ -3,7 +3,7 @@ use crate::utilities::{sort_vec_cop, square_root};
 
 ///Returns the mean of a Vector
 pub fn mean(v: &Vector) -> f64 {
-    v.iter().fold(0 as f64, |acc, x| acc + x) / v.len() as f64
+    v.iter().fold(0_f64, |acc, x| acc + x) / v.len() as f64
 }
 
 fn median_odd(v: &Vector) -> f64 {
@@ -84,42 +84,39 @@ mod tests {
 
     #[test]
     fn vec_sort_copy_test() {
-        let v = vec![9 as f64, 5 as f64, 3 as f64, 2 as f64, 1 as f64];
-        let z = vec![1 as f64, 2 as f64, 3 as f64, 5 as f64, 9 as f64];
+        let v = vec![9_f64, 5_f64, 3_f64, 2_f64, 1_f64];
+        let z = vec![1_f64, 2_f64, 3_f64, 5_f64, 9_f64];
         let v_sort = sort_vec_cop(&v);
         assert_eq!(v_sort, z);
     }
 
     #[test]
     fn vec_sort_test() {
-        let mut v = vec![9 as f64, 5 as f64, 3 as f64, 2 as f64, 1 as f64];
-        let z = vec![1 as f64, 2 as f64, 3 as f64, 5 as f64, 9 as f64];
-        let v = sort_vec_cop(&mut v);
+        let v = vec![9_f64, 5_f64, 3_f64, 2_f64, 1_f64];
+        let z = vec![1_f64, 2_f64, 3_f64, 5_f64, 9_f64];
+        let v = sort_vec_cop(&v);
         assert_eq!(v, z);
     }
 
     #[test]
     fn mean_test() {
-        assert_eq!(
-            mean(&vec![2 as f64, 5 as f64, 7 as f64, 10 as f64]),
-            6 as f64
-        );
+        assert_eq!(mean(&vec![2_f64, 5_f64, 7_f64, 10_f64]), 6_f64);
     }
 
     #[test]
     fn median_test() {
-        let v = vec![1 as f64, 10 as f64, 2 as f64, 9 as f64, 5 as f64];
-        assert_eq!(median(&v), 5 as f64);
+        let v = vec![1_f64, 10_f64, 2_f64, 9_f64, 5_f64];
+        assert_eq!(median(&v), 5_f64);
 
-        let v_2 = vec![1 as f64, 9 as f64, 2 as f64, 10 as f64];
-        assert_eq!(median(&v_2), (9 as f64 + 2 as f64) / 2 as f64);
+        let v_2 = vec![1_f64, 9_f64, 2_f64, 10_f64];
+        assert_eq!(median(&v_2), (9_f64 + 2_f64) / 2_f64);
     }
 
     #[test]
     fn quantile_test() {
-        let v = vec![1 as f64, 2 as f64, 3 as f64, 4 as f64, 5 as f64];
-        assert_eq!(quantile(&v, 0.45), 3 as f64);
-        assert_eq!(quantile(&v, 0.7), 4 as f64);
+        let v = vec![1_f64, 2_f64, 3_f64, 4_f64, 5_f64];
+        assert_eq!(quantile(&v, 0.45), 3_f64);
+        assert_eq!(quantile(&v, 0.7), 4_f64);
 
         //works for odd length vectors
         assert_eq!(quantile(&v, 0.5), median(&v));
@@ -127,26 +124,26 @@ mod tests {
 
     #[test]
     fn data_range_test() {
-        let v = vec![1 as f64, 2 as f64, 3 as f64, 4 as f64, 5 as f64];
-        assert_eq!(data_range(&v), 4 as f64);
+        let v = vec![1_f64, 2_f64, 3_f64, 4_f64, 5_f64];
+        assert_eq!(data_range(&v), 4_f64);
     }
 
     #[test]
     fn de_mean_test() {
-        let v = vec![1 as f64, 2 as f64, 3 as f64];
-        assert_eq!(de_mean(&v), vec![-1 as f64, 0 as f64, 1 as f64]);
+        let v = vec![1_f64, 2_f64, 3_f64];
+        assert_eq!(de_mean(&v), vec![-1_f64, 0_f64, 1_f64]);
     }
 
     #[test]
     fn variance_test() {
-        let v = vec![99 as f64, 85 as f64, 100 as f64];
+        let v = vec![99_f64, 85_f64, 100_f64];
         let var = variance(&v);
         assert!(70.32 < var && var < 70.34);
     }
 
     #[test]
     fn standard_deviation_test() {
-        let v = vec![45 as f64, 32 as f64, 20 as f64];
+        let v = vec![45_f64, 32_f64, 20_f64];
         let st_dev = standard_deviation(&v);
         assert!(12.50 < st_dev && st_dev < 12.51);
     }
@@ -156,7 +153,7 @@ mod tests {
         let v = vec![
             10_f64, 11_f64, 234_f64, 23_f64, 210_f64, 100_f64, 99_f64, 156_f64,
         ];
-        assert_eq!(interquartile_range(&v), 187 as f64)
+        assert_eq!(interquartile_range(&v), 187_f64)
     }
 
     #[test]
