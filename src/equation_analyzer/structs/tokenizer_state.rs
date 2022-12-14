@@ -116,7 +116,7 @@ impl Tokenizer for TokenizerState<'_> {
     }
 
     fn digit(&mut self) -> Result<(), String> {
-        while is_dig(self.peek()?) {
+        while is_dig(self.peek()?) || self.peek()? == '_' {
             self.advance()?;
         }
         if self.peek()? == '.' && is_dig(self.peek_next()?) {
