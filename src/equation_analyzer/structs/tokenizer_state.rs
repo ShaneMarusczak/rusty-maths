@@ -93,12 +93,13 @@ impl Tokenizer for TokenizerState<'_> {
         let pow_string = if self.peek()? == '^' {
             let pow_start = self.current;
             self.power()?;
-            &self.eq[pow_start..self.current]
+
+            crate::utilities::get_str_section(self.eq, pow_start, self.current)
         } else {
-            "^1"
+            String::from("^1")
         };
 
-        let final_literal = coefficient + "x" + pow_string;
+        let final_literal = coefficient + "x" + &pow_string;
 
         self.add_token(TokenType::X, &final_literal);
         Ok(())

@@ -65,8 +65,8 @@ pub fn mini_batches<T: Clone>(data_set: &[T], batch_size: usize, shuffle: bool) 
     }
     let mut rv: Vec<Vec<T>> = vec![];
     for start in batch_starts {
-        let end = start as usize + batch_size;
-        rv.push(data_set[start as usize..end as usize].to_vec());
+        let end = start + batch_size;
+        rv.push(data_set[start..end].to_vec());
     }
     rv
 }

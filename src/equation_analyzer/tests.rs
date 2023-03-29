@@ -621,7 +621,7 @@ mod rm_tests {
 
     #[test]
     fn eval_rpn_test_trig_3() {
-        let test = " sin( 3.1415926 )/ 2";
+        let test = " sin( π )/ 2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -630,7 +630,7 @@ mod rm_tests {
 
     #[test]
     fn eval_rpn_test_trig_4() {
-        let test = "sin( 3.1415926/2 )";
+        let test = "sin( π/2 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -639,7 +639,7 @@ mod rm_tests {
 
     #[test]
     fn eval_rpn_test_trig_5() {
-        let test = "cos(3.1415926 ) / 2";
+        let test = "cos(π ) / 2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -648,7 +648,7 @@ mod rm_tests {
 
     #[test]
     fn eval_rpn_test_trig_6() {
-        let test = "tan( 3.1415926 )+ cos( 3.1415926+3.1415926 ) + sin( 2 *3.1415926 )";
+        let test = "tan( π )+ cos( π+π ) + sin( 2 *π )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -665,8 +665,17 @@ mod rm_tests {
     }
 
     #[test]
+    fn eval_rpn_test_trig_8() {
+        let test = "sin( π )";
+        let tokens = get_tokens(test).unwrap();
+        let parsed_eq = parse(tokens).unwrap();
+        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        assert!(is_close(ans, 0_f32));
+    }
+
+    #[test]
     fn eval_rpn_test_trig_max() {
-        let test = "tan( 3.1415926) +max( 0 ,3.1415926) +sin(2 * 3.1415926)";
+        let test = "tan( π ) +max( 0 ,π) +sin(2 * π)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -675,7 +684,7 @@ mod rm_tests {
 
     #[test]
     fn eval_rpn_test_trig_max_2() {
-        let test = "max(sin(3.1415926) , max(( 2^3 ),6 ))";
+        let test = "max(sin(π) , max(( 2^3 ),6 ))";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -874,6 +883,16 @@ mod rm_tests {
     }
 
     #[test]
+    fn plot_test_linear_1() {
+        let test_eq = "y = π*x^2";
+        let points = vec![(-1_f32, 3.1415927), (0_f32, 0_f32), (1_f32, 3.1415927)];
+
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+
+        assert_eq!(actual, points);
+    }
+
+    #[test]
     fn invalid_char_test() {
         let test = "3 ? 3";
         let tokens = get_tokens(test).unwrap_err();
@@ -912,7 +931,7 @@ mod rm_tests {
     fn eval_rpn_test_fn_name() {
         let test = "cro(5)";
         let tokens = get_tokens(test).unwrap_err();
-        assert_eq!(tokens, "Invalid function name");
+        assert_eq!(tokens, "Invalid function name cro");
     }
 
     #[test]
@@ -930,5 +949,37 @@ mod rm_tests {
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
 
         assert!(is_close(ans, 9_f32));
+    }
+
+    #[test]
+    fn test_calculate_with_complex_equation() {
+        let test = "2*(3+4*(5-6))/7 + 8^(9/10)";
+        let expected_result = 6.212_305;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn pi_test() {
+        let test = "π + π - π - π";
+        let expected_result = 0_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn pi_test_2() {
+        let test = "max(π,1)+sin(π) - sin(π) - π + sqrt(π) - sqrt(π) - 2^π + 2^π - π^2 + π^2";
+        let expected_result = 0_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn pi_test_3() {
+        let test = "((min(5,π) + 2*π - 3*π)*2*π)/2*π";
+        let expected_result = 0_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
     }
 }

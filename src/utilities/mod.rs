@@ -252,11 +252,21 @@ pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String> {
 }
 
 pub fn is_dig(c: char) -> bool {
-    ('0'..='9').contains(&c)
+    c.is_ascii_digit()
 }
 
 pub fn is_alpha(c: char) -> bool {
-    ('a'..='z').contains(&c) || ('A'..='Z').contains(&c)
+    c.is_ascii_lowercase() || c.is_ascii_uppercase()
+}
+
+pub fn get_str_section(str: &str, start: usize, end: usize) -> String {
+    let mut slice = String::new();
+    for (i, c) in str.chars().enumerate() {
+        if i >= start && i < end {
+            slice.push(c);
+        }
+    }
+    slice
 }
 
 #[cfg(test)]

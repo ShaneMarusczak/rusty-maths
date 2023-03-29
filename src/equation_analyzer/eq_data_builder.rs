@@ -6,6 +6,9 @@ use crate::equation_analyzer::pipeline::parser::parse;
 use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
 use crate::utilities::quadratic_eq_f32;
 
+//replace all of this with flags in the evaluator
+//its trig if you hit sin for example
+
 pub fn get_eq_data(
     eq: &str,
     x_min: f32,

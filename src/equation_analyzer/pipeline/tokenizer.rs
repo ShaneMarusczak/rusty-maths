@@ -1,6 +1,6 @@
 use crate::equation_analyzer::structs::token::{Token, TokenType::*};
 use crate::equation_analyzer::structs::tokenizer_state::{Tokenizer, TokenizerState};
-use crate::utilities::{is_alpha, is_dig};
+use crate::utilities::{get_str_section, is_alpha, is_dig};
 
 pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
     if eq.is_empty() {
@@ -22,12 +22,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
             'y' => s.add_token(Y, "y"),
             '=' => s.add_token(Equal, "="),
             ',' => s.add_token(Comma, ","),
-
-            //TODO: PI IS BUSTED!! THIS CHAR IS TOO BIG AND THE SCANNER GETS OUT OF SYNC
-            // 'π' => {
-            //     add_token(_Pi, "π", &mut tokens);
-            //     current += 1;
-            // }
+            'π' => s.add_token(_Pi, "π"),
             'e' => s.add_token(_E, "e"),
             '*' => s.add_token(Star, "*"),
             '/' => s.add_token(Slash, "/"),
@@ -43,7 +38,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
 
             //negative pi or e?
             '-' => {
-                if s.previous_match(&[_E, Number, CloseParen, X]) {
+                if s.previous_match(&[_E, _Pi, Number, CloseParen, X]) {
                     s.add_token(Minus, "-");
                 } else if s.peek()? == 'e' {
                     s.advance()?;
@@ -54,9 +49,11 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                 } else if is_dig(s.peek()?) {
                     s.digit()?;
                     if s.peek()? != 'x' {
-                        s.add_token(Number, &eq[s.start..s.current]);
+                        let literal = get_str_section(eq, s.start, s.current);
+
+                        s.add_token(Number, &literal);
                     } else {
-                        let coefficient = eq[s.start..s.current].to_owned();
+                        let coefficient = get_str_section(eq, s.start, s.current);
                         //consume the x
                         s.advance()?;
                         s.take_x(coefficient)?;
@@ -79,10 +76,11 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                 if is_dig(c) {
                     s.digit()?;
                     if s.peek()? != 'x' {
-                        let test = &eq[s.start..s.current];
-                        s.add_token(Number, test);
+                        let literal = get_str_section(eq, s.start, s.current);
+
+                        s.add_token(Number, &literal);
                     } else {
-                        let coefficient = eq[s.start..s.current].to_owned();
+                        let coefficient = get_str_section(eq, s.start, s.current);
                         //consume the x
                         s.advance()?;
                         s.take_x(coefficient)?;
@@ -91,7 +89,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     while is_alpha(s.peek()?) {
                         s.advance()?;
                     }
-                    let name = &eq[s.start..s.current];
+                    let name = get_str_section(eq, s.start, s.current);
 
                     if s.peek()? == '_' {
                         if name != "log" {
@@ -112,18 +110,19 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
 
                     //consume the (
                     s.advance()?;
-                    let literal = &eq[s.start..s.current];
-                    match name {
-                        "sin" => s.add_token(Sin, literal),
-                        "cos" => s.add_token(Cos, literal),
-                        "tan" => s.add_token(Tan, literal),
-                        "max" => s.add_token(Max, literal),
-                        "abs" => s.add_token(Abs, literal),
-                        "sqrt" => s.add_token(Sqrt, literal),
-                        "min" => s.add_token(Min, literal),
-                        "ln" => s.add_token(Ln, literal),
-                        "log" => s.add_token(Log, literal),
-                        _ => return Err("Invalid function name".to_string()),
+
+                    let literal = get_str_section(eq, s.start, s.current);
+                    match name.as_str() {
+                        "sin" => s.add_token(Sin, &literal),
+                        "cos" => s.add_token(Cos, &literal),
+                        "tan" => s.add_token(Tan, &literal),
+                        "max" => s.add_token(Max, &literal),
+                        "abs" => s.add_token(Abs, &literal),
+                        "sqrt" => s.add_token(Sqrt, &literal),
+                        "min" => s.add_token(Min, &literal),
+                        "ln" => s.add_token(Ln, &literal),
+                        "log" => s.add_token(Log, &literal),
+                        _ => return Err(format!("Invalid function name {}", name)),
                     }
                 } else {
                     return Err(format!("Invalid input at character {}", s.current));
