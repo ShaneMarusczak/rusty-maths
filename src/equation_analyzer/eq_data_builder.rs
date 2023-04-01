@@ -6,8 +6,8 @@ use crate::equation_analyzer::pipeline::parser::parse;
 use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
 use crate::utilities::quadratic_eq_f32;
 
-//replace all of this with flags in the evaluator
-//its trig if you hit sin for example
+use std::sync::Arc;
+use std::thread;
 
 pub fn get_eq_data(
     eq: &str,
@@ -17,7 +17,6 @@ pub fn get_eq_data(
 ) -> Result<EquationData, String> {
     let tokens = get_tokens(eq)?;
 
-    let mut points = vec![];
     let mut zeros = vec![];
     let literal = eq.to_string();
 
@@ -35,12 +34,41 @@ pub fn get_eq_data(
         }
     }
 
-    let parsed_eq = parse(tokens)?;
+    let parsed_eq = Arc::new(parse(tokens).unwrap());
+    let mut threads = vec![];
+
+    let mut x_values = vec![];
 
     let mut x_cur = x_min;
     while x_cur <= x_max {
-        points.push((x_cur, evaluate(&parsed_eq, x_cur)?));
+        x_values.push(x_cur);
         x_cur += step_size;
+    }
+
+    let thread_count = num_cpus::get();
+
+    let mut points = Vec::with_capacity(x_values.len());
+
+    let chunk_size = (x_values.len() / thread_count) + 1;
+
+    let x_chunks: Vec<Vec<_>> = x_values.chunks(chunk_size).map(|s| s.into()).collect();
+
+    assert!(thread_count >= x_chunks.len());
+
+    for chunk in x_chunks {
+        let parsed_eq = Arc::clone(&parsed_eq);
+
+        threads.push(thread::spawn(move || {
+            let mut thread_points = Vec::with_capacity(chunk.len());
+            for x in chunk {
+                let result = (x, evaluate(&parsed_eq, x).expect("evaluation failed"));
+                thread_points.push(result);
+            }
+            thread_points
+        }));
+    }
+    for thread in threads {
+        points.extend(thread.join().unwrap());
     }
 
     Ok(EquationData {

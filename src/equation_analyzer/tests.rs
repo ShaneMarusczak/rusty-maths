@@ -893,6 +893,29 @@ mod rm_tests {
     }
 
     #[test]
+    fn plot_test_quad() {
+        let test_eq = "y = x^2";
+        let points = vec![(-1_f32, 1_f32), (0_f32, 0_f32), (1_f32, 1_f32)];
+
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+
+        assert_eq!(actual, points);
+    }
+
+    #[test]
+    fn plot_test_trig() {
+        let test_eq = "y = tan(x)";
+        let points = vec![(-1_f32, -1.5574077), (0_f32, 0_f32), (1_f32, 1.5574077)];
+
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+
+        for ((x_1, y_1), (x_2, y_2)) in actual.iter().zip(points) {
+            assert!(is_close(*x_1, x_2));
+            assert!(is_close(*y_1, y_2));
+        }
+    }
+
+    #[test]
     fn invalid_char_test() {
         let test = "3 ? 3";
         let tokens = get_tokens(test).unwrap_err();
