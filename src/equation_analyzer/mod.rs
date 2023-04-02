@@ -1,4 +1,3 @@
-pub mod analyzers;
 pub mod calculator;
 pub mod eq_data_builder;
 pub mod pipeline;

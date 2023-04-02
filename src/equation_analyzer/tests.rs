@@ -25,7 +25,6 @@ mod rm_tests {
 
         assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, points);
-        assert_eq!(actual.zeros, vec![-0.5_f32]);
     }
 
     #[test]
@@ -37,7 +36,6 @@ mod rm_tests {
 
         assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, ans);
-        assert_eq!(actual.zeros, vec![0.5_f32]);
     }
 
     #[test]
@@ -49,7 +47,6 @@ mod rm_tests {
 
         assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, ans);
-        assert_eq!(actual.zeros, vec![1_f32]);
     }
 
     #[test]
@@ -61,8 +58,6 @@ mod rm_tests {
 
         assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, ans);
-        assert_eq!(actual.zeros[0], -1_f32);
-        assert!(actual.zeros[1].is_nan());
     }
 
     #[test]
@@ -74,8 +69,6 @@ mod rm_tests {
 
         assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, points);
-        assert!(actual.zeros.contains(&-0.36602783));
-        assert!(actual.zeros.contains(&1.3660278));
     }
 
     #[test]
@@ -87,8 +80,6 @@ mod rm_tests {
 
         assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, points);
-        assert!(actual.zeros.contains(&1_f32));
-        assert!(actual.zeros.contains(&-1_f32));
     }
 
     #[test]
@@ -100,7 +91,6 @@ mod rm_tests {
 
         assert_eq!(actual.literal, test_eq);
         assert_eq!(actual.points, points);
-        assert!(actual.zeros.is_empty());
     }
 
     #[test]
@@ -122,7 +112,6 @@ mod rm_tests {
         }
 
         assert_eq!(actual.literal, test_eq);
-        assert!(actual.zeros.is_empty());
     }
 
     #[test]
@@ -144,7 +133,6 @@ mod rm_tests {
         }
 
         assert_eq!(actual.literal, test_eq);
-        assert!(actual.zeros.is_empty());
     }
 
     #[test]
@@ -166,7 +154,6 @@ mod rm_tests {
         }
 
         assert_eq!(actual.literal, test_eq);
-        assert!(actual.zeros.is_empty());
     }
 
     #[test]
@@ -193,7 +180,6 @@ mod rm_tests {
         }
 
         assert_eq!(actual.literal, test_eq);
-        assert!(actual.zeros.is_empty());
     }
 
     fn get_token(t_t: TokenType, lit: &str) -> Token {

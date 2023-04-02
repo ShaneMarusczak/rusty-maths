@@ -1,10 +1,6 @@
-use crate::equation_analyzer::analyzers::linear_analysis;
-use crate::equation_analyzer::analyzers::linear_analysis::detect_linear;
-use crate::equation_analyzer::analyzers::quadratic_analysis::{detect_quad, get_abc};
 use crate::equation_analyzer::pipeline::evaluator::evaluate;
 use crate::equation_analyzer::pipeline::parser::parse;
 use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
-use crate::utilities::quadratic_eq_f32;
 
 use std::sync::Arc;
 use std::thread;
@@ -16,23 +12,6 @@ pub fn get_eq_data(
     step_size: f32,
 ) -> Result<EquationData, String> {
     let tokens = get_tokens(eq)?;
-
-    let mut zeros = vec![];
-    let literal = eq.to_string();
-
-    if detect_linear(&tokens) {
-        let z = linear_analysis::get_zero(&tokens);
-        if !z.is_nan() {
-            zeros.push(z);
-        }
-    } else if detect_quad(&tokens) {
-        let (a, b, c) = get_abc(&tokens);
-
-        if let Ok(z) = quadratic_eq_f32(a, b, c) {
-            zeros.push(z.0);
-            zeros.push(z.1);
-        }
-    }
 
     let parsed_eq = Arc::new(parse(tokens).unwrap());
     let mut threads = vec![];
@@ -68,13 +47,12 @@ pub fn get_eq_data(
         }));
     }
     for thread in threads {
-        points.extend(thread.join().unwrap());
+        points.append(&mut thread.join().unwrap());
     }
 
     Ok(EquationData {
-        literal,
+        literal: eq.to_string(),
         points,
-        zeros,
     })
 }
 
@@ -82,5 +60,4 @@ pub fn get_eq_data(
 pub struct EquationData {
     pub literal: String,
     pub points: Vec<(f32, f32)>,
-    pub zeros: Vec<f32>,
 }
