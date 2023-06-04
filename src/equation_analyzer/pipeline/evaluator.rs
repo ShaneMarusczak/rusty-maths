@@ -36,6 +36,15 @@ pub fn evaluate(parsed_eq: &[String], x: f32) -> Result<f32, String> {
                     let temp = stack.pop().unwrap();
                     stack.push(temp.ln());
                 }
+                "!" => {
+                    let temp = stack.pop().unwrap();
+                    if temp % 1.0 != 0.0 {
+                        return Err(
+                            "Factorial is only defined for positive whole numbers".to_string()
+                        );
+                    }
+                    stack.push(crate::utilities::factorial(temp as isize) as f32);
+                }
                 _ => {
                     if token.starts_with("log_") {
                         let mut new_token = token.to_string();

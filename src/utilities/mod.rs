@@ -192,6 +192,16 @@ fn square(num: f64, i: f64, j: f64) -> f64 {
     }
 }
 
+pub(crate) fn factorial(num: isize) -> isize {
+    let mut curr = num;
+    let mut ans = 1;
+    while curr > 0 {
+        ans *= curr;
+        curr -= 1;
+    }
+    ans
+}
+
 //TODO: Move these to quadratic_analysis.rs
 ///Solves for x in ax² + bx + c = 0
 ///

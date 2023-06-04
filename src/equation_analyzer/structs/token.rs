@@ -28,6 +28,8 @@ pub(crate) enum TokenType {
     OpenParen,
     CloseParen,
 
+    Factorial,
+
     Star,
     Slash,
     Plus,

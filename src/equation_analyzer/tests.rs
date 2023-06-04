@@ -859,6 +859,41 @@ mod rm_tests {
     }
 
     #[test]
+    fn factorial_test() {
+        let test = "6!";
+        let ans = calculate(test).unwrap();
+        assert_eq!(ans, 720_f32);
+    }
+
+    #[test]
+    fn factorial_test_2() {
+        let test = "(8-2)!";
+        let ans = calculate(test).unwrap();
+        assert_eq!(ans, 720_f32);
+    }
+
+    #[test]
+    fn factorial_test_3() {
+        let test = "(8-2 + 2^2)! - 1";
+        let ans = calculate(test).unwrap();
+        assert_eq!(ans, 3628799_f32);
+    }
+
+    #[test]
+    fn factorial_test_4() {
+        let test = "0!";
+        let ans = calculate(test).unwrap();
+        assert_eq!(ans, 1_f32);
+    }
+
+    #[test]
+    fn factorial_test_err() {
+        let test = "(2.2)!";
+        let ans = calculate(test).unwrap_err();
+        assert_eq!(ans, "Factorial is only defined for positive whole numbers");
+    }
+
+    #[test]
     fn plot_test_linear() {
         let test_eq = "y = 2x +1";
         let points = vec![(-1_f32, -1_f32), (0_f32, 1_f32), (1_f32, 3_f32)];

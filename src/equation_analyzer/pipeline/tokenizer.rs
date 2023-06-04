@@ -27,6 +27,9 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
             '*' => s.add_token(Star, "*"),
             '/' => s.add_token(Slash, "/"),
             '+' => s.add_token(Plus, "+"),
+            '!' => {
+                s.add_token(Factorial, "!");
+            }
             '%' => {
                 if s.peek()? == '%' {
                     s.advance()?;
@@ -38,7 +41,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
 
             //negative pi or e?
             '-' => {
-                if s.previous_match(&[_E, _Pi, Number, CloseParen, X]) {
+                if s.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
                     s.add_token(Minus, "-");
                 } else if s.peek()? == 'e' {
                     s.advance()?;

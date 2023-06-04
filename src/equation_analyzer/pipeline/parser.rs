@@ -61,7 +61,8 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
             | TokenType::Minus
             | TokenType::Power
             | TokenType::Modulo
-            | TokenType::Percent => {
+            | TokenType::Percent
+            | TokenType::Factorial => {
                 let o_1 = get_operator(&token.literal);
                 while !operator_stack.is_empty()
                     // && operator_stack.last().unwrap().token != "("
