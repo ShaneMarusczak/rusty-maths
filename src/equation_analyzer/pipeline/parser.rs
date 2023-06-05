@@ -1,10 +1,10 @@
-use crate::equation_analyzer::structs::operands::{get_operator, Operand};
+use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
 use crate::equation_analyzer::structs::token::{Token, TokenType};
 
-pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
+pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
     let mut operator_stack: Vec<Operand> = Vec::with_capacity(tokens.len());
 
-    let mut output: Vec<String> = Vec::with_capacity(tokens.len());
+    let mut output: Vec<Token> = Vec::with_capacity(tokens.len());
 
     let mut paren_depth = 0;
 
@@ -15,7 +15,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
             TokenType::Y | TokenType::Equal | TokenType::Comma => continue,
 
             TokenType::_Pi | TokenType::_E | TokenType::NegPi | TokenType::NegE => {
-                output.push(token.literal);
+                output.push(token);
             }
             TokenType::Sin
             | TokenType::Cos
@@ -29,7 +29,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
             | TokenType::OpenParen => {
                 paren_depth += 1;
 
-                operator_stack.push(get_operator(&token.literal));
+                operator_stack.push(get_operator(token));
             }
 
             TokenType::CloseParen => {
@@ -44,7 +44,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
                     output.push(op.token);
                 }
 
-                if operator_stack.last().unwrap().token == "(" {
+                if operator_stack.last().unwrap().token.token_type == TokenType::OpenParen {
                     operator_stack.pop();
                     continue;
                 }
@@ -63,12 +63,12 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
             | TokenType::Modulo
             | TokenType::Percent
             | TokenType::Factorial => {
-                let o_1 = get_operator(&token.literal);
+                let o_1 = get_operator(token);
                 while !operator_stack.is_empty()
-                    // && operator_stack.last().unwrap().token != "("
                     && !operator_stack.last().unwrap().paren_opener
                     && (operator_stack.last().unwrap().prec > o_1.prec
-                    || (operator_stack.last().unwrap().prec == o_1.prec && o_1.assoc == "l"))
+                        || (operator_stack.last().unwrap().prec == o_1.prec
+                            && o_1.assoc == Assoc::Left))
                 {
                     let o_2_new = operator_stack.pop().unwrap();
                     output.push(o_2_new.token);
@@ -77,7 +77,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
                 operator_stack.push(o_1);
             }
 
-            TokenType::Number | TokenType::X => output.push(token.literal),
+            TokenType::Number | TokenType::X => output.push(token),
             TokenType::End => {
                 found_end = true;
             }
@@ -86,7 +86,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<String>, String> {
 
     while !operator_stack.is_empty() {
         let op = operator_stack.pop().unwrap();
-        if op.token == "(" {
+        if op.token.token_type == TokenType::OpenParen {
             return Err("Invalid opening parenthesis".to_string());
         }
         output.push(op.token);

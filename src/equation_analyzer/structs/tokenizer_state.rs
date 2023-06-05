@@ -19,7 +19,9 @@ pub(crate) trait Tokenizer {
 
     fn at_end(&self) -> bool;
 
-    fn add_token(&mut self, token_type: TokenType, literal: &str);
+    fn add_token_n(&mut self, token_type: TokenType, numeric_value_1: f32, numeric_value_2: f32);
+
+    fn add_token(&mut self, token_type: TokenType);
 
     fn take_x(&mut self, coefficient: String) -> Result<(), String>;
 
@@ -81,12 +83,17 @@ impl Tokenizer for TokenizerState<'_> {
         self.current >= self.eq.chars().count()
     }
 
-    fn add_token(&mut self, token_type: TokenType, literal: &str) {
+    fn add_token_n(&mut self, token_type: TokenType, numeric_value_1: f32, numeric_value_2: f32) {
         let token = Token {
             token_type,
-            literal: literal.to_owned(),
+            numeric_value_1,
+            numeric_value_2,
         };
         self.tokens.push(token);
+    }
+
+    fn add_token(&mut self, token_type: TokenType) {
+        self.add_token_n(token_type, 0.0, 0.0)
     }
 
     fn take_x(&mut self, coefficient: String) -> Result<(), String> {
@@ -99,9 +106,11 @@ impl Tokenizer for TokenizerState<'_> {
             String::from("^1")
         };
 
-        let final_literal = coefficient + "x" + &pow_string;
-
-        self.add_token(TokenType::X, &final_literal);
+        self.add_token_n(
+            TokenType::X,
+            coefficient.parse().unwrap(),
+            pow_string[1..].parse().unwrap(),
+        );
         Ok(())
     }
 

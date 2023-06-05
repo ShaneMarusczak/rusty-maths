@@ -8,7 +8,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
     }
 
     let mut s = TokenizerState {
-        tokens: Vec::with_capacity(eq.len()),
+        tokens: Vec::with_capacity(eq.chars().count()),
         start: 0,
         current: 0,
         eq,
@@ -19,42 +19,40 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
         let c = s.advance()?;
         match c {
             ' ' | '\r' | '\t' => (),
-            'y' => s.add_token(Y, "y"),
-            '=' => s.add_token(Equal, "="),
-            ',' => s.add_token(Comma, ","),
-            'π' => s.add_token(_Pi, "π"),
-            'e' => s.add_token(_E, "e"),
-            '*' => s.add_token(Star, "*"),
-            '/' => s.add_token(Slash, "/"),
-            '+' => s.add_token(Plus, "+"),
-            '!' => {
-                s.add_token(Factorial, "!");
-            }
+            'y' => s.add_token(Y),
+            '=' => s.add_token(Equal),
+            ',' => s.add_token(Comma),
+            'π' => s.add_token(_Pi),
+            'e' => s.add_token(_E),
+            '*' => s.add_token(Star),
+            '/' => s.add_token(Slash),
+            '+' => s.add_token(Plus),
+            '!' => s.add_token(Factorial),
             '%' => {
                 if s.peek()? == '%' {
                     s.advance()?;
-                    s.add_token(Modulo, "%");
+                    s.add_token(Modulo);
                 } else {
-                    s.add_token(Percent, "%%");
+                    s.add_token(Percent);
                 }
             }
 
             //negative pi or e?
             '-' => {
                 if s.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
-                    s.add_token(Minus, "-");
+                    s.add_token(Minus);
                 } else if s.peek()? == 'e' {
                     s.advance()?;
-                    s.add_token(NegE, "-e");
+                    s.add_token(NegE);
                 } else if s.peek()? == 'π' {
                     s.advance()?;
-                    s.add_token(NegPi, "-π");
+                    s.add_token(NegPi);
                 } else if is_dig(s.peek()?) {
                     s.digit()?;
                     if s.peek()? != 'x' {
                         let literal = get_str_section(eq, s.start, s.current);
 
-                        s.add_token(Number, &literal);
+                        s.add_token_n(Number, literal.parse().unwrap(), 0.0);
                     } else {
                         let coefficient = get_str_section(eq, s.start, s.current);
                         //consume the x
@@ -68,9 +66,9 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                 }
             }
 
-            '(' => s.add_token(OpenParen, "("),
-            ')' => s.add_token(CloseParen, ")"),
-            '^' => s.add_token(Power, "^"),
+            '(' => s.add_token(OpenParen),
+            ')' => s.add_token(CloseParen),
+            '^' => s.add_token(Power),
             'x' => {
                 let coefficient = String::from("1");
                 s.take_x(coefficient)?;
@@ -81,7 +79,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     if s.peek()? != 'x' {
                         let literal = get_str_section(eq, s.start, s.current);
 
-                        s.add_token(Number, &literal);
+                        s.add_token_n(Number, literal.parse().unwrap(), 0.0);
                     } else {
                         let coefficient = get_str_section(eq, s.start, s.current);
                         //consume the x
@@ -114,17 +112,21 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     //consume the (
                     s.advance()?;
 
-                    let literal = get_str_section(eq, s.start, s.current);
                     match name.as_str() {
-                        "sin" => s.add_token(Sin, &literal),
-                        "cos" => s.add_token(Cos, &literal),
-                        "tan" => s.add_token(Tan, &literal),
-                        "max" => s.add_token(Max, &literal),
-                        "abs" => s.add_token(Abs, &literal),
-                        "sqrt" => s.add_token(Sqrt, &literal),
-                        "min" => s.add_token(Min, &literal),
-                        "ln" => s.add_token(Ln, &literal),
-                        "log" => s.add_token(Log, &literal),
+                        "sin" => s.add_token(Sin),
+                        "cos" => s.add_token(Cos),
+                        "tan" => s.add_token(Tan),
+                        "max" => s.add_token(Max),
+                        "abs" => s.add_token(Abs),
+                        "sqrt" => s.add_token(Sqrt),
+                        "min" => s.add_token(Min),
+                        "ln" => s.add_token(Ln),
+                        "log" => {
+                            let mut literal = get_str_section(eq, s.start, s.current);
+                            literal.pop();
+                            let base = literal.split('_').nth(1).unwrap().parse::<f32>().unwrap();
+                            s.add_token_n(Log, base, 0.0);
+                        }
                         _ => return Err(format!("Invalid function name {}", name)),
                     }
                 } else {
@@ -133,9 +135,6 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
             }
         }
     }
-    s.tokens.push(Token {
-        token_type: End,
-        literal: "end".to_owned(),
-    });
+    s.add_token(End);
     Ok(s.tokens)
 }

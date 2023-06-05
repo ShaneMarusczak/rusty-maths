@@ -1,37 +1,49 @@
+use super::token::{Token, TokenType};
+
 pub(crate) struct Operand {
-    pub(crate) token: String,
     pub(crate) prec: usize,
-    pub(crate) assoc: String,
+    pub(crate) assoc: Assoc,
     pub(crate) is_func: bool,
     pub(crate) paren_opener: bool,
+    pub(crate) token: Token,
 }
 
-pub(crate) fn get_operator(operator: &str) -> Operand {
-    match operator {
-        "(" => get_op(operator, 0, "r", false, true),
-        "!" => get_op(operator, 5, "l", false, false),
+#[derive(Debug, PartialEq)]
+pub(crate) enum Assoc {
+    Right,
+    Left,
+}
 
-        "+" | "-" => get_op(operator, 2, "l", false, false),
-        "*" | "/" | "%" | "%%" => get_op(operator, 3, "l", false, false),
-        "^" => get_op(operator, 4, "r", false, false),
-        "sqrt(" | "ln(" | "abs(" | "max(" | "min(" | "sin(" | "cos(" | "tan(" => {
-            get_op(operator, 0, "r", true, true)
+pub(crate) fn get_operator(operator: Token) -> Operand {
+    match operator.token_type {
+        TokenType::OpenParen => get_op(operator, 0, Assoc::Right, false, true),
+        TokenType::Factorial => get_op(operator, 5, Assoc::Left, false, false),
+
+        TokenType::Plus | TokenType::Minus => get_op(operator, 2, Assoc::Left, false, false),
+        TokenType::Star | TokenType::Slash | TokenType::Percent | TokenType::Modulo => {
+            get_op(operator, 3, Assoc::Left, false, false)
         }
+        TokenType::Power => get_op(operator, 4, Assoc::Right, false, false),
+        TokenType::Sqrt
+        | TokenType::Ln
+        | TokenType::Abs
+        | TokenType::Max
+        | TokenType::Min
+        | TokenType::Sin
+        | TokenType::Cos
+        | TokenType::Tan
+        | TokenType::Log => get_op(operator, 0, Assoc::Right, true, true),
         op => {
-            if op.starts_with("log_") {
-                get_op(operator, 0, "r", true, true)
-            } else {
-                panic!("unknown operator {}", op);
-            }
+            panic!("unknown operator {:?}", op);
         }
     }
 }
 
-fn get_op(token: &str, prec: usize, assoc: &str, is_func: bool, paren_opener: bool) -> Operand {
+fn get_op(token: Token, prec: usize, assoc: Assoc, is_func: bool, paren_opener: bool) -> Operand {
     Operand {
-        token: token.to_string(),
+        token,
         prec,
-        assoc: assoc.to_string(),
+        assoc,
         is_func,
         paren_opener,
     }

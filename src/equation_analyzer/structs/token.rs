@@ -1,7 +1,8 @@
 #[derive(Debug, PartialEq)]
 pub(crate) struct Token {
     pub(crate) token_type: TokenType,
-    pub(crate) literal: String,
+    pub(crate) numeric_value_1: f32,
+    pub(crate) numeric_value_2: f32,
 }
 
 #[derive(Debug, PartialEq)]

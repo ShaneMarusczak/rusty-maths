@@ -1,83 +1,81 @@
-use crate::utilities::{abs_f32, square_root_f32};
+use crate::{
+    equation_analyzer::structs::token::{Token, TokenType},
+    utilities::{abs_f32, square_root_f32},
+};
 use std::f32::consts::{E, PI};
 
-pub fn evaluate(parsed_eq: &[String], x: f32) -> Result<f32, String> {
+pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
     let mut stack: Vec<f32> = Vec::with_capacity(parsed_eq.len());
     for token in parsed_eq {
-        if let Ok(n) = token.parse() {
-            stack.push(n);
-        } else {
-            match token.as_str() {
-                "π" => stack.push(PI),
-                "e" => stack.push(E),
-                "-π" => stack.push(-PI),
-                "-e" => stack.push(-E),
-                "sin(" => {
-                    let temp = stack.pop().unwrap();
-                    stack.push(temp.sin());
+        match token.token_type {
+            TokenType::Number => stack.push(token.numeric_value_1),
+            TokenType::_Pi => stack.push(PI),
+            TokenType::_E => stack.push(E),
+            TokenType::NegPi => stack.push(-PI),
+            TokenType::NegE => stack.push(-E),
+            TokenType::Sin => {
+                let temp = stack.pop().unwrap();
+                stack.push(temp.sin());
+            }
+            TokenType::Cos => {
+                let temp = stack.pop().unwrap();
+                stack.push(temp.cos());
+            }
+            TokenType::Tan => {
+                let temp = stack.pop().unwrap();
+                stack.push(temp.tan());
+            }
+            TokenType::Abs => {
+                let temp = stack.pop().unwrap();
+                stack.push(abs_f32(temp));
+            }
+            TokenType::Sqrt => {
+                let temp = stack.pop().unwrap();
+                stack.push(square_root_f32(temp));
+            }
+            TokenType::Ln => {
+                let temp = stack.pop().unwrap();
+                stack.push(temp.ln());
+            }
+            TokenType::Factorial => {
+                let temp = stack.pop().unwrap();
+                if temp % 1.0 != 0.0 {
+                    return Err("Factorial is only defined for positive whole numbers".to_string());
                 }
-                "cos(" => {
-                    let temp = stack.pop().unwrap();
-                    stack.push(temp.cos());
-                }
-                "tan(" => {
-                    let temp = stack.pop().unwrap();
-                    stack.push(temp.tan());
-                }
-                "abs(" => {
-                    let temp = stack.pop().unwrap();
-                    stack.push(abs_f32(temp));
-                }
-                "sqrt(" => {
-                    let temp = stack.pop().unwrap();
-                    stack.push(square_root_f32(temp));
-                }
-                "ln(" => {
-                    let temp = stack.pop().unwrap();
-                    stack.push(temp.ln());
-                }
-                "!" => {
-                    let temp = stack.pop().unwrap();
-                    if temp % 1.0 != 0.0 {
-                        return Err(
-                            "Factorial is only defined for positive whole numbers".to_string()
-                        );
-                    }
-                    stack.push(crate::utilities::factorial(temp as isize) as f32);
-                }
-                _ => {
-                    if token.starts_with("log_") {
-                        let mut new_token = token.to_string();
-                        new_token.pop();
-                        let base = new_token.split('_').nth(1).unwrap().parse::<f32>().unwrap();
-                        let temp = stack.pop().unwrap();
-                        stack.push(temp.log(base));
-                    } else if token.contains("x^") {
-                        let split_token = token.split('x').collect::<Vec<&str>>();
+                stack.push(crate::utilities::factorial(temp as isize) as f32);
+            }
+            TokenType::Log => {
+                // let mut new_token = token.literal.to_owned();
+                // new_token.pop();
+                // let base = new_token.split('_').nth(1).unwrap().parse::<f32>().unwrap();
+                let temp = stack.pop().unwrap();
+                stack.push(temp.log(token.numeric_value_1));
+            }
+            TokenType::X => {
+                // let split_token = token.literal.split('x').collect::<Vec<&str>>();
 
-                        let coefficient = split_token[0].parse::<f32>().unwrap();
-                        let pow = split_token[1][1..].parse::<f32>().unwrap();
+                // let coefficient = split_token[0].parse::<f32>().unwrap();
+                // let pow = split_token[1][1..].parse::<f32>().unwrap();
 
-                        stack.push(coefficient * x.powf(pow));
-                    } else {
-                        let rhs = stack.pop().unwrap();
-                        let lhs = stack.pop().unwrap();
-                        match token.as_str() {
-                            "+" => stack.push(lhs + rhs),
-                            "-" => stack.push(lhs - rhs),
-                            "*" => stack.push(lhs * rhs),
-                            "/" => stack.push(lhs / rhs),
-                            "%" => stack.push(lhs % rhs),
-                            "%%" => {
-                                let hundredth_of_rhs = rhs / 100_f32;
-                                stack.push(lhs * hundredth_of_rhs);
-                            }
-                            "^" => stack.push(lhs.powf(rhs)),
-                            "max(" => stack.push(lhs.max(rhs)),
-                            "min(" => stack.push(lhs.min(rhs)),
-                            _ => return Err(format!("Unknown token: {}", token)),
-                        }
+                stack.push(token.numeric_value_1 * x.powf(token.numeric_value_2));
+            }
+            _ => {
+                let rhs = stack.pop().unwrap();
+                let lhs = stack.pop().unwrap();
+                match token.token_type {
+                    TokenType::Plus => stack.push(lhs + rhs),
+                    TokenType::Minus => stack.push(lhs - rhs),
+                    TokenType::Star => stack.push(lhs * rhs),
+                    TokenType::Slash => stack.push(lhs / rhs),
+                    TokenType::Modulo => stack.push(lhs % rhs),
+                    TokenType::Percent => {
+                        let hundredth_of_rhs = rhs / 100_f32;
+                        stack.push(lhs * hundredth_of_rhs);
                     }
+                    TokenType::Power => stack.push(lhs.powf(rhs)),
+                    TokenType::Max => stack.push(lhs.max(rhs)),
+                    TokenType::Min => stack.push(lhs.min(rhs)),
+                    _ => return Err(format!("Unknown token: {:?}", token)),
                 }
             }
         }
