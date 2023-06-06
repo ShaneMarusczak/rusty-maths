@@ -45,20 +45,10 @@ pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
                 stack.push(crate::utilities::factorial(temp as isize) as f32);
             }
             TokenType::Log => {
-                // let mut new_token = token.literal.to_owned();
-                // new_token.pop();
-                // let base = new_token.split('_').nth(1).unwrap().parse::<f32>().unwrap();
                 let temp = stack.pop().unwrap();
                 stack.push(temp.log(token.numeric_value_1));
             }
-            TokenType::X => {
-                // let split_token = token.literal.split('x').collect::<Vec<&str>>();
-
-                // let coefficient = split_token[0].parse::<f32>().unwrap();
-                // let pow = split_token[1][1..].parse::<f32>().unwrap();
-
-                stack.push(token.numeric_value_1 * x.powf(token.numeric_value_2));
-            }
+            TokenType::X => stack.push(token.numeric_value_1 * x.powf(token.numeric_value_2)),
             _ => {
                 let rhs = stack.pop().unwrap();
                 let lhs = stack.pop().unwrap();
