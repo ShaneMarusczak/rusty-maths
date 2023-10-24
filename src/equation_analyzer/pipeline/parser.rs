@@ -84,8 +84,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
         }
     }
 
-    while !operator_stack.is_empty() {
-        let op = operator_stack.pop().unwrap();
+    while let Some(op) = operator_stack.pop() {
         if op.token.token_type == TokenType::OpenParen {
             return Err("Invalid opening parenthesis".to_string());
         }
