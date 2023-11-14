@@ -26,6 +26,9 @@ pub(crate) enum TokenType {
     Ln,
     Log,
 
+    Avg,
+    EndAvg,
+
     OpenParen,
     CloseParen,
 
@@ -44,4 +47,10 @@ pub(crate) enum TokenType {
     X,
 
     End,
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) enum ParamToken {
+    None,
+    Avg,
 }

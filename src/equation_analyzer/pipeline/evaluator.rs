@@ -6,8 +6,31 @@ use std::f32::consts::{E, PI};
 
 pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
     let mut stack: Vec<f32> = Vec::with_capacity(parsed_eq.len());
+
+    let mut params = vec![];
+
+    let mut collecting_params = false;
+
     for token in parsed_eq {
+        if collecting_params {
+            if token.token_type == TokenType::Number {
+                params.push(token.numeric_value_1);
+                continue;
+            } else if token.token_type == TokenType::EndAvg {
+                collecting_params = false;
+                let avg = params
+                    .iter()
+                    .fold(0_f32, |acc, n| acc + (n / params.len() as f32));
+                stack.push(avg);
+                params.clear();
+                continue;
+            }
+        }
+
         match token.token_type {
+            TokenType::Avg => {
+                collecting_params = true;
+            }
             TokenType::Number => stack.push(token.numeric_value_1),
             TokenType::_Pi => stack.push(PI),
             TokenType::_E => stack.push(E),

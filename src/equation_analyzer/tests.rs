@@ -1033,4 +1033,36 @@ mod rm_tests {
         let actual_result = calculate(test).unwrap();
         assert!(is_close(actual_result, expected_result));
     }
+
+    #[test]
+    fn avg_test() {
+        let test = "avg(1,2,9)";
+        let expected_result = 4_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn avg_test_2() {
+        let test = "avg(1,2,9) + avg(1,2,9)";
+        let expected_result = 8_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn avg_test_3() {
+        let test = "avg(1,2,9) + sin(avg(-12,1,2,9))";
+        let expected_result = 4_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn avg_test_4() {
+        let test = "avg(1,2,sin(0))";
+        let expected_result = "Params can only be numbers";
+        let actual_result = calculate(test).unwrap_err();
+        assert_eq!(actual_result, expected_result);
+    }
 }

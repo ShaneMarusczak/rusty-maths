@@ -65,7 +65,6 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     s.take_x(coefficient)?;
                 }
             }
-
             '(' => s.add_token(OpenParen),
             ')' => s.add_token(CloseParen),
             '^' => s.add_token(Power),
@@ -121,6 +120,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         "sqrt" => s.add_token(Sqrt),
                         "min" => s.add_token(Min),
                         "ln" => s.add_token(Ln),
+                        "avg" => s.add_token(Avg),
                         "log" => {
                             let mut literal = get_str_section(eq, s.start, s.current);
                             literal.pop();

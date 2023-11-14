@@ -1,5 +1,5 @@
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
-use crate::equation_analyzer::structs::token::{Token, TokenType};
+use crate::equation_analyzer::structs::token::{ParamToken, Token, TokenType};
 
 pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
     let mut operator_stack: Vec<Operand> = Vec::with_capacity(tokens.len());
@@ -8,15 +8,48 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
 
     let mut paren_depth = 0;
 
+    let mut param_token = ParamToken::None;
+
     let mut found_end = false;
 
     for token in tokens {
+        if param_token != ParamToken::None {
+            if token.token_type == TokenType::Number {
+                output.push(token);
+                continue;
+            } else if token.token_type == TokenType::Comma {
+                continue;
+            } else if token.token_type == TokenType::CloseParen {
+                match param_token {
+                    ParamToken::Avg => {
+                        output.push(Token {
+                            token_type: TokenType::EndAvg,
+                            numeric_value_1: 0_f32,
+                            numeric_value_2: 0_f32,
+                        });
+                    }
+                    ParamToken::None => unreachable!(),
+                }
+
+                param_token = ParamToken::None;
+                continue;
+            }
+
+            return Err("Params can only be numbers".to_string());
+        }
+
         match token.token_type {
             TokenType::Y | TokenType::Equal | TokenType::Comma => continue,
 
             TokenType::_Pi | TokenType::_E | TokenType::NegPi | TokenType::NegE => {
                 output.push(token);
             }
+
+            TokenType::Avg => {
+                output.push(token);
+                param_token = ParamToken::Avg;
+            }
+
             TokenType::Sin
             | TokenType::Cos
             | TokenType::Tan
@@ -81,6 +114,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
             TokenType::End => {
                 found_end = true;
             }
+            _ => unreachable!("Synthetic token should not be here"),
         }
     }
 
