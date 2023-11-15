@@ -28,6 +28,34 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
                             numeric_value_2: 0_f32,
                         });
                     }
+                    ParamToken::Med => {
+                        output.push(Token {
+                            token_type: TokenType::EndMed,
+                            numeric_value_1: 0_f32,
+                            numeric_value_2: 0_f32,
+                        });
+                    }
+                    ParamToken::Min => {
+                        output.push(Token {
+                            token_type: TokenType::EndMin,
+                            numeric_value_1: 0_f32,
+                            numeric_value_2: 0_f32,
+                        });
+                    }
+                    ParamToken::Max => {
+                        output.push(Token {
+                            token_type: TokenType::EndMax,
+                            numeric_value_1: 0_f32,
+                            numeric_value_2: 0_f32,
+                        });
+                    }
+                    ParamToken::Mode => {
+                        output.push(Token {
+                            token_type: TokenType::EndMode,
+                            numeric_value_1: 0_f32,
+                            numeric_value_2: 0_f32,
+                        });
+                    }
                     ParamToken::None => unreachable!(),
                 }
 
@@ -50,13 +78,30 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
                 param_token = ParamToken::Avg;
             }
 
+            TokenType::Min => {
+                output.push(token);
+                param_token = ParamToken::Min;
+            }
+            TokenType::Max => {
+                output.push(token);
+                param_token = ParamToken::Max;
+            }
+
+            TokenType::Med => {
+                output.push(token);
+                param_token = ParamToken::Med;
+            }
+
+            TokenType::Mode => {
+                output.push(token);
+                param_token = ParamToken::Mode;
+            }
+
             TokenType::Sin
             | TokenType::Cos
             | TokenType::Tan
-            | TokenType::Max
             | TokenType::Abs
             | TokenType::Sqrt
-            | TokenType::Min
             | TokenType::Ln
             | TokenType::Log
             | TokenType::OpenParen => {

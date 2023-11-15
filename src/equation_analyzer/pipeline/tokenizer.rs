@@ -1,6 +1,6 @@
 use crate::equation_analyzer::structs::token::{Token, TokenType::*};
 use crate::equation_analyzer::structs::tokenizer_state::{Tokenizer, TokenizerState};
-use crate::utilities::{get_str_section, is_alpha, is_dig};
+use crate::utilities::get_str_section;
 
 pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
     if eq.is_empty() {
@@ -47,7 +47,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                 } else if s.peek()? == 'π' {
                     s.advance()?;
                     s.add_token(NegPi);
-                } else if is_dig(s.peek()?) {
+                } else if s.peek()?.is_ascii_digit() {
                     s.digit()?;
                     if s.peek()? != 'x' {
                         let literal = get_str_section(eq, s.start, s.current);
@@ -73,7 +73,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                 s.take_x(coefficient)?;
             }
             _ => {
-                if is_dig(c) {
+                if c.is_ascii_digit() {
                     s.digit()?;
                     if s.peek()? != 'x' {
                         let literal = get_str_section(eq, s.start, s.current);
@@ -85,8 +85,8 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         s.advance()?;
                         s.take_x(coefficient)?;
                     }
-                } else if is_alpha(c) {
-                    while is_alpha(s.peek()?) {
+                } else if c.is_alphabetic() {
+                    while s.peek()?.is_alphabetic() {
                         s.advance()?;
                     }
                     let name = get_str_section(eq, s.start, s.current);
@@ -98,7 +98,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         //consume the _
                         s.advance()?;
 
-                        if is_dig(s.peek()?) {
+                        if s.peek()?.is_ascii_digit() {
                             s.digit()?;
                         } else {
                             return Err(String::from("Invalid use of log"));
@@ -121,6 +121,8 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         "min" => s.add_token(Min),
                         "ln" => s.add_token(Ln),
                         "avg" => s.add_token(Avg),
+                        "med" => s.add_token(Med),
+                        "mode" => s.add_token(Mode),
                         "log" => {
                             let mut literal = get_str_section(eq, s.start, s.current);
                             literal.pop();

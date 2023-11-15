@@ -19,10 +19,22 @@ pub(crate) enum TokenType {
     Sin,
     Cos,
     Tan,
+
+    Med,
+    EndMed,
+
+    Mode,
+    EndMode,
+
     Max,
+    EndMax,
+
     Abs,
     Sqrt,
+
     Min,
+    EndMin,
+
     Ln,
     Log,
 
@@ -53,4 +65,8 @@ pub(crate) enum TokenType {
 pub(crate) enum ParamToken {
     None,
     Avg,
+    Min,
+    Max,
+    Med,
+    Mode,
 }

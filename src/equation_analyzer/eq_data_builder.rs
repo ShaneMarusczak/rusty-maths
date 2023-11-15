@@ -13,7 +13,8 @@ pub fn get_eq_data(
 ) -> Result<EquationData, String> {
     let tokens = get_tokens(eq)?;
 
-    let parsed_eq = Arc::new(parse(tokens).unwrap());
+    let parsed_eq = Arc::new(parse(tokens)?);
+
     let mut threads = vec![];
 
     let mut x_values = vec![];

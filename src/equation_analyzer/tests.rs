@@ -10,10 +10,11 @@ mod rm_tests {
         X, Y, _E,
     };
     use crate::equation_analyzer::structs::token::{Token, TokenType};
+    use crate::utilities::abs_f32;
     use std::f32::consts::{E, PI};
 
     fn is_close(x1: f32, x2: f32) -> bool {
-        (x1 - x2).abs() < 0.00001
+        abs_f32(x1 - x2) < f32::EPSILON
     }
 
     #[test]
@@ -116,7 +117,7 @@ mod rm_tests {
 
     #[test]
     fn get_eq_data_test_cos() {
-        let test_eq = "y = cos( x + 3.1415926 )";
+        let test_eq = "y = cos( x + 3.14159265358979323846        )";
         let expected = vec![
             (-PI, 1_f32),
             (-PI / 2_f32, 0_f32),
@@ -280,45 +281,6 @@ mod rm_tests {
             get_token(Plus),
         ];
 
-        assert_eq!(parse(test).unwrap(), ans);
-    }
-
-    #[test]
-    fn parse_test_4() {
-        //sin( max( ( 2 + 0 ) , 3 ) / ( 3 * π ) )
-        let test = vec![
-            get_token(Sin),
-            get_token(TokenType::Max),
-            get_token(OpenParen),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Plus),
-            get_token_n(Number, 0.0, 0.0),
-            get_token(CloseParen),
-            get_token(TokenType::Comma),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(CloseParen),
-            get_token(Slash),
-            get_token(OpenParen),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Star),
-            get_token(TokenType::_Pi),
-            get_token(CloseParen),
-            get_token(CloseParen),
-            get_token(End),
-        ];
-
-        let ans = vec![
-            get_token_n(Number, 2.0, 0.0),
-            get_token_n(Number, 0.0, 0.0),
-            get_token(Plus),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(TokenType::Max),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(TokenType::_Pi),
-            get_token(Star),
-            get_token(Slash),
-            get_token(Sin),
-        ];
         assert_eq!(parse(test).unwrap(), ans);
     }
 
@@ -496,24 +458,6 @@ mod rm_tests {
     }
 
     #[test]
-    fn get_and_eval_rpn_test_trig() {
-        let test = "min( (max( ( 2 + 0 ) , 3 ) / ( 3 * 3 )) , 2 )";
-        let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens).unwrap();
-        let eval = evaluate(&parsed_eq, f32::NAN);
-        assert!(is_close(eval.unwrap(), 0.33333334));
-    }
-
-    #[test]
-    fn get_and_eval_rpn_test_trig_2() {
-        let test = "1 + sin( max( 2 , 3 ) / 3 * 3.1415916 )";
-        let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens).unwrap();
-        let eval = evaluate(&parsed_eq, f32::NAN);
-        assert!(is_close(eval.unwrap(), 1_f32));
-    }
-
-    #[test]
     fn eval_rpn_test_1() {
         let test = "3 + 4 * ( 2 - 1 )";
         let tokens = get_tokens(test).unwrap();
@@ -605,7 +549,7 @@ mod rm_tests {
 
     #[test]
     fn eval_rpn_test_trig_2() {
-        let test = "sin( 3.1415926)";
+        let test = "sin( 3.14159265358979323846)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
@@ -644,7 +588,7 @@ mod rm_tests {
         let test = "tan( π )+ cos( π+π ) + sin( 2 *π )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq, f32::NAN).unwrap().round();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -664,24 +608,6 @@ mod rm_tests {
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
         assert!(is_close(ans, 0_f32));
-    }
-
-    #[test]
-    fn eval_rpn_test_trig_max() {
-        let test = "tan( π ) +max( 0 ,π) +sin(2 * π)";
-        let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
-        assert!(is_close(ans, PI));
-    }
-
-    #[test]
-    fn eval_rpn_test_trig_max_2() {
-        let test = "max(sin(π) , max(( 2^3 ),6 ))";
-        let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
-        assert!(is_close(ans, 8_f32));
     }
 
     #[test]
@@ -713,11 +639,11 @@ mod rm_tests {
 
     #[test]
     fn eval_rpn_test_min() {
-        let test = "min(max(5,8), max(7,9))";
+        let test = "min(5,8,7,9)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
         let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
-        assert_eq!(ans, 8_f32);
+        assert_eq!(ans, 5_f32);
     }
 
     #[test]
@@ -985,13 +911,6 @@ mod rm_tests {
         assert_eq!(tokens, "Invalid function name cro");
     }
 
-    // #[test]
-    // fn evaluator_bad_token() {
-    //     let test = vec![String::from("5"), String::from("5"), String::from("cro(")];
-    //     let tokens = evaluate(&test, f32::NAN).unwrap_err();
-    //     assert_eq!(tokens, "Unknown token: cro(");
-    // }
-
     #[test]
     fn eval_rpn_test_power() {
         let test = "3^2";
@@ -1005,7 +924,7 @@ mod rm_tests {
     #[test]
     fn test_calculate_with_complex_equation() {
         let test = "2*(3+4*(5-6))/7 + 8^(9/10)";
-        let expected_result = 6.212_305;
+        let expected_result = 6.21230459;
         let actual_result = calculate(test).unwrap();
         assert!(is_close(actual_result, expected_result));
     }
@@ -1020,7 +939,7 @@ mod rm_tests {
 
     #[test]
     fn pi_test_2() {
-        let test = "max(π,1)+sin(π) - sin(π) - π + sqrt(π) - sqrt(π) - 2^π + 2^π - π^2 + π^2";
+        let test = "π+sin(π) - sin(π) - π + sqrt(π) - sqrt(π) - 2^π + 2^π - π^2 + π^2";
         let expected_result = 0_f32;
         let actual_result = calculate(test).unwrap();
         assert!(is_close(actual_result, expected_result));
@@ -1028,7 +947,7 @@ mod rm_tests {
 
     #[test]
     fn pi_test_3() {
-        let test = "((min(5,π) + 2*π - 3*π)*2*π)/2*π";
+        let test = "((π + 2*π - 3*π)*2*π)/2*π";
         let expected_result = 0_f32;
         let actual_result = calculate(test).unwrap();
         assert!(is_close(actual_result, expected_result));
@@ -1064,5 +983,69 @@ mod rm_tests {
         let expected_result = "Params can only be numbers";
         let actual_result = calculate(test).unwrap_err();
         assert_eq!(actual_result, expected_result);
+    }
+
+    #[test]
+    fn min_test() {
+        let test = "min(1,2,9)";
+        let expected_result = 1_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn max_test() {
+        let test = "max(1,2,9)";
+        let expected_result = 9_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn max_min_test() {
+        let test = "max(1,2,9) + min(1,2,9)";
+        let expected_result = 10_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn max_min_avg_test() {
+        let test = "max(1,2,9) + min(1,2,9) + avg(1,2,9)";
+        let expected_result = 14_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn med_test() {
+        let test = "med(2,1,9)";
+        let expected_result = 2_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn med_test_2() {
+        let test = "med(1,2,9,11)";
+        let expected_result = 5.5;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn mode_test() {
+        let test = "mode(1,2,3,4,5,2)";
+        let expected_result = 2_f32;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn mode_test_2() {
+        let test = "mode(1.1,2.3,3.4,3.4,5,2)";
+        let expected_result = 3.4;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
     }
 }

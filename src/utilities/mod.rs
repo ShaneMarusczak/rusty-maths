@@ -1,7 +1,6 @@
 use crate::linear_algebra::Vector;
 use rand::distributions::Uniform;
 use rand::Rng;
-use std::f64;
 
 pub fn accuracy(t_p: isize, f_p: isize, f_n: isize, t_n: isize) -> f64 {
     let correct = t_p + t_n;
@@ -193,11 +192,9 @@ fn square(num: f64, i: f64, j: f64) -> f64 {
 }
 
 pub(crate) fn factorial(num: isize) -> isize {
-    let mut curr = num;
     let mut ans = 1;
-    while curr > 0 {
-        ans *= curr;
-        curr -= 1;
+    for i in 1..=num {
+        ans *= i;
     }
     ans
 }
@@ -225,7 +222,6 @@ pub fn quadratic_eq_f32(a: f32, b: f32, c: f32) -> Result<(f32, f32), String> {
         return Err(String::from("No Real Solutions"));
     }
     if b_sq - four_a_c == 0_f32 {
-        #[allow(deprecated)]
         return Ok((neg_b / two_a, f32::NAN));
     }
     let sqrt__ = square_root_f32(b_sq - four_a_c);
@@ -254,29 +250,14 @@ pub fn quadratic_eq(a: f64, b: f64, c: f64) -> Result<(f64, f64), String> {
         return Err(String::from("No Real Solutions"));
     }
     if b_sq - four_a_c == 0_f64 {
-        #[allow(deprecated)]
         return Ok((neg_b / two_a, f64::NAN));
     }
     let sqrt__ = square_root(b_sq - four_a_c);
     Ok(((neg_b + sqrt__) / two_a, (neg_b - sqrt__) / two_a))
 }
 
-pub fn is_dig(c: char) -> bool {
-    c.is_ascii_digit()
-}
-
-pub fn is_alpha(c: char) -> bool {
-    c.is_ascii_lowercase() || c.is_ascii_uppercase()
-}
-
 pub fn get_str_section(str: &str, start: usize, end: usize) -> String {
-    let mut slice = String::new();
-    for (i, c) in str.chars().enumerate() {
-        if i >= start && i < end {
-            slice.push(c);
-        }
-    }
-    slice
+    str.chars().skip(start).take(end - start).collect()
 }
 
 #[cfg(test)]

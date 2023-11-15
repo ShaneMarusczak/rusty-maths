@@ -1,5 +1,4 @@
 use crate::equation_analyzer::structs::token::{Token, TokenType};
-use crate::utilities::is_dig;
 
 pub(crate) struct TokenizerState<'a> {
     pub(crate) tokens: Vec<Token>,
@@ -115,7 +114,7 @@ impl Tokenizer for TokenizerState<'_> {
     }
 
     fn power(&mut self) -> Result<(), String> {
-        if is_dig(self.peek_next()?) {
+        if self.peek_next()?.is_ascii_digit() {
             //consume the ^
             self.advance()?;
             self.digit()?;
@@ -126,13 +125,13 @@ impl Tokenizer for TokenizerState<'_> {
     }
 
     fn digit(&mut self) -> Result<(), String> {
-        while is_dig(self.peek()?) || self.peek()? == '_' {
+        while self.peek()?.is_ascii_digit() || self.peek()? == '_' {
             self.advance()?;
         }
-        if self.peek()? == '.' && is_dig(self.peek_next()?) {
+        if self.peek()? == '.' && self.peek_next()?.is_ascii_digit() {
             //consume the .
             self.advance()?;
-            while is_dig(self.peek()?) {
+            while self.peek()?.is_ascii_digit() {
                 self.advance()?;
             }
         }
