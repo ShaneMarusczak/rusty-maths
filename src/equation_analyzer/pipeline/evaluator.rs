@@ -18,6 +18,7 @@ pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
         if collecting_params {
             match token.token_type {
                 TokenType::Number => params.push(token.numeric_value_1),
+                TokenType::X => params.push(token.numeric_value_1 * x.powf(token.numeric_value_2)),
                 TokenType::EndAvg => {
                     let avg = params.iter().sum::<f32>() / params.len() as f32;
                     stack.push(avg);
@@ -80,7 +81,7 @@ pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
                 }
                 _ => unreachable!(),
             }
-            if token.token_type != TokenType::Number {
+            if !matches!(token.token_type, TokenType::Number | TokenType::X) {
                 collecting_params = false;
                 params.clear();
             }
