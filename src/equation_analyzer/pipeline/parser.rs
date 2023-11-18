@@ -28,6 +28,13 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
                             numeric_value_2: 0_f32,
                         });
                     }
+                    ParamToken::Choice => {
+                        output.push(Token {
+                            token_type: TokenType::EndChoice,
+                            numeric_value_1: 0_f32,
+                            numeric_value_2: 0_f32,
+                        });
+                    }
                     ParamToken::Med => {
                         output.push(Token {
                             token_type: TokenType::EndMed,
@@ -78,6 +85,11 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
                 param_token = ParamToken::Avg;
             }
 
+            TokenType::Choice => {
+                output.push(token);
+                param_token = ParamToken::Choice;
+            }
+
             TokenType::Min => {
                 output.push(token);
                 param_token = ParamToken::Min;
@@ -100,6 +112,9 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
             TokenType::Sin
             | TokenType::Cos
             | TokenType::Tan
+            | TokenType::Asin
+            | TokenType::Acos
+            | TokenType::Atan
             | TokenType::Abs
             | TokenType::Sqrt
             | TokenType::Ln

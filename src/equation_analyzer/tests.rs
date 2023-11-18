@@ -1048,4 +1048,52 @@ mod rm_tests {
         let actual_result = calculate(test).unwrap();
         assert!(is_close(actual_result, expected_result));
     }
+
+    #[test]
+    fn choice_test() {
+        let test = "ch(5,2)";
+        let expected_result = 10.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn choice_test_2() {
+        let test = "ch( 20 ,9)";
+        let expected_result = 167960.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn choice_test_3() {
+        let test = "ch(20,  9   ) - 10000";
+        let expected_result = 157960.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn choice_test_error() {
+        let test = "ch(20,9, 0)";
+        let expected_result = "Choice function takes two parameters, found 3.";
+        let actual_result = calculate(test).unwrap_err();
+        assert_eq!(expected_result, actual_result);
+    }
+
+    #[test]
+    fn choice_test_error_2() {
+        let test = "ch(20,9.1)";
+        let expected_result = "Choice is only defined for positive whole numbers";
+        let actual_result = calculate(test).unwrap_err();
+        assert_eq!(expected_result, actual_result);
+    }
+
+    #[test]
+    fn a_trig_test() {
+        let test = "asin(sin(0.5)) + acos(cos(0.5)) + atan(tan(0.5))";
+        let expected_result = 1.5;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
 }

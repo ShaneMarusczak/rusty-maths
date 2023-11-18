@@ -36,8 +36,6 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     s.add_token(Percent);
                 }
             }
-
-            //negative pi or e?
             '-' => {
                 if s.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
                     s.add_token(Minus);
@@ -115,6 +113,9 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         "sin" => s.add_token(Sin),
                         "cos" => s.add_token(Cos),
                         "tan" => s.add_token(Tan),
+                        "asin" => s.add_token(Asin),
+                        "acos" => s.add_token(Acos),
+                        "atan" => s.add_token(Atan),
                         "max" => s.add_token(Max),
                         "abs" => s.add_token(Abs),
                         "sqrt" => s.add_token(Sqrt),
@@ -123,6 +124,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         "avg" => s.add_token(Avg),
                         "med" => s.add_token(Med),
                         "mode" => s.add_token(Mode),
+                        "ch" => s.add_token(Choice),
                         "log" => {
                             let mut literal = get_str_section(eq, s.start, s.current);
                             literal.pop();

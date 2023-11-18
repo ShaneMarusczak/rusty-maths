@@ -19,6 +19,9 @@ pub(crate) enum TokenType {
     Sin,
     Cos,
     Tan,
+    Asin,
+    Acos,
+    Atan,
 
     Med,
     EndMed,
@@ -40,6 +43,9 @@ pub(crate) enum TokenType {
 
     Avg,
     EndAvg,
+
+    Choice,
+    EndChoice,
 
     OpenParen,
     CloseParen,
@@ -69,4 +75,5 @@ pub(crate) enum ParamToken {
     Max,
     Med,
     Mode,
+    Choice,
 }
