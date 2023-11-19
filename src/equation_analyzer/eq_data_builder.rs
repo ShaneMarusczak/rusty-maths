@@ -63,7 +63,7 @@ pub struct EquationData {
     pub points: Vec<Point>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Point {
     pub x: f32,
     pub y: f32,
