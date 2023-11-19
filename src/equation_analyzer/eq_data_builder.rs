@@ -41,8 +41,8 @@ pub fn get_eq_data(
         threads.push(thread::spawn(move || {
             let mut thread_points = Vec::with_capacity(chunk.len());
             for x in chunk {
-                let result = (x, evaluate(&parsed_eq, x).expect("evaluation failed"));
-                thread_points.push(result);
+                let point = Point::new(x, evaluate(&parsed_eq, x).expect("evaluation failed"));
+                thread_points.push(point);
             }
             thread_points
         }));
@@ -60,5 +60,17 @@ pub fn get_eq_data(
 #[derive(Debug, PartialEq)]
 pub struct EquationData {
     pub literal: String,
-    pub points: Vec<(f32, f32)>,
+    pub points: Vec<Point>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Point {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Point {
+    pub fn new(x: f32, y: f32) -> Point {
+        Point { x, y }
+    }
 }

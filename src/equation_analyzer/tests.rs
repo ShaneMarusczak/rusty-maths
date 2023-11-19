@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod rm_tests {
     use crate::equation_analyzer::calculator::{calculate, plot};
-    use crate::equation_analyzer::eq_data_builder::get_eq_data;
+    use crate::equation_analyzer::eq_data_builder::{get_eq_data, Point};
     use crate::equation_analyzer::pipeline::evaluator::evaluate;
     use crate::equation_analyzer::pipeline::parser::parse;
     use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
@@ -20,7 +20,11 @@ mod rm_tests {
     #[test]
     fn get_eq_data_test_linear() {
         let test_eq = "y = 2x + 1";
-        let points = vec![(-1_f32, -1_f32), (0_f32, 1_f32), (1_f32, 3_f32)];
+        let points = vec![
+            Point::new(-1_f32, -1_f32),
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 3_f32),
+        ];
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -31,7 +35,11 @@ mod rm_tests {
     #[test]
     fn get_eq_data_test_linear_2() {
         let test_eq = "y = -2x + 1";
-        let ans = vec![(-1_f32, 3_f32), (0_f32, 1_f32), (1_f32, -1_f32)];
+        let ans = vec![
+            Point::new(-1_f32, 3_f32),
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, -1_f32),
+        ];
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -42,7 +50,11 @@ mod rm_tests {
     #[test]
     fn get_eq_data_test_linear_3() {
         let test_eq = "y = -x + 1";
-        let ans = vec![(-1_f32, 2_f32), (0_f32, 1_f32), (1_f32, 0_f32)];
+        let ans = vec![
+            Point::new(-1_f32, 2_f32),
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 0_f32),
+        ];
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -53,7 +65,11 @@ mod rm_tests {
     #[test]
     fn get_eq_data_test_quad() {
         let test_eq = "y = x^2 + 2x + 1";
-        let ans = vec![(-1_f32, 0_f32), (0_f32, 1_f32), (1_f32, 4_f32)];
+        let ans = vec![
+            Point::new(-1_f32, 0_f32),
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 4_f32),
+        ];
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -64,7 +80,11 @@ mod rm_tests {
     #[test]
     fn get_eq_data_test_quad_1() {
         let test_eq = "y = -2x^2 + 2x + 1";
-        let points = vec![(-1_f32, -3_f32), (0_f32, 1_f32), (1_f32, 1_f32)];
+        let points = vec![
+            Point::new(-1_f32, -3_f32),
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 1_f32),
+        ];
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -75,7 +95,11 @@ mod rm_tests {
     #[test]
     fn get_eq_data_test_quad_2() {
         let test_eq = "y = x^2 - 1";
-        let points = vec![(-1_f32, 0_f32), (0_f32, -1_f32), (1_f32, 0_f32)];
+        let points = vec![
+            Point::new(-1_f32, 0_f32),
+            Point::new(0_f32, -1_f32),
+            Point::new(1_f32, 0_f32),
+        ];
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -86,7 +110,11 @@ mod rm_tests {
     #[test]
     fn get_eq_data_test_quad_3() {
         let test_eq = "y = x^2 + 1";
-        let points = vec![(-1_f32, 2_f32), (0_f32, 1_f32), (1_f32, 2_f32)];
+        let points = vec![
+            Point::new(-1_f32, 2_f32),
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 2_f32),
+        ];
 
         let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -107,9 +135,9 @@ mod rm_tests {
 
         let actual = get_eq_data(test_eq, -PI, PI, PI / 2_f32).unwrap();
 
-        for ((x_1, y_1), (x_2, y_2)) in actual.points.iter().zip(expected) {
-            assert!(is_close(*x_1, x_2));
-            assert!(is_close(*y_1, y_2));
+        for (p, (x_2, y_2)) in actual.points.iter().zip(expected) {
+            assert!(is_close(p.x, x_2));
+            assert!(is_close(p.y, y_2));
         }
 
         assert_eq!(actual.literal, test_eq);
@@ -128,9 +156,9 @@ mod rm_tests {
 
         let actual = get_eq_data(test_eq, -PI, PI, PI / 2_f32).unwrap();
 
-        for ((x_1, y_1), (x_2, y_2)) in actual.points.iter().zip(expected) {
-            assert!(is_close(*x_1, x_2));
-            assert!(is_close(*y_1, y_2));
+        for (p, (x_2, y_2)) in actual.points.iter().zip(expected) {
+            assert!(is_close(p.x, x_2));
+            assert!(is_close(p.y, y_2));
         }
 
         assert_eq!(actual.literal, test_eq);
@@ -149,9 +177,9 @@ mod rm_tests {
 
         let actual = get_eq_data(test_eq, 2_f32, 3_f32, 0.25_f32).unwrap();
 
-        for ((x_1, y_1), (x_2, y_2)) in actual.points.iter().zip(expected) {
-            assert!(is_close(*x_1, x_2));
-            assert!(is_close(*y_1, y_2));
+        for (p, (x_2, y_2)) in actual.points.iter().zip(expected) {
+            assert!(is_close(p.x, x_2));
+            assert!(is_close(p.y, y_2));
         }
 
         assert_eq!(actual.literal, test_eq);
@@ -175,9 +203,9 @@ mod rm_tests {
 
         let actual = get_eq_data(test_eq, 1_f32, 10_f32, 1_f32).unwrap();
 
-        for ((x_1, y_1), (x_2, y_2)) in actual.points.iter().zip(expected) {
-            assert_eq!(*x_1, x_2);
-            assert_eq!(*y_1, y_2);
+        for (p, (x_2, y_2)) in actual.points.iter().zip(expected) {
+            assert_eq!(p.x, x_2);
+            assert_eq!(p.y, y_2);
         }
 
         assert_eq!(actual.literal, test_eq);
@@ -829,7 +857,11 @@ mod rm_tests {
     #[test]
     fn plot_test_linear() {
         let test_eq = "y = 2x +1";
-        let points = vec![(-1_f32, -1_f32), (0_f32, 1_f32), (1_f32, 3_f32)];
+        let points = vec![
+            Point::new(-1_f32, -1_f32),
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 3_f32),
+        ];
 
         let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -839,7 +871,11 @@ mod rm_tests {
     #[test]
     fn plot_test_linear_1() {
         let test_eq = "y = π*x^2";
-        let points = vec![(-1_f32, 3.1415927), (0_f32, 0_f32), (1_f32, 3.1415927)];
+        let points = vec![
+            Point::new(-1_f32, 3.1415927),
+            Point::new(0_f32, 0_f32),
+            Point::new(1_f32, 3.1415927),
+        ];
 
         let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -849,7 +885,11 @@ mod rm_tests {
     #[test]
     fn plot_test_quad() {
         let test_eq = "y = x^2";
-        let points = vec![(-1_f32, 1_f32), (0_f32, 0_f32), (1_f32, 1_f32)];
+        let points = vec![
+            Point::new(-1_f32, 1_f32),
+            Point::new(0_f32, 0_f32),
+            Point::new(1_f32, 1_f32),
+        ];
 
         let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
@@ -863,9 +903,9 @@ mod rm_tests {
 
         let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        for ((x_1, y_1), (x_2, y_2)) in actual.iter().zip(points) {
-            assert!(is_close(*x_1, x_2));
-            assert!(is_close(*y_1, y_2));
+        for (p, (x_2, y_2)) in actual.iter().zip(points) {
+            assert!(is_close(p.x, x_2));
+            assert!(is_close(p.y, y_2));
         }
     }
 
@@ -876,9 +916,9 @@ mod rm_tests {
 
         let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        for ((x_1, y_1), (x_2, y_2)) in actual.iter().zip(points) {
-            assert!(is_close(*x_1, x_2));
-            assert!(is_close(*y_1, y_2));
+        for (p, (x_2, y_2)) in actual.iter().zip(points) {
+            assert!(is_close(p.x, x_2));
+            assert!(is_close(p.y, y_2));
         }
     }
 
