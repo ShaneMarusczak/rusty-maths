@@ -92,7 +92,7 @@ impl Tokenizer for TokenizerState<'_> {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.add_token_n(token_type, 0.0, 0.0)
+        self.add_token_n(token_type, 0.0, 0.0);
     }
 
     fn take_x(&mut self, coefficient: String) -> Result<(), String> {

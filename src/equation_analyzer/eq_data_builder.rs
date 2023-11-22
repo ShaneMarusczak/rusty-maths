@@ -38,17 +38,20 @@ pub fn get_eq_data(
     for chunk in x_chunks {
         let parsed_eq = Arc::clone(&parsed_eq);
 
-        threads.push(thread::spawn(move || {
+        threads.push(thread::spawn(move || -> Result<Vec<Point>, String> {
             let mut thread_points = Vec::with_capacity(chunk.len());
             for x in chunk {
-                let point = Point::new(x, evaluate(&parsed_eq, x).expect("evaluation failed"));
-                thread_points.push(point);
+                let y = evaluate(&parsed_eq, x);
+                match y {
+                    Ok(y) => thread_points.push(Point::new(x, y)),
+                    Err(e) => return Err(e),
+                }
             }
-            thread_points
+            Ok(thread_points)
         }));
     }
     for thread in threads {
-        points.append(&mut thread.join().unwrap());
+        points.append(&mut thread.join().unwrap()?);
     }
 
     Ok(EquationData {

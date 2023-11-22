@@ -46,7 +46,7 @@ pub fn linear_gradient(x: f64, y: f64, theta: &Vector) -> Vector {
     let slope = theta[0];
     let intercept = theta[1];
 
-    let predicted = (slope * x) + intercept;
+    let predicted = slope.mul_add(x, intercept);
 
     let error = predicted - y;
 

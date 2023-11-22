@@ -24,11 +24,11 @@ pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
                     stack.push(avg);
                 }
                 TokenType::EndMin => {
-                    let min = params.iter().cloned().fold(f32::MAX, f32::min);
+                    let min = params.iter().copied().fold(f32::MAX, f32::min);
                     stack.push(min);
                 }
                 TokenType::EndMax => {
-                    let max = params.iter().cloned().fold(f32::MIN, f32::max);
+                    let max = params.iter().copied().fold(f32::MIN, f32::max);
                     stack.push(max);
                 }
                 TokenType::EndChoice => {
