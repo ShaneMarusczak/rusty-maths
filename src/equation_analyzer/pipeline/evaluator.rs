@@ -8,6 +8,9 @@ use std::{
 };
 
 pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
+    if parsed_eq.is_empty() {
+        return Err(String::from("Invalid equation supplied"));
+    }
     let mut stack: Vec<f32> = Vec::with_capacity(parsed_eq.len());
 
     let mut params = vec![];

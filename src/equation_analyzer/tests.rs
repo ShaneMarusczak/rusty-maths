@@ -1149,4 +1149,12 @@ mod rm_tests {
         let actual_result = calculate(test).unwrap();
         assert!(is_close(actual_result, expected_result));
     }
+
+    #[test]
+    fn y_test() {
+        let test = "y";
+        let expected_result = "Invalid equation supplied";
+        let actual_result = calculate(test).unwrap_err();
+        assert_eq!(actual_result, expected_result);
+    }
 }
