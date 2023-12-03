@@ -135,6 +135,9 @@ pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
             }
             TokenType::Sqrt => {
                 let temp = stack.pop().unwrap();
+                if temp.is_sign_negative() {
+                    return Err("Cannot take the sqrt of a negative number".to_string());
+                }
                 stack.push(square_root_f32(temp));
             }
             TokenType::Ln => {
