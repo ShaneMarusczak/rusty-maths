@@ -486,6 +486,69 @@ mod rm_tests {
     }
 
     #[test]
+    fn test_9() {
+        let eq = "y= 3x^-(1/2) +x";
+        let ans = vec![
+            get_token(Y),
+            get_token(Equal),
+            get_token_n(X, 3.0, -0.5),
+            get_token(Plus),
+            get_token_n(X, 1.0, 1.0),
+            get_token(End),
+        ];
+        assert_eq!(get_tokens(eq).unwrap(), ans);
+    }
+
+    #[test]
+    fn test_10() {
+        let eq = "y= 3x^-2 +x";
+        let ans = vec![
+            get_token(Y),
+            get_token(Equal),
+            get_token_n(X, 3.0, -2.0),
+            get_token(Plus),
+            get_token_n(X, 1.0, 1.0),
+            get_token(End),
+        ];
+        assert_eq!(get_tokens(eq).unwrap(), ans);
+    }
+
+    #[test]
+    fn test_11() {
+        let eq = "y= 3x^(1/2) +x";
+        let ans = vec![
+            get_token(Y),
+            get_token(Equal),
+            get_token_n(X, 3.0, 0.5),
+            get_token(Plus),
+            get_token_n(X, 1.0, 1.0),
+            get_token(End),
+        ];
+        assert_eq!(get_tokens(eq).unwrap(), ans);
+    }
+
+    #[test]
+    fn test_12() {
+        let eq = "y= 3x^(1/2 +x";
+        assert_eq!(get_tokens(eq).unwrap_err(), "Invalid power");
+    }
+    #[test]
+    fn test_13() {
+        let eq = "y= 3x^1/2 +x";
+        let ans = vec![
+            get_token(Y),
+            get_token(Equal),
+            get_token_n(X, 3.0, 1.0),
+            get_token(Slash),
+            get_token_n(Number, 2.0, 0.0),
+            get_token(Plus),
+            get_token_n(X, 1.0, 1.0),
+            get_token(End),
+        ];
+        assert_eq!(get_tokens(eq).unwrap(), ans);
+    }
+
+    #[test]
     fn eval_rpn_test_1() {
         let test = "3 + 4 * ( 2 - 1 )";
         let tokens = get_tokens(test).unwrap();
@@ -514,11 +577,11 @@ mod rm_tests {
 
     #[test]
     fn eval_rpn_test_4() {
-        let test = "y = x^2 + x + 3";
+        let test = "y = x^(1/2) + x + 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, 2_f32).unwrap();
-        assert_eq!(ans, 9_f32);
+        let ans = evaluate(&parsed_eq, 16_f32).unwrap();
+        assert_eq!(ans, 23_f32);
     }
 
     #[test]
@@ -1156,5 +1219,28 @@ mod rm_tests {
         let expected_result = "Invalid equation supplied";
         let actual_result = calculate(test).unwrap_err();
         assert_eq!(actual_result, expected_result);
+    }
+
+    #[test]
+    fn neg_test() {
+        let test = "-(5 + 2)";
+        let expected_result = -7.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn neg_test_2() {
+        let test = "-sqrt(4)";
+        let expected_result = -2.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+    #[test]
+    fn neg_test_3() {
+        let test = "----sqrt(4)";
+        let expected_result = 2.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
     }
 }

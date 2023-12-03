@@ -61,6 +61,10 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     let coefficient = String::from("-1");
                     s.advance()?;
                     s.take_x(coefficient)?;
+                } else if s.peek()? == '(' || s.peek()?.is_alphabetic() || s.peek()? == '-' {
+                    //-(5) or -sqrt(4) or --2
+                    s.add_token_n(Number, -1.0, 0.0);
+                    s.add_token(Star);
                 }
             }
             '(' => s.add_token(OpenParen),

@@ -1,4 +1,7 @@
-use crate::equation_analyzer::structs::token::{Token, TokenType};
+use crate::equation_analyzer::{
+    calculator::calculate,
+    structs::token::{Token, TokenType},
+};
 
 pub(crate) struct TokenizerState<'a> {
     pub(crate) tokens: Vec<Token>,
@@ -12,7 +15,7 @@ pub(crate) trait Tokenizer {
 
     fn peek(&self) -> Result<char, String>;
 
-    fn peek_next(&self) -> Result<char, String>;
+    fn peek_n(&self, distance: usize) -> Result<char, String>;
 
     fn previous_match(&self, types: &[TokenType]) -> bool;
 
@@ -41,26 +44,18 @@ impl Tokenizer for TokenizerState<'_> {
     }
 
     fn peek(&self) -> Result<char, String> {
-        if self.at_end() {
-            return Ok('\0');
-        };
-        let c = self.eq.chars().nth(self.current);
-        if let Some(c) = c {
-            Ok(c)
-        } else {
-            Err(format!("Invalid Input at {}", self.current))
-        }
+        self.peek_n(0)
     }
 
-    fn peek_next(&self) -> Result<char, String> {
+    fn peek_n(&self, distance: usize) -> Result<char, String> {
         if self.at_end() {
             return Ok('\0');
         };
-        let c = self.eq.chars().nth(self.current + 1);
+        let c = self.eq.chars().nth(self.current + distance);
         if let Some(c) = c {
             Ok(c)
         } else {
-            Err(format!("Invalid Input at {}", self.current + 1))
+            Err(format!("Invalid Input at {}", self.current + distance))
         }
     }
 
@@ -100,24 +95,48 @@ impl Tokenizer for TokenizerState<'_> {
             let pow_start = self.current;
             self.power()?;
 
-            crate::utilities::get_str_section(self.eq, pow_start, self.current)
+            let pow = crate::utilities::get_str_section(self.eq, pow_start, self.current);
+            let p = pow.replace(['^', '(', ')'], "");
+
+            let val = calculate(&p).unwrap();
+
+            format!("{val}")
         } else {
-            String::from("^1")
+            String::from("1")
         };
 
         self.add_token_n(
             TokenType::X,
             coefficient.parse().unwrap(),
-            pow_string[1..].parse().unwrap(),
+            pow_string.parse::<f32>().unwrap(),
         );
         Ok(())
     }
 
     fn power(&mut self) -> Result<(), String> {
-        if self.peek_next()?.is_ascii_digit() {
+        if self.peek_n(1)? == '-' {
+            self.advance()?;
+        }
+        if self.peek_n(1)?.is_ascii_digit() {
             //consume the ^
             self.advance()?;
+
             self.digit()?;
+
+            Ok(())
+        } else if self.peek_n(1)? == '(' {
+            self.advance()?;
+            self.advance()?;
+
+            self.digit()?;
+            if self.peek()? == '/' {
+                self.advance()?;
+                self.digit()?;
+            }
+            if self.peek()? != ')' {
+                return Err("Invalid power".to_string());
+            }
+            self.advance()?;
             Ok(())
         } else {
             Err("Invalid power".to_string())
@@ -128,7 +147,7 @@ impl Tokenizer for TokenizerState<'_> {
         while self.peek()?.is_ascii_digit() || self.peek()? == '_' {
             self.advance()?;
         }
-        if self.peek()? == '.' && self.peek_next()?.is_ascii_digit() {
+        if self.peek()? == '.' && self.peek_n(1)?.is_ascii_digit() {
             //consume the .
             self.advance()?;
             while self.peek()?.is_ascii_digit() {
