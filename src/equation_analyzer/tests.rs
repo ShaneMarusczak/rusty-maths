@@ -1231,6 +1231,14 @@ mod rm_tests {
 
     #[test]
     fn neg_test_2() {
+        let test = "-5 + (2)";
+        let expected_result = -3.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn neg_test_3() {
         let test = "-sqrt(4)";
         let expected_result = -2.0;
         let actual_result = calculate(test).unwrap();
@@ -1238,7 +1246,7 @@ mod rm_tests {
     }
 
     #[test]
-    fn neg_test_3() {
+    fn neg_test_4() {
         let test = "----sqrt(4)";
         let expected_result = 2.0;
         let actual_result = calculate(test).unwrap();
