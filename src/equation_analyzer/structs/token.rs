@@ -62,8 +62,7 @@ pub(crate) enum TokenType {
 
     Number,
 
-    X,
-
+    // X,
     End,
 }
 

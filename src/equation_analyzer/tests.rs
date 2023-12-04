@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod rm_tests {
+    use crate::equation_analyzer::calculator::Point;
     use crate::equation_analyzer::calculator::{calculate, plot};
-    use crate::equation_analyzer::eq_data_builder::{get_eq_data, Point};
     use crate::equation_analyzer::pipeline::evaluator::evaluate;
     use crate::equation_analyzer::pipeline::parser::parse;
     use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
     use crate::equation_analyzer::structs::token::TokenType::{
         CloseParen, End, Equal, Ln, Log, Minus, Number, OpenParen, Plus, Power, Sin, Slash, Star,
-        X, Y, _E,
+        Y, _E,
     };
     use crate::equation_analyzer::structs::token::{Token, TokenType};
     use crate::utilities::abs_f32;
@@ -18,7 +18,7 @@ mod rm_tests {
     }
 
     #[test]
-    fn get_eq_data_test_linear() {
+    fn plot_test_linear() {
         let test_eq = "y = 2x + 1";
         let points = vec![
             Point::new(-1_f32, -1_f32),
@@ -26,14 +26,69 @@ mod rm_tests {
             Point::new(1_f32, 3_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        assert_eq!(actual.literal, test_eq);
-        assert_eq!(actual.points, points);
+        assert_eq!(actual, points);
     }
 
     #[test]
-    fn get_eq_data_test_linear_2() {
+    fn plot_test_exp() {
+        let test_eq = "y = x^x";
+        let points = vec![
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 1_f32),
+            Point::new(2_f32, 4_f32),
+        ];
+
+        let actual = plot(test_eq, 0f32, 2f32, 1_f32).unwrap();
+
+        assert_eq!(actual, points);
+    }
+
+    #[test]
+    fn plot_test_exp_2() {
+        let test_eq = "y = x^(2x)";
+        let points = vec![
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 1_f32),
+            Point::new(2_f32, 16_f32),
+        ];
+
+        let actual = plot(test_eq, 0f32, 2f32, 1_f32).unwrap();
+
+        assert_eq!(actual, points);
+    }
+
+    #[test]
+    fn plot_test_exp_3() {
+        let test_eq = "y = x^2x";
+        let points = vec![
+            Point::new(0_f32, 0_f32),
+            Point::new(1_f32, 1_f32),
+            Point::new(2_f32, 8_f32),
+        ];
+
+        let actual = plot(test_eq, 0f32, 2f32, 1_f32).unwrap();
+
+        assert_eq!(actual, points);
+    }
+
+    #[test]
+    fn plot_test_exp_4() {
+        let test_eq = "y = x^x^x^x";
+        let points = vec![
+            Point::new(0_f32, 1_f32),
+            Point::new(1_f32, 1_f32),
+            Point::new(2_f32, 65536.),
+        ];
+
+        let actual = plot(test_eq, 0f32, 2f32, 1_f32).unwrap();
+
+        assert_eq!(actual, points);
+    }
+
+    #[test]
+    fn plot_test_linear_2() {
         let test_eq = "y = -2x + 1";
         let ans = vec![
             Point::new(-1_f32, 3_f32),
@@ -41,14 +96,13 @@ mod rm_tests {
             Point::new(1_f32, -1_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        assert_eq!(actual.literal, test_eq);
-        assert_eq!(actual.points, ans);
+        assert_eq!(actual, ans);
     }
 
     #[test]
-    fn get_eq_data_test_linear_3() {
+    fn plot_test_linear_3() {
         let test_eq = "y = -x + 1";
         let ans = vec![
             Point::new(-1_f32, 2_f32),
@@ -56,14 +110,13 @@ mod rm_tests {
             Point::new(1_f32, 0_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        assert_eq!(actual.literal, test_eq);
-        assert_eq!(actual.points, ans);
+        assert_eq!(actual, ans);
     }
 
     #[test]
-    fn get_eq_data_test_quad() {
+    fn plot_test_quad() {
         let test_eq = "y = x^2 + 2x + 1";
         let ans = vec![
             Point::new(-1_f32, 0_f32),
@@ -71,14 +124,13 @@ mod rm_tests {
             Point::new(1_f32, 4_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        assert_eq!(actual.literal, test_eq);
-        assert_eq!(actual.points, ans);
+        assert_eq!(actual, ans);
     }
 
     #[test]
-    fn get_eq_data_test_quad_1() {
+    fn plot_test_quad_1() {
         let test_eq = "y = -2x^2 + 2x + 1";
         let points = vec![
             Point::new(-1_f32, -3_f32),
@@ -86,14 +138,13 @@ mod rm_tests {
             Point::new(1_f32, 1_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        assert_eq!(actual.literal, test_eq);
-        assert_eq!(actual.points, points);
+        assert_eq!(actual, points);
     }
 
     #[test]
-    fn get_eq_data_test_quad_2() {
+    fn plot_test_quad_2() {
         let test_eq = "y = x^2 - 1";
         let points = vec![
             Point::new(-1_f32, 0_f32),
@@ -101,14 +152,13 @@ mod rm_tests {
             Point::new(1_f32, 0_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        assert_eq!(actual.literal, test_eq);
-        assert_eq!(actual.points, points);
+        assert_eq!(actual, points);
     }
 
     #[test]
-    fn get_eq_data_test_quad_3() {
+    fn plot_test_quad_3() {
         let test_eq = "y = x^2 + 1";
         let points = vec![
             Point::new(-1_f32, 2_f32),
@@ -116,14 +166,13 @@ mod rm_tests {
             Point::new(1_f32, 2_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -1f32, 1_f32, 1_f32).unwrap();
+        let actual = plot(test_eq, -1f32, 1_f32, 1_f32).unwrap();
 
-        assert_eq!(actual.literal, test_eq);
-        assert_eq!(actual.points, points);
+        assert_eq!(actual, points);
     }
 
     #[test]
-    fn get_eq_data_test_sin() {
+    fn plot_test_sin() {
         let test_eq = "y = sin( x )";
         let expected = vec![
             (-PI, 0_f32),
@@ -133,19 +182,17 @@ mod rm_tests {
             (PI, 0_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -PI, PI, PI / 2_f32).unwrap();
+        let actual = plot(test_eq, -PI, PI, PI / 2_f32).unwrap();
 
-        for (p, (x_2, y_2)) in actual.points.iter().zip(expected) {
+        for (p, (x_2, y_2)) in actual.iter().zip(expected) {
             assert!(is_close(p.x, x_2));
             assert!(is_close(p.y, y_2));
         }
-
-        assert_eq!(actual.literal, test_eq);
     }
 
     #[test]
-    fn get_eq_data_test_cos() {
-        let test_eq = "y = cos( x + 3.14159265358979323846        )";
+    fn plot_test_cos() {
+        let test_eq = "y = cos( x+ 3.14159265358979323846        )";
         let expected = vec![
             (-PI, 1_f32),
             (-PI / 2_f32, 0_f32),
@@ -154,18 +201,16 @@ mod rm_tests {
             (PI, 1_f32),
         ];
 
-        let actual = get_eq_data(test_eq, -PI, PI, PI / 2_f32).unwrap();
+        let actual = plot(test_eq, -PI, PI, PI / 2_f32).unwrap();
 
-        for (p, (x_2, y_2)) in actual.points.iter().zip(expected) {
+        for (p, (x_2, y_2)) in actual.iter().zip(expected) {
             assert!(is_close(p.x, x_2));
             assert!(is_close(p.y, y_2));
         }
-
-        assert_eq!(actual.literal, test_eq);
     }
 
     #[test]
-    fn get_eq_data_test_sqrt() {
+    fn plot_test_sqrt() {
         let test_eq = "y = sqrt( x^2 )";
         let expected = vec![
             (2_f32, 2_f32),
@@ -175,18 +220,16 @@ mod rm_tests {
             (3_f32, 3_f32),
         ];
 
-        let actual = get_eq_data(test_eq, 2_f32, 3_f32, 0.25_f32).unwrap();
+        let actual = plot(test_eq, 2_f32, 3_f32, 0.25_f32).unwrap();
 
-        for (p, (x_2, y_2)) in actual.points.iter().zip(expected) {
+        for (p, (x_2, y_2)) in actual.iter().zip(expected) {
             assert!(is_close(p.x, x_2));
             assert!(is_close(p.y, y_2));
         }
-
-        assert_eq!(actual.literal, test_eq);
     }
 
     #[test]
-    fn get_eq_data_test_log() {
+    fn plot_test_log() {
         let test_eq = "y = log_10( 10 ^ x ) + x";
         let expected = vec![
             (1_f32, 2_f32),
@@ -201,14 +244,12 @@ mod rm_tests {
             (10_f32, 20_f32),
         ];
 
-        let actual = get_eq_data(test_eq, 1_f32, 10_f32, 1_f32).unwrap();
+        let actual = plot(test_eq, 1_f32, 10_f32, 1_f32).unwrap();
 
-        for (p, (x_2, y_2)) in actual.points.iter().zip(expected) {
+        for (p, (x_2, y_2)) in actual.iter().zip(expected) {
             assert_eq!(p.x, x_2);
             assert_eq!(p.y, y_2);
         }
-
-        assert_eq!(actual.literal, test_eq);
     }
 
     fn get_token_n(t_t: TokenType, numeric_value_1: f32, numeric_value_2: f32) -> Token {
@@ -255,18 +296,18 @@ mod rm_tests {
 
     #[test]
     fn parse_test_2() {
-        //2 ^ x;
+        //2 ^ 3;
         let test = vec![
             get_token_n(Number, 2.0, 0.0),
             get_token(Power),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 3.0, 0.0),
             get_token(End),
         ];
         assert_eq!(
             parse(test).unwrap(),
             vec![
                 get_token_n(Number, 2.0, 0.0),
-                get_token_n(X, 1.0, 1.0),
+                get_token_n(Number, 3.0, 0.0),
                 get_token(Power)
             ]
         );
@@ -314,11 +355,11 @@ mod rm_tests {
 
     #[test]
     fn parse_test_6_no_eof() {
-        //2 ^ x;
+        //2 ^ 16;
         let test = vec![
             get_token_n(Number, 2.0, 0.0),
             get_token(Power),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 16.0, 0.0),
         ];
         assert_eq!(parse(test).unwrap_err(), "No end token found");
     }
@@ -329,7 +370,7 @@ mod rm_tests {
         let test = vec![
             get_token(Sin),
             get_token(Power),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 1.0, 1.0),
             get_token(End),
         ];
         assert_eq!(parse(test).unwrap_err(), "Invalid function");
@@ -341,7 +382,7 @@ mod rm_tests {
         let test = vec![
             get_token(OpenParen),
             get_token(Power),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 1.0, 1.0),
             get_token(End),
         ];
         assert_eq!(parse(test).unwrap_err(), "Invalid opening parenthesis");
@@ -349,11 +390,10 @@ mod rm_tests {
 
     #[test]
     fn parse_test_bad_parens_2() {
-        //2 ^ x;
         let test = vec![
             get_token(CloseParen),
             get_token(Power),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 1.0, 1.0),
             get_token(End),
         ];
         assert_eq!(parse(test).unwrap_err(), "Invalid closing parenthesis");
@@ -375,7 +415,7 @@ mod rm_tests {
 
     #[test]
     fn test_2() {
-        let eq = "y=e +47- x";
+        let eq = "y=e +47- 9";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
@@ -383,7 +423,7 @@ mod rm_tests {
             get_token(Plus),
             get_token_n(Number, 47.0, 0.0),
             get_token(Minus),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 9.0, 0.0),
             get_token(End),
         ];
 
@@ -392,11 +432,11 @@ mod rm_tests {
 
     #[test]
     fn test_3() {
-        let eq = "y=3x";
+        let eq = "y=3";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
-            get_token_n(X, 3.0, 1.0),
+            get_token_n(Number, 3.0, 0.0),
             get_token(End),
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
@@ -404,13 +444,15 @@ mod rm_tests {
 
     #[test]
     fn test_4() {
-        let eq = "y= 3x^2 +x";
+        let eq = "y= 3^2 +9";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
-            get_token_n(X, 3.0, 2.0),
+            get_token_n(Number, 3.0, 0.0),
+            get_token(Power),
+            get_token_n(Number, 2.0, 0.0),
             get_token(Plus),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 9.0, 0.0),
             get_token(End),
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
@@ -418,12 +460,12 @@ mod rm_tests {
 
     #[test]
     fn test_5() {
-        let eq = "y= sin(3x+ 2 )";
+        let eq = "y= sin(3+ 2 )";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
             get_token(Sin),
-            get_token_n(X, 3.0, 1.0),
+            get_token_n(Number, 3.0, 0.0),
             get_token(Plus),
             get_token_n(Number, 2.0, 0.0),
             get_token(CloseParen),
@@ -434,12 +476,12 @@ mod rm_tests {
 
     #[test]
     fn test_6() {
-        let eq = "y= ln(3x+ 2 ) * ( 3--2)/ 6";
+        let eq = "y= ln(3+ 2 ) * ( 3--2)/ 6";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
             get_token(Ln),
-            get_token_n(X, 3.0, 1.0),
+            get_token_n(Number, 3.0, 0.0),
             get_token(Plus),
             get_token_n(Number, 2.0, 0.0),
             get_token(CloseParen),
@@ -458,12 +500,12 @@ mod rm_tests {
 
     #[test]
     fn test_7() {
-        let eq = "y=log_3(x )";
+        let eq = "y=log_3(3 )";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
             get_token_n(Log, 3.0, 0.0),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 3.0, 0.0),
             get_token(CloseParen),
             get_token(End),
         ];
@@ -473,13 +515,13 @@ mod rm_tests {
 
     #[test]
     fn test_8() {
-        let eq = "y=3 ^x";
+        let eq = "y=3 ^10";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
             get_token_n(Number, 3.0, 0.0),
             get_token(Power),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 10.0, 0.0),
             get_token(End),
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
@@ -487,13 +529,17 @@ mod rm_tests {
 
     #[test]
     fn test_9() {
-        let eq = "y= 3x^-(1/2) +x";
+        let eq = "y= 3^(-1/2)";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
-            get_token_n(X, 3.0, -0.5),
-            get_token(Plus),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 3.0, 0.0),
+            get_token(Power),
+            get_token(OpenParen),
+            get_token_n(Number, -1.0, 0.0),
+            get_token(Slash),
+            get_token_n(Number, 2.0, 0.0),
+            get_token(CloseParen),
             get_token(End),
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
@@ -501,48 +547,13 @@ mod rm_tests {
 
     #[test]
     fn test_10() {
-        let eq = "y= 3x^-2 +x";
+        let eq = "y= 3^-2";
         let ans = vec![
             get_token(Y),
             get_token(Equal),
-            get_token_n(X, 3.0, -2.0),
-            get_token(Plus),
-            get_token_n(X, 1.0, 1.0),
-            get_token(End),
-        ];
-        assert_eq!(get_tokens(eq).unwrap(), ans);
-    }
-
-    #[test]
-    fn test_11() {
-        let eq = "y= 3x^(1/2) +x";
-        let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(X, 3.0, 0.5),
-            get_token(Plus),
-            get_token_n(X, 1.0, 1.0),
-            get_token(End),
-        ];
-        assert_eq!(get_tokens(eq).unwrap(), ans);
-    }
-
-    #[test]
-    fn test_12() {
-        let eq = "y= 3x^(1/2 +x";
-        assert_eq!(get_tokens(eq).unwrap_err(), "Invalid power");
-    }
-    #[test]
-    fn test_13() {
-        let eq = "y= 3x^1/2 +x";
-        let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(X, 3.0, 1.0),
-            get_token(Slash),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Plus),
-            get_token_n(X, 1.0, 1.0),
+            get_token_n(Number, 3.0, 0.0),
+            get_token(Power),
+            get_token_n(Number, -2.0, 0.0),
             get_token(End),
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
@@ -553,7 +564,7 @@ mod rm_tests {
         let test = "3 + 4 * ( 2 - 1 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 7_f32);
     }
 
@@ -562,34 +573,34 @@ mod rm_tests {
         let test = "3 + 4 * 2 - 1";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 10_f32);
     }
 
     #[test]
     fn eval_rpn_test_3() {
-        let test = "y = 3 + 4 * ( 2 - x )";
+        let test = "y = 3 + 4 * ( 2 - 1 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, 1_f32).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 7_f32);
     }
 
     #[test]
     fn eval_rpn_test_4() {
-        let test = "y = x^(1/2) + x + 3";
+        let test = "y = 16^(1/2) + 16 + 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, 16_f32).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 23_f32);
     }
 
     #[test]
     fn eval_rpn_test_5() {
-        let test = "y = x^2 + 2x + 3";
+        let test = "y = 2^2 + 2*2 + 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, 2_f32).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 11_f32);
     }
 
@@ -598,7 +609,7 @@ mod rm_tests {
         let test = "-2 + 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 1_f32);
     }
 
@@ -607,34 +618,34 @@ mod rm_tests {
         let test = "-e + -π";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, -E + -PI);
     }
 
     #[test]
     fn eval_rpn_test_8() {
-        let test = "y = 2 ^ x^2";
+        let test = "y = 2 ^ 2^2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, 2_f32).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 16_f32);
     }
 
     #[test]
     fn eval_rpn_test_9() {
-        let test = "y = 2 ^ 3x";
+        let test = "y = 2 ^ (3*2)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, 2_f32).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 64_f32);
     }
 
     #[test]
     fn eval_rpn_test_10() {
-        let test = "y = 2 ^ (2x + 1 )";
+        let test = "y = 2 ^ (2*2 + 1 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, 2_f32).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 32_f32);
     }
 
@@ -643,7 +654,7 @@ mod rm_tests {
         let test = "sin( 3.14159265358979323846)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 0_f32));
     }
 
@@ -652,7 +663,7 @@ mod rm_tests {
         let test = " sin( π )/ 2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 0_f32));
     }
 
@@ -661,7 +672,7 @@ mod rm_tests {
         let test = "sin( π/2 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -670,7 +681,7 @@ mod rm_tests {
         let test = "cos(π ) / 2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, -0.5f32));
     }
 
@@ -679,7 +690,7 @@ mod rm_tests {
         let test = "tan( π )+ cos( π+π ) + sin( 2 *π )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap().round();
+        let ans = evaluate(&parsed_eq).unwrap().round();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -688,7 +699,7 @@ mod rm_tests {
         let test = "sin( -π )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 0_f32));
     }
 
@@ -697,7 +708,7 @@ mod rm_tests {
         let test = "sin( π )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 0_f32));
     }
 
@@ -706,7 +717,7 @@ mod rm_tests {
         let test = "abs(2 - 3^2)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 7_f32);
     }
 
@@ -715,7 +726,7 @@ mod rm_tests {
         let test = "abs(2 *3 - 3^2)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 3_f32);
     }
 
@@ -724,7 +735,7 @@ mod rm_tests {
         let test = "sqrt(1764)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 42_f32);
     }
 
@@ -733,7 +744,7 @@ mod rm_tests {
         let test = "min(5,8,7,9)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 5_f32);
     }
 
@@ -742,7 +753,7 @@ mod rm_tests {
         let test = "ln(e)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -751,7 +762,7 @@ mod rm_tests {
         let test = "log_10(10)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -760,7 +771,7 @@ mod rm_tests {
         let test = "log_10(10) + log_10(10)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 2_f32));
     }
 
@@ -769,7 +780,7 @@ mod rm_tests {
         let test = "log_10(10) + log_10(10) + log_10(10)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 3_f32));
     }
 
@@ -778,7 +789,7 @@ mod rm_tests {
         let test = "log_10(10) + log_10(5 + 5)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 2_f32));
     }
 
@@ -787,7 +798,7 @@ mod rm_tests {
         let test = "log_7(49)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert!(is_close(ans, 2_f32));
     }
 
@@ -803,7 +814,7 @@ mod rm_tests {
         let test = "3-3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 0_f32);
     }
 
@@ -812,7 +823,7 @@ mod rm_tests {
         let test = "3- 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 0_f32);
     }
 
@@ -821,7 +832,7 @@ mod rm_tests {
         let test = "log_3(3)- 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, -2_f32);
     }
 
@@ -830,7 +841,7 @@ mod rm_tests {
         let test = "3--3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 6_f32);
     }
 
@@ -839,7 +850,7 @@ mod rm_tests {
         let test = "2^2-3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 1_f32);
     }
 
@@ -848,7 +859,7 @@ mod rm_tests {
         let test = "2^(2-3)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 0.5);
     }
 
@@ -857,7 +868,7 @@ mod rm_tests {
         let test = "10^10-3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
         assert_eq!(ans, 9999999997_f32);
     }
 
@@ -918,7 +929,7 @@ mod rm_tests {
     }
 
     #[test]
-    fn plot_test_linear() {
+    fn plot_test_linear_7() {
         let test_eq = "y = 2x +1";
         let points = vec![
             Point::new(-1_f32, -1_f32),
@@ -946,7 +957,7 @@ mod rm_tests {
     }
 
     #[test]
-    fn plot_test_quad() {
+    fn plot_test_quad_dup() {
         let test_eq = "y = x^2";
         let points = vec![
             Point::new(-1_f32, 1_f32),
@@ -1013,12 +1024,12 @@ mod rm_tests {
         assert_eq!(tokens, "Invalid use of log");
     }
 
-    #[test]
-    fn eval_rpn_test_invalid_power() {
-        let test = "y = 3x^a";
-        let tokens = get_tokens(test).unwrap_err();
-        assert_eq!(tokens, "Invalid power");
-    }
+    // #[test]
+    // fn eval_rpn_test_invalid_power() {
+    //     let test = "y = 3x^a";
+    //     let tokens = get_tokens(test).unwrap_err();
+    //     assert_eq!(tokens, "Invalid power");
+    // }
 
     #[test]
     fn eval_rpn_test_fn_name() {
@@ -1032,7 +1043,7 @@ mod rm_tests {
         let test = "3^2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq, f32::NAN).unwrap();
+        let ans = evaluate(&parsed_eq).unwrap();
 
         assert!(is_close(ans, 9_f32));
     }

@@ -7,7 +7,7 @@ use std::{
     f32::consts::{E, PI},
 };
 
-pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
+pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
     if parsed_eq.is_empty() {
         return Err(String::from("Invalid equation supplied"));
     }
@@ -21,7 +21,6 @@ pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
         if collecting_params {
             match token.token_type {
                 TokenType::Number => params.push(token.numeric_value_1),
-                TokenType::X => params.push(token.numeric_value_1 * x.powf(token.numeric_value_2)),
                 TokenType::EndAvg => {
                     let avg = params.iter().sum::<f32>() / params.len() as f32;
                     stack.push(avg);
@@ -84,7 +83,7 @@ pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
                 }
                 _ => unreachable!(),
             }
-            if !matches!(token.token_type, TokenType::Number | TokenType::X) {
+            if !matches!(token.token_type, TokenType::Number) {
                 collecting_params = false;
                 params.clear();
             }
@@ -155,7 +154,6 @@ pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
                 let temp = stack.pop().unwrap();
                 stack.push(temp.log(token.numeric_value_1));
             }
-            TokenType::X => stack.push(token.numeric_value_1 * x.powf(token.numeric_value_2)),
             _ => {
                 let rhs = stack.pop().unwrap();
                 let lhs = stack.pop().unwrap();
