@@ -155,20 +155,22 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
                 stack.push(temp.log(token.numeric_value_1));
             }
             _ => {
-                let rhs = stack.pop().unwrap();
-                let lhs = stack.pop().unwrap();
-                match token.token_type {
-                    TokenType::Plus => stack.push(lhs + rhs),
-                    TokenType::Minus => stack.push(lhs - rhs),
-                    TokenType::Star => stack.push(lhs * rhs),
-                    TokenType::Slash => stack.push(lhs / rhs),
-                    TokenType::Modulo => stack.push(lhs % rhs),
-                    TokenType::Percent => {
-                        let hundredth_of_rhs = rhs / 100_f32;
-                        stack.push(lhs * hundredth_of_rhs);
+                if let (Some(rhs), Some(lhs)) = (stack.pop(), stack.pop()) {
+                    match token.token_type {
+                        TokenType::Plus => stack.push(lhs + rhs),
+                        TokenType::Minus => stack.push(lhs - rhs),
+                        TokenType::Star => stack.push(lhs * rhs),
+                        TokenType::Slash => stack.push(lhs / rhs),
+                        TokenType::Modulo => stack.push(lhs % rhs),
+                        TokenType::Percent => {
+                            let hundredth_of_rhs = rhs / 100_f32;
+                            stack.push(lhs * hundredth_of_rhs);
+                        }
+                        TokenType::Power => stack.push(lhs.powf(rhs)),
+                        _ => return Err(format!("Unknown token: {:?}", token)),
                     }
-                    TokenType::Power => stack.push(lhs.powf(rhs)),
-                    _ => return Err(format!("Unknown token: {:?}", token)),
+                } else {
+                    return Err("Invalid expression".to_string());
                 }
             }
         }
