@@ -1267,7 +1267,7 @@ mod rm_tests {
     #[test]
     fn neg_sqrt_test() {
         let test = "sqrt(-4)";
-        let actual_result = calculate(test).unwrap_err();
-        assert_eq!(actual_result, "Cannot take the sqrt of a negative number");
+        let actual_result = calculate(test).unwrap();
+        assert!(actual_result.is_nan());
     }
 }
