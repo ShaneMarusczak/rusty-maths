@@ -136,7 +136,8 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
             TokenType::Sqrt => {
                 let temp = stack.pop().unwrap();
                 if temp.is_sign_negative() {
-                    return Err("Cannot take the sqrt of a negative number".to_string());
+                    //TODO: For now return NaN, I want to return a complex number at some point
+                    return Ok(f32::NAN);
                 }
                 stack.push(square_root_f32(temp));
             }
