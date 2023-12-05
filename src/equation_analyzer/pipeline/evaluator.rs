@@ -7,6 +7,7 @@ use std::{
     f32::consts::{E, PI},
 };
 
+//TODO: remove all unwraps from this function, not guaranteed to have values
 pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
     if parsed_eq.is_empty() {
         return Err(String::from("Invalid equation supplied"));

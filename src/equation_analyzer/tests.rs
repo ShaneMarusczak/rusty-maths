@@ -47,11 +47,11 @@ mod rm_tests {
 
     #[test]
     fn plot_test_exp_2() {
-        let test_eq = "y = x^(2x)";
+        let test_eq = "y = x^(2x) + 1";
         let points = vec![
-            Point::new(0_f32, 1_f32),
-            Point::new(1_f32, 1_f32),
-            Point::new(2_f32, 16_f32),
+            Point::new(0_f32, 2_f32),
+            Point::new(1_f32, 2_f32),
+            Point::new(2_f32, 17_f32),
         ];
 
         let actual = plot(test_eq, 0f32, 2f32, 1_f32).unwrap();
@@ -61,11 +61,11 @@ mod rm_tests {
 
     #[test]
     fn plot_test_exp_3() {
-        let test_eq = "y = x^2x";
+        let test_eq = "y = x^2x + 1";
         let points = vec![
-            Point::new(0_f32, 0_f32),
-            Point::new(1_f32, 1_f32),
-            Point::new(2_f32, 8_f32),
+            Point::new(0_f32, 2_f32),
+            Point::new(1_f32, 2_f32),
+            Point::new(2_f32, 17_f32),
         ];
 
         let actual = plot(test_eq, 0f32, 2f32, 1_f32).unwrap();
