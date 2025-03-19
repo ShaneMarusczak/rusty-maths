@@ -63,51 +63,55 @@ fn get_x_values(x_min: f32, x_max: f32, step_size: f32) -> Vec<f32> {
 }
 
 fn preprocess(e: &str) -> String {
-    let mut prev = ' ';
     let mut expr = String::new();
     let mut paren_count = 0;
+
     for c in e.chars() {
-        if c.eq(&'^') {
-            //3^3^3*2 -> 3^(3^(3*2))
-            expr.push('^');
-            expr.push('(');
-            paren_count += 1;
-        } else if c.eq(&'x') {
-            //prev is the immediately prior char, whitespace included
-            if prev.is_alphabetic() {
-                //max -> max
-                expr.push('x');
-            } else if prev.is_ascii_digit() {
-                //2x -> 2*[x]
-                //2 x is invalid
-                //no spaces
-                expr.push('*');
-                expr.push('[');
-                expr.push('x');
-                expr.push(']');
-            } else {
-                //2+x -> 2+[x]
-                expr.push('[');
-                expr.push('x');
-                expr.push(']');
+        match c {
+            '^' => {
+                // 3^3^3*2 -> 3^(3^(3*2))
+                expr.push_str("^(");
+                paren_count += 1;
             }
-        } else {
-            expr.push(c);
-        }
-        if c.is_whitespace() {
-            for _ in 0..paren_count {
-                expr.push(')');
+            'x' if expr
+                .chars()
+                .last()
+                .map_or(false, |last| last.is_alphabetic()) =>
+            {
+                // max -> max
+                expr.push('x');
             }
-            paren_count = 0;
+            'x' if expr
+                .chars()
+                .last()
+                .map_or(false, |last| last.is_ascii_digit()) =>
+            {
+                // 2x -> 2*[x]
+                // 2 x is invalid
+                // no spaces
+                expr.push_str("*[x]");
+            }
+            'x' => {
+                // 2+x -> 2+[x]
+                expr.push_str("[x]");
+            }
+            c if c.is_whitespace() => {
+                // Close unmatched parentheses when encountering whitespace
+                expr.extend(std::iter::repeat(')').take(paren_count));
+                paren_count = 0;
+                expr.push(' ');
+            }
+            _ => {
+                expr.push(c);
+            }
         }
-        prev = c;
     }
-    for _ in 0..paren_count {
-        expr.push(')');
-    }
+
+    // Close any remaining unmatched parentheses
+    expr.extend(std::iter::repeat(')').take(paren_count));
+
     expr
 }
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Point {
     pub x: f32,
