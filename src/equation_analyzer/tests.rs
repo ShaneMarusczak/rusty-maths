@@ -2689,4 +2689,380 @@ mod rm_tests {
         assert_eq!(calculator::calculate(test).unwrap(), 8.0);
     }
 
+    // ========== 50 COMPREHENSIVE STRESS TESTS ==========
+
+    // === Operator Precedence & Associativity (10 tests) ===
+
+    #[test]
+    fn stress_precedence_factorial_over_power() {
+        // 2^3! should be 2^6 = 64, not (2^3)! = 8!
+        assert_eq!(calculator::calculate("2^3!").unwrap(), 64.0);
+    }
+
+    #[test]
+    fn stress_precedence_factorial_over_multiply() {
+        // 2 * 3! should be 2 * 6 = 12
+        assert_eq!(calculator::calculate("2 * 3!").unwrap(), 12.0);
+    }
+
+    #[test]
+    fn stress_left_associativity_subtraction_chain() {
+        // 100 - 20 - 10 - 5 should be ((100 - 20) - 10) - 5 = 65
+        assert_eq!(calculator::calculate("100 - 20 - 10 - 5").unwrap(), 65.0);
+    }
+
+    #[test]
+    fn stress_left_associativity_division_chain() {
+        // 1000 / 10 / 5 / 2 should be (((1000 / 10) / 5) / 2) = 10
+        assert_eq!(calculator::calculate("1000 / 10 / 5 / 2").unwrap(), 10.0);
+    }
+
+    #[test]
+    fn stress_right_associativity_triple_power() {
+        // 2^2^3 should be 2^(2^3) = 2^8 = 256, not (2^2)^3 = 64
+        assert_eq!(calculator::calculate("2^2^3").unwrap(), 256.0);
+    }
+
+    #[test]
+    fn stress_modulo_multiply_same_level() {
+        // 17 %% 5 * 3 should be (17 %% 5) * 3 = 2 * 3 = 6
+        assert_eq!(calculator::calculate("17 %% 5 * 3").unwrap(), 6.0);
+    }
+
+    #[test]
+    fn stress_percent_division_same_level() {
+        // 50 % 20 / 2 should be (50 % 20) / 2 = 10 / 2 = 5
+        assert_eq!(calculator::calculate("50 % 20 / 2").unwrap(), 5.0);
+    }
+
+    #[test]
+    fn stress_complex_precedence_tower() {
+        // 1 + 2^3! * 4 - 5 / (2 + 3)
+        // = 1 + 2^6 * 4 - 5 / 5
+        // = 1 + 64 * 4 - 1
+        // = 1 + 256 - 1
+        // = 256
+        assert_eq!(calculator::calculate("1 + 2^3! * 4 - 5 / (2 + 3)").unwrap(), 256.0);
+    }
+
+    #[test]
+    fn stress_unary_minus_factorial_power() {
+        // -2^3! = -(2^6) = -64
+        assert_eq!(calculator::calculate("-2^3!").unwrap(), -64.0);
+    }
+
+    #[test]
+    fn stress_quad_negative() {
+        // ----10 = 10
+        assert_eq!(calculator::calculate("----10").unwrap(), 10.0);
+    }
+
+    // === Deeply Nested Functions (10 tests) ===
+
+    #[test]
+    fn stress_seven_level_nesting() {
+        // max(1, min(2, avg(3, max(4, min(5, avg(6, max(7, 8)))))))
+        // Working from inside: max(7,8)=8, avg(6,8)=7, min(5,7)=5, max(4,5)=5,
+        // avg(3,5)=4, min(2,4)=2, max(1,2)=2
+        let test = "max(1, min(2, avg(3, max(4, min(5, avg(6, max(7, 8)))))))";
+        assert_eq!(calculator::calculate(test).unwrap(), 2.0);
+    }
+
+    #[test]
+    fn stress_trig_tower() {
+        // sin(cos(sin(cos(0))))
+        // cos(0)=1, sin(1)≈0.8414, cos(0.8414)≈0.6663, sin(0.6663)≈0.6186
+        let test = "sin(cos(sin(cos(0))))";
+        let result = calculator::calculate(test).unwrap();
+        let expected = 0_f32.cos().sin().cos().sin();
+        assert!(is_close(result, expected));
+    }
+
+    #[test]
+    fn stress_nested_abs_chains() {
+        // abs(abs(abs(abs(abs(-42)))))
+        assert_eq!(calculator::calculate("abs(abs(abs(abs(abs(-42)))))").unwrap(), 42.0);
+    }
+
+    #[test]
+    fn stress_nested_sqrt_chain() {
+        // sqrt(sqrt(sqrt(sqrt(256))))
+        // = sqrt(sqrt(sqrt(16))) = sqrt(sqrt(4)) = sqrt(2) ≈ 1.414
+        let result = calculator::calculate("sqrt(sqrt(sqrt(sqrt(256))))").unwrap();
+        assert!((result - 1.414).abs() < 0.01);
+    }
+
+    #[test]
+    fn stress_variadic_pyramid() {
+        // avg(min(1,2), avg(3,4), max(5,6), min(7,8), avg(9,10))
+        // = avg(1, 3.5, 6, 7, 9.5)
+        // = 27/5 = 5.4
+        let test = "avg(min(1,2), avg(3,4), max(5,6), min(7,8), avg(9,10))";
+        assert_eq!(calculator::calculate(test).unwrap(), 5.4);
+    }
+
+    #[test]
+    fn stress_all_trig_nested() {
+        // asin(sin(acos(cos(atan(tan(0.5))))))
+        // Should approximately return 0.5 due to inverse relationships
+        let test = "asin(sin(acos(cos(atan(tan(0.5))))))";
+        let result = calculator::calculate(test).unwrap();
+        assert!((result - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn stress_power_tower_in_variadic() {
+        // max(2^3, 3^2, avg(4^2, 2^4))
+        // = max(8, 9, avg(16, 16))
+        // = max(8, 9, 16)
+        // = 16
+        assert_eq!(calculator::calculate("max(2^3, 3^2, avg(4^2, 2^4))").unwrap(), 16.0);
+    }
+
+    #[test]
+    fn stress_factorial_in_nested_variadic() {
+        // min(5!, avg(4!, 3!), max(2!, 1!))
+        // = min(120, avg(24, 6), max(2, 1))
+        // = min(120, 15, 2)
+        // = 2
+        assert_eq!(calculator::calculate("min(5!, avg(4!, 3!), max(2!, 1!))").unwrap(), 2.0);
+    }
+
+    #[test]
+    fn stress_mixed_functions_deep() {
+        // sqrt(abs(ln(e^max(2, avg(3, min(4, 5))))))
+        // = sqrt(abs(ln(e^max(2, 3.5))))
+        // = sqrt(abs(ln(e^3.5)))
+        // = sqrt(abs(3.5))
+        // = sqrt(3.5)
+        // ≈ 1.8708
+        let test = "sqrt(abs(ln(e^max(2, avg(3, min(4, 5))))))";
+        let result = calculator::calculate(test).unwrap();
+        let expected = 3.5_f32.sqrt();
+        assert!((result - expected).abs() < 0.01);
+    }
+
+    #[test]
+    fn stress_parentheses_explosion() {
+        // ((((((((1 + 2) * 3) - 4) / 2) + 5) * 2) - 3) + 1)
+        // = (((((3 * 3) - 4) / 2) + 5) * 2) - 3) + 1
+        // = ((((9 - 4) / 2) + 5) * 2) - 3) + 1
+        // = (((5 / 2) + 5) * 2) - 3) + 1
+        // = ((2.5 + 5) * 2) - 3) + 1
+        // = (7.5 * 2) - 3) + 1
+        // = 15 - 3 + 1
+        // = 13
+        let test = "((((((((1 + 2) * 3) - 4) / 2) + 5) * 2) - 3) + 1)";
+        assert_eq!(calculator::calculate(test).unwrap(), 13.0);
+    }
+
+    // === Variable x Coefficient Edge Cases (8 tests) ===
+
+    #[test]
+    fn stress_large_coefficient() {
+        // 999.999x + 1 where x = 0 = 1
+        assert_eq!(calculator::calculate("999.999x + 1").unwrap(), 1.0);
+    }
+
+    #[test]
+    fn stress_tiny_coefficient() {
+        // 0.00001x + 10 where x = 0 = 10
+        assert_eq!(calculator::calculate("0.00001x + 10").unwrap(), 10.0);
+    }
+
+    #[test]
+    fn stress_coefficient_power_chain() {
+        // 2x^3 + 5 where x = 0 = 5
+        assert_eq!(calculator::calculate("2x^3 + 5").unwrap(), 5.0);
+    }
+
+    #[test]
+    fn stress_multiple_x_terms_complex() {
+        // 5x + 3x - 2x + x + 10 where x = 0 = 10
+        assert_eq!(calculator::calculate("5x + 3x - 2x + x + 10").unwrap(), 10.0);
+    }
+
+    #[test]
+    fn stress_x_in_variadic() {
+        // avg(x + 1, 2x + 2, 3x + 3) where x = 0 = avg(1, 2, 3) = 2
+        assert_eq!(calculator::calculate("avg(x + 1, 2x + 2, 3x + 3)").unwrap(), 2.0);
+    }
+
+    #[test]
+    fn stress_x_in_trig() {
+        // sin(π*x + π) where x = 0 = sin(π) ≈ 0
+        let result = calculator::calculate("sin(π*x + π)").unwrap();
+        assert!(result.abs() < 0.001);
+    }
+
+    #[test]
+    fn stress_coefficient_with_parens() {
+        // (2 + 3)*x + 7 where x = 0 = 7
+        assert_eq!(calculator::calculate("(2 + 3)*x + 7").unwrap(), 7.0);
+    }
+
+    #[test]
+    fn stress_x_factorial() {
+        // (x + 5)! where x = 0 = 5! = 120
+        assert_eq!(calculator::calculate("(x + 5)!").unwrap(), 120.0);
+    }
+
+    // === Mathematical Identities & Properties (8 tests) ===
+
+    #[test]
+    fn stress_pythagorean_identity() {
+        // sin^2(π/3) + cos^2(π/3) should equal 1
+        let test = "sin(π/3)^2 + cos(π/3)^2";
+        let result = calculator::calculate(test).unwrap();
+        assert!(is_close(result, 1.0));
+    }
+
+    #[test]
+    fn stress_log_power_identity() {
+        // ln(e^5) should equal 5
+        let test = "ln(e^5)";
+        let result = calculator::calculate(test).unwrap();
+        assert!(is_close(result, 5.0));
+    }
+
+    #[test]
+    fn stress_power_product_rule() {
+        // 2^3 * 2^4 = 2^7 = 128
+        assert_eq!(calculator::calculate("2^3 * 2^4").unwrap(), 128.0);
+    }
+
+    #[test]
+    fn stress_sqrt_product_rule() {
+        // sqrt(4) * sqrt(9) = sqrt(36) = 6
+        assert_eq!(calculator::calculate("sqrt(4) * sqrt(9)").unwrap(), 6.0);
+    }
+
+    #[test]
+    fn stress_associative_addition() {
+        // (2 + 3) + 4 = 2 + (3 + 4)
+        let a = calculator::calculate("(2 + 3) + 4").unwrap();
+        let b = calculator::calculate("2 + (3 + 4)").unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn stress_associative_multiplication() {
+        // (2 * 3) * 4 = 2 * (3 * 4)
+        let a = calculator::calculate("(2 * 3) * 4").unwrap();
+        let b = calculator::calculate("2 * (3 * 4)").unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn stress_log_base_change() {
+        // log_2(8) = ln(8) / ln(2) = 3
+        let test1 = "log_2(8)";
+        let test2 = "ln(8) / ln(2)";
+        let r1 = calculator::calculate(test1).unwrap();
+        let r2 = calculator::calculate(test2).unwrap();
+        assert!(is_close(r1, r2));
+    }
+
+    #[test]
+    fn stress_euler_identity_component() {
+        // e^(iπ) + 1 = 0, but we can test e^0 + 1 = 2
+        assert_eq!(calculator::calculate("e^0 + 1").unwrap(), 2.0);
+    }
+
+    // === Extreme Value Tests (7 tests) ===
+
+    #[test]
+    fn stress_very_large_factorial() {
+        // 15! = 1307674368000
+        let result = calculator::calculate("15!").unwrap();
+        assert!(result > 1_000_000_000_000.0);
+    }
+
+    #[test]
+    fn stress_very_small_division() {
+        // 1 / 10000000
+        let result = calculator::calculate("1 / 10000000").unwrap();
+        assert!(result > 0.0 && result < 0.001);
+    }
+
+    #[test]
+    fn stress_large_power() {
+        // 10^6 = 1000000
+        assert_eq!(calculator::calculate("10^6").unwrap(), 1000000.0);
+    }
+
+    #[test]
+    fn stress_decimal_precision() {
+        // 0.1 + 0.2 (floating point precision test)
+        let result = calculator::calculate("0.1 + 0.2").unwrap();
+        assert!((result - 0.3).abs() < 0.0001);
+    }
+
+    #[test]
+    fn stress_alternating_large_small() {
+        // 1000000 + 0.00001 - 1000000 (floating point precision limits)
+        // Due to f32 precision, this might not preserve the small value perfectly
+        let result = calculator::calculate("1000000 + 0.00001 - 1000000").unwrap();
+        assert!(result.abs() < 1.0); // Close to 0 due to precision limits
+    }
+
+    #[test]
+    fn stress_negative_infinity_approach() {
+        // ln(0.0000000001) should be very negative
+        let result = calculator::calculate("ln(0.0000000001)").unwrap();
+        assert!(result < -10.0);
+    }
+
+    #[test]
+    fn stress_infinity_division() {
+        // 1 / 0.0000000001
+        let result = calculator::calculate("1 / 0.0000000001").unwrap();
+        assert!(result > 1_000_000_000.0);
+    }
+
+    // === Variadic Function Stress Tests (7 tests) ===
+
+    #[test]
+    fn stress_twenty_argument_avg() {
+        let test = "avg(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)";
+        assert_eq!(calculator::calculate(test).unwrap(), 10.5);
+    }
+
+    #[test]
+    fn stress_min_with_duplicates() {
+        // min(5, 5, 5, 5, 5, 5)
+        assert_eq!(calculator::calculate("min(5, 5, 5, 5, 5, 5)").unwrap(), 5.0);
+    }
+
+    #[test]
+    fn stress_max_with_duplicates() {
+        // max(7, 7, 7, 7)
+        assert_eq!(calculator::calculate("max(7, 7, 7, 7)").unwrap(), 7.0);
+    }
+
+    #[test]
+    fn stress_median_large_set() {
+        // med(1,2,3,4,5,6,7,8,9,10,11) = 6
+        assert_eq!(calculator::calculate("med(1,2,3,4,5,6,7,8,9,10,11)").unwrap(), 6.0);
+    }
+
+    #[test]
+    fn stress_mode_uniform_distribution() {
+        // mode(1,2,3,4,5) - all unique, should return NaN
+        let result = calculator::calculate("mode(1,2,3,4,5)").unwrap();
+        assert!(result.is_nan());
+    }
+
+    #[test]
+    fn stress_mode_triple_tie() {
+        // mode(1,1,2,2,3,3) - three modes, average = 2
+        assert_eq!(calculator::calculate("mode(1,1,2,2,3,3)").unwrap(), 2.0);
+    }
+
+    #[test]
+    fn stress_choice_large_numbers() {
+        // ch(10, 5) = 252
+        assert_eq!(calculator::calculate("ch(10, 5)").unwrap(), 252.0);
+    }
+
 }
