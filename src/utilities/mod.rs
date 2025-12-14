@@ -133,6 +133,10 @@ pub fn abs_f32(num: f32) -> f32 {
 ///assert!(abs_f32(square_root_f32(1.23456) - f32::sqrt(1.23456)) <= 0.0001);
 /// ```
 pub fn square_root_f32(num: f32) -> f32 {
+    if num == 0.0 {
+        return 0.0;
+    }
+
     let mut i = 1_f32;
 
     loop {
@@ -166,6 +170,10 @@ fn square_f32(num: f32, i: f32, j: f32) -> f32 {
 ///assert!(abs(square_root(1.23456789) - f64::sqrt(1.23456789)) <= 0.0000001);
 /// ```
 pub fn square_root(num: f64) -> f64 {
+    if num == 0.0 {
+        return 0.0;
+    }
+
     let mut i = 1_f64;
 
     loop {
