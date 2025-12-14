@@ -137,17 +137,29 @@ pub fn square_root_f32(num: f32) -> f32 {
         return 0.0;
     }
 
-    // Use exponential search to find bounds quickly (doubles each iteration)
-    let mut i = 1_f32;
-    while i * i < num {
-        i *= 2_f32;
-    }
-
-    // Now i*i >= num, so binary search between i/2 and i
-    if i * i == num {
-        i
+    // Use exponential search to find bounds quickly
+    if num >= 1.0 {
+        // For num >= 1, double until we overshoot
+        let mut i = 1_f32;
+        while i * i < num {
+            i *= 2_f32;
+        }
+        if i * i == num {
+            i
+        } else {
+            square_f32(num, i / 2_f32, i)
+        }
     } else {
-        square_f32(num, i / 2_f32, i)
+        // For num < 1, halve until we undershoot
+        let mut i = 1_f32;
+        while i * i > num {
+            i /= 2_f32;
+        }
+        if i * i == num {
+            i
+        } else {
+            square_f32(num, i, i * 2_f32)
+        }
     }
 }
 
@@ -177,17 +189,29 @@ pub fn square_root(num: f64) -> f64 {
         return 0.0;
     }
 
-    // Use exponential search to find bounds quickly (doubles each iteration)
-    let mut i = 1_f64;
-    while i * i < num {
-        i *= 2_f64;
-    }
-
-    // Now i*i >= num, so binary search between i/2 and i
-    if i * i == num {
-        i
+    // Use exponential search to find bounds quickly
+    if num >= 1.0 {
+        // For num >= 1, double until we overshoot
+        let mut i = 1_f64;
+        while i * i < num {
+            i *= 2_f64;
+        }
+        if i * i == num {
+            i
+        } else {
+            square(num, i / 2_f64, i)
+        }
     } else {
-        square(num, i / 2_f64, i)
+        // For num < 1, halve until we undershoot
+        let mut i = 1_f64;
+        while i * i > num {
+            i /= 2_f64;
+        }
+        if i * i == num {
+            i
+        } else {
+            square(num, i, i * 2_f64)
+        }
     }
 }
 
