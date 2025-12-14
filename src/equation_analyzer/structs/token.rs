@@ -5,7 +5,7 @@ pub(crate) struct Token {
     pub(crate) numeric_value_2: f32,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum TokenType {
     Y,
     Equal,

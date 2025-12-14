@@ -162,3 +162,8 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
     s.add_token(End);
     Ok(s.tokens)
 }
+
+/// Helper function to convert Vec<Token> to an iterator of Results for compatibility with new parser
+pub(crate) fn tokens_to_results(tokens: Vec<Token>) -> impl Iterator<Item = Result<Token, String>> {
+    tokens.into_iter().map(Ok)
+}
