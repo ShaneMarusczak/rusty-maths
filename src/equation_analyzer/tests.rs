@@ -2001,6 +2001,46 @@ mod rm_tests {
     }
 
     #[test]
+    fn sqrt_of_very_small_1() {
+        let test = "sqrt(0.01)";
+        let result = calculate(test).unwrap();
+        let expected = 0.1;
+        assert!((result - expected).abs() < 0.001, "sqrt(0.01) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_very_small_2() {
+        let test = "sqrt(0.0001)";
+        let result = calculate(test).unwrap();
+        let expected = 0.01;
+        assert!((result - expected).abs() < 0.001, "sqrt(0.0001) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_very_small_3() {
+        let test = "sqrt(0.000001)";
+        let result = calculate(test).unwrap();
+        let expected = 0.001;
+        assert!((result - expected).abs() < 0.001, "sqrt(0.000001) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_very_small_4() {
+        let test = "sqrt(0.00000001)";
+        let result = calculate(test).unwrap();
+        let expected = 0.0001;
+        assert!((result - expected).abs() < 0.001, "sqrt(0.00000001) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_very_small_5() {
+        let test = "sqrt(0.25)";
+        let result = calculate(test).unwrap();
+        let expected = 0.5;
+        assert!((result - expected).abs() < 0.001, "sqrt(0.25) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
     fn modulo_by_one() {
         let test = "5 %% 1";
         assert_eq!(calculate(test).unwrap(), 0.0);
