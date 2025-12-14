@@ -229,11 +229,22 @@ cargo test
 
 ### Long-Running Tests
 
-Some tests are marked with `#[ignore]` to prevent them from slowing down regular test runs:
+Some tests are marked with `#[ignore]` to prevent them from slowing down regular test runs. These demonstrate the neural network's learning capabilities:
+
+**Available Learning Tests:**
+- `xor_learning_test` - XOR gate (non-linearly separable, requires hidden layer)
+- `and_gate_test` - AND gate (linearly separable)
+- `or_gate_test` - OR gate (linearly separable)
+- `linear_regression_test` - Learn y = 2x + 1
+- `sine_approximation_test` - Approximate sin(x) function
+- `circle_classification_test` - Classify points inside/outside unit circle
 
 ```bash
-# Run the XOR learning test (demonstrates neural network can solve non-linearly separable problems)
+# Run a specific test
 cargo test xor_learning_test -- --ignored --nocapture
+
+# Run all neural network learning tests
+cargo test neural_network -- --ignored --nocapture
 
 # Run all ignored tests
 cargo test -- --ignored
@@ -242,7 +253,7 @@ cargo test -- --ignored
 cargo test -- --include-ignored
 ```
 
-The XOR test trains a neural network for 5000 epochs and verifies it learns the XOR function correctly.
+Each test trains a network and verifies it learns the target function with detailed output showing training progress and predictions.
 
 ## Code Quality
 

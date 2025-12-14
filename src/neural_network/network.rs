@@ -185,7 +185,7 @@ impl Default for Network {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::neural_network::activations::{Linear, ReLU};
+    use crate::neural_network::activations::{Linear, ReLU, Sigmoid, Tanh};
     use crate::neural_network::layer::{ActivationLayer, Dense};
 
     #[test]
@@ -313,5 +313,313 @@ mod tests {
         }
 
         println!("\n✓ Network successfully learned XOR function!");
+    }
+
+    /// AND gate test - demonstrates learning a linearly separable function
+    ///
+    /// This test is ignored by default because it takes time to train.
+    /// Run with: `cargo test and_gate_test -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn and_gate_test() {
+        use crate::neural_network::activations::Sigmoid;
+
+        // AND gate is linearly separable - should learn quickly
+        let mut network = Network::new();
+        network.add(Box::new(Dense::new(2, 1))); // No hidden layer needed
+        network.add(Box::new(ActivationLayer::new(Sigmoid, 1)));
+
+        // AND truth table
+        let inputs = vec![
+            vec![0.0, 0.0],
+            vec![0.0, 1.0],
+            vec![1.0, 0.0],
+            vec![1.0, 1.0],
+        ];
+        let targets = vec![vec![0.0], vec![0.0], vec![0.0], vec![1.0]];
+
+        println!("\nTraining network on AND gate...");
+        let losses = network.train(&inputs, &targets, 0.5, 1000);
+
+        println!("Initial loss: {:.6}", losses[0]);
+        println!("Final loss:   {:.6}", losses[losses.len() - 1]);
+
+        assert!(
+            losses[losses.len() - 1] < 0.05,
+            "Network should learn AND with final loss < 0.05, got {}",
+            losses[losses.len() - 1]
+        );
+
+        println!("\nTesting predictions:");
+        let test_cases = [
+            (vec![0.0, 0.0], 0.0, "0 AND 0 = 0"),
+            (vec![0.0, 1.0], 0.0, "0 AND 1 = 0"),
+            (vec![1.0, 0.0], 0.0, "1 AND 0 = 0"),
+            (vec![1.0, 1.0], 1.0, "1 AND 1 = 1"),
+        ];
+
+        for (input, expected, description) in &test_cases {
+            let prediction = network.predict(input);
+            let output = prediction[0];
+            println!(
+                "  {} -> {:.4} (expected: {:.1})",
+                description, output, expected
+            );
+
+            if *expected == 0.0 {
+                assert!(output < 0.2, "Expected ~0.0, got {}", output);
+            } else {
+                assert!(output > 0.8, "Expected ~1.0, got {}", output);
+            }
+        }
+
+        println!("\n✓ Network successfully learned AND gate!");
+    }
+
+    /// OR gate test - another linearly separable function
+    ///
+    /// This test is ignored by default because it takes time to train.
+    /// Run with: `cargo test or_gate_test -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn or_gate_test() {
+        use crate::neural_network::activations::Sigmoid;
+
+        let mut network = Network::new();
+        network.add(Box::new(Dense::new(2, 1)));
+        network.add(Box::new(ActivationLayer::new(Sigmoid, 1)));
+
+        // OR truth table
+        let inputs = vec![
+            vec![0.0, 0.0],
+            vec![0.0, 1.0],
+            vec![1.0, 0.0],
+            vec![1.0, 1.0],
+        ];
+        let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![1.0]];
+
+        println!("\nTraining network on OR gate...");
+        let losses = network.train(&inputs, &targets, 0.5, 1000);
+
+        println!("Initial loss: {:.6}", losses[0]);
+        println!("Final loss:   {:.6}", losses[losses.len() - 1]);
+
+        assert!(losses[losses.len() - 1] < 0.05);
+
+        println!("\nTesting predictions:");
+        let test_cases = [
+            (vec![0.0, 0.0], 0.0, "0 OR 0 = 0"),
+            (vec![0.0, 1.0], 1.0, "0 OR 1 = 1"),
+            (vec![1.0, 0.0], 1.0, "1 OR 0 = 1"),
+            (vec![1.0, 1.0], 1.0, "1 OR 1 = 1"),
+        ];
+
+        for (input, expected, description) in &test_cases {
+            let prediction = network.predict(input);
+            let output = prediction[0];
+            println!(
+                "  {} -> {:.4} (expected: {:.1})",
+                description, output, expected
+            );
+
+            if *expected == 0.0 {
+                assert!(output < 0.2);
+            } else {
+                assert!(output > 0.8);
+            }
+        }
+
+        println!("\n✓ Network successfully learned OR gate!");
+    }
+
+    /// Linear regression test - learn y = 2x + 1
+    ///
+    /// This test is ignored by default because it takes time to train.
+    /// Run with: `cargo test linear_regression_test -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn linear_regression_test() {
+        let mut network = Network::new();
+        network.add(Box::new(Dense::new(1, 1)));
+        network.add(Box::new(ActivationLayer::new(Linear, 1)));
+
+        // Generate training data for y = 2x + 1
+        let inputs: Vec<Vector> = (0..20).map(|i| vec![i as f64 * 0.1]).collect();
+        let targets: Vec<Vector> = inputs.iter().map(|x| vec![2.0 * x[0] + 1.0]).collect();
+
+        println!("\nTraining network to learn y = 2x + 1...");
+        let losses = network.train(&inputs, &targets, 0.01, 1000);
+
+        println!("Initial loss: {:.6}", losses[0]);
+        println!("Final loss:   {:.6}", losses[losses.len() - 1]);
+
+        assert!(losses[losses.len() - 1] < 0.01);
+
+        println!("\nTesting predictions:");
+        let test_inputs = vec![0.0, 0.5, 1.0, 1.5, 2.0];
+
+        for &x in &test_inputs {
+            let prediction = network.predict(&vec![x]);
+            let expected = 2.0 * x + 1.0;
+            let output = prediction[0];
+
+            println!("  x={:.1} -> {:.4} (expected: {:.4})", x, output, expected);
+            assert!((output - expected).abs() < 0.1);
+        }
+
+        println!("\n✓ Network successfully learned linear function!");
+    }
+
+    /// Sine approximation test - learn to approximate sin(x)
+    ///
+    /// This test is ignored by default because it takes time to train.
+    /// Run with: `cargo test sine_approximation_test -- --ignored --nocapture`
+    ///
+    /// Uses Tanh activations which are well-suited for smooth periodic functions
+    /// with range [-1, 1]. Architecture: 1 -> 32 -> 32 -> 32 -> 1
+    #[test]
+    #[ignore]
+    fn sine_approximation_test() {
+        use std::f64::consts::PI;
+
+        let mut network = Network::new();
+        network.add(Box::new(Dense::new(1, 32)));
+        network.add(Box::new(ActivationLayer::new(Tanh, 32)));
+        network.add(Box::new(Dense::new(32, 32)));
+        network.add(Box::new(ActivationLayer::new(Tanh, 32)));
+        network.add(Box::new(Dense::new(32, 32)));
+        network.add(Box::new(ActivationLayer::new(Tanh, 32)));
+        network.add(Box::new(Dense::new(32, 1)));
+        network.add(Box::new(ActivationLayer::new(Tanh, 1)));
+
+        // Generate training data for sin(x) in range [0, 2π]
+        // More training points for better approximation
+        let mut inputs = vec![];
+        let mut targets = vec![];
+        for i in 0..200 {
+            let x = (i as f64 / 200.0) * 2.0 * PI;
+            inputs.push(vec![x]);
+            targets.push(vec![x.sin()]);
+        }
+
+        println!("\nTraining network to approximate sin(x)...");
+        println!("Architecture: 1 -> 32(Tanh) -> 32(Tanh) -> 32(Tanh) -> 1(Tanh)");
+        println!("Training points: {}", inputs.len());
+
+        let losses = network.train(&inputs, &targets, 0.005, 10000);
+
+        println!("Initial loss: {:.6}", losses[0]);
+        println!("Final loss:   {:.6}", losses[losses.len() - 1]);
+
+        assert!(
+            losses[losses.len() - 1] < 0.01,
+            "Final loss too high: {}",
+            losses[losses.len() - 1]
+        );
+
+        println!("\nTesting predictions:");
+        let test_points = vec![
+            0.0,
+            PI / 6.0,
+            PI / 4.0,
+            PI / 3.0,
+            PI / 2.0,
+            2.0 * PI / 3.0,
+            PI,
+            4.0 * PI / 3.0,
+            3.0 * PI / 2.0,
+            2.0 * PI,
+        ];
+
+        for &x in &test_points {
+            let prediction = network.predict(&vec![x]);
+            let expected = x.sin();
+            let output = prediction[0];
+
+            println!(
+                "  sin({:.4}) -> {:.4} (expected: {:.4}, error: {:.4})",
+                x,
+                output,
+                expected,
+                (output - expected).abs()
+            );
+            assert!(
+                (output - expected).abs() < 0.05,
+                "Prediction too far from expected at x={}: {} vs {} (error: {})",
+                x,
+                output,
+                expected,
+                (output - expected).abs()
+            );
+        }
+
+        println!("\n✓ Network successfully approximated sine function with high precision!");
+    }
+
+    /// Circle classification test - classify points inside/outside a circle
+    ///
+    /// This test is ignored by default because it takes time to train.
+    /// Run with: `cargo test circle_classification_test -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn circle_classification_test() {
+        use crate::neural_network::activations::Sigmoid;
+
+        let mut network = Network::new();
+        network.add(Box::new(Dense::new(2, 8)));
+        network.add(Box::new(ActivationLayer::new(ReLU, 8)));
+        network.add(Box::new(Dense::new(8, 1)));
+        network.add(Box::new(ActivationLayer::new(Sigmoid, 1)));
+
+        // Generate training data: points inside unit circle = 1, outside = 0
+        let mut inputs = vec![];
+        let mut targets = vec![];
+
+        for i in 0..100 {
+            let x = (i as f64 / 25.0) - 2.0; // Range: -2 to 2
+            for j in 0..100 {
+                let y = (j as f64 / 25.0) - 2.0;
+                let distance_squared = x * x + y * y;
+                let inside = if distance_squared <= 1.0 { 1.0 } else { 0.0 };
+
+                inputs.push(vec![x, y]);
+                targets.push(vec![inside]);
+            }
+        }
+
+        println!("\nTraining network to classify points inside/outside unit circle...");
+        println!("Training on {} points", inputs.len());
+        let losses = network.train(&inputs, &targets, 0.1, 500);
+
+        println!("Initial loss: {:.6}", losses[0]);
+        println!("Final loss:   {:.6}", losses[losses.len() - 1]);
+
+        assert!(losses[losses.len() - 1] < 0.1);
+
+        println!("\nTesting predictions:");
+        let test_cases = [
+            (vec![0.0, 0.0], 1.0, "center (0, 0)"),
+            (vec![0.5, 0.5], 1.0, "inside (0.5, 0.5)"),
+            (vec![0.7, 0.7], 0.0, "outside (0.7, 0.7)"),
+            (vec![2.0, 0.0], 0.0, "far outside (2, 0)"),
+            (vec![0.0, 0.9], 1.0, "edge inside (0, 0.9)"),
+        ];
+
+        for (input, expected, description) in &test_cases {
+            let prediction = network.predict(input);
+            let output = prediction[0];
+            println!(
+                "  {} -> {:.4} (expected: {:.1})",
+                description, output, expected
+            );
+
+            if *expected == 0.0 {
+                assert!(output < 0.3, "Expected outside, got {}", output);
+            } else {
+                assert!(output > 0.7, "Expected inside, got {}", output);
+            }
+        }
+
+        println!("\n✓ Network successfully learned circle classification!");
     }
 }
