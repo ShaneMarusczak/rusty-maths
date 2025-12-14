@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) struct Token {
     pub(crate) token_type: TokenType,
     pub(crate) numeric_value_1: f32,
