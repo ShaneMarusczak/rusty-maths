@@ -15,7 +15,7 @@ The **Vec-based pipeline** is the original, straightforward implementation that 
 
 ## How It Works
 
-### 1. Tokenization (tokenizer.rs)
+### 1. Tokenization (core/vec_tokenizer.rs)
 ```rust
 pub fn get_tokens(eq: &str) -> Result<Vec<Token>, String>
 ```
@@ -164,11 +164,12 @@ let points = plot("y = x^2", -10.0, 10.0, 0.1).unwrap();
 
 ## Files in this Directory
 
-- **tokenizer.rs** - String → Vec<Token> (infix notation)
-- **parser.rs** - Vec<Token> → Vec<Token> (infix → RPN)
-- **evaluator.rs** - Vec<Token> (RPN) → f32 result
+- **parser.rs** - Vec<Token> → Vec<Token> (infix → RPN) - wraps core/parser
+- **evaluator.rs** - Vec<Token> (RPN) → f32 result - wraps core/evaluator
 - **calculator.rs** - Public API (calculate, plot)
 - **mod.rs** - Module exports
+
+**Note:** This pipeline uses `core/vec_tokenizer.rs` (shared tokenizer implementation).
 
 ## Related
 

@@ -1,6 +1,6 @@
 use super::evaluator::evaluate;
 use super::parser::parse;
-use super::tokenizer::get_tokens;
+use crate::equation_analyzer::core::vec_tokenizer::get_tokens;
 use crate::equation_analyzer::utils::{get_x_values, Point};
 
 use rayon::prelude::*;

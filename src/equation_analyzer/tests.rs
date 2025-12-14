@@ -10,7 +10,7 @@ mod rm_tests {
     // Internal testing utilities from vec_pipeline
     use crate::equation_analyzer::vec_pipeline::evaluator::evaluate;
     use crate::equation_analyzer::vec_pipeline::parser::parse;
-    use crate::equation_analyzer::vec_pipeline::tokenizer::get_tokens;
+    use crate::equation_analyzer::core::vec_tokenizer::get_tokens;
     use crate::equation_analyzer::structs::token::TokenType::{
         CloseParen, End, Equal, Ln, Log, Minus, Number, OpenParen, Plus, Power, Sin, Slash, Star,
         Y, _E,
