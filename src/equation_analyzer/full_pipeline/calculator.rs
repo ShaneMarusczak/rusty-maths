@@ -1,8 +1,8 @@
 use crate::equation_analyzer::utils::{get_x_values, Point};
+use crate::equation_analyzer::core::streaming_tokenizer::StreamingTokenizer;
 use crate::equation_analyzer::hybrid_pipeline::parser::parse_streaming;
 use super::evaluator::evaluate_fully_streaming;
 use super::parser::FullyStreamingParser;
-use super::tokenizer::StreamingTokenizer;
 
 use rayon::prelude::*;
 
@@ -80,8 +80,9 @@ pub fn plot(
         .par_iter()
         .map(|&x| {
             // We can't use fully streaming here because we need to reuse the parsed equation
-            let y = crate::equation_analyzer::hybrid_pipeline::evaluator::evaluate_streaming(
-                &parsed_eq, x,
+            // Call core evaluator directly instead of depending on another pipeline
+            let y = crate::equation_analyzer::core::evaluator::evaluate(
+                parsed_eq.iter().copied(), x,
             )?;
             Ok(Point { x, y })
         })
