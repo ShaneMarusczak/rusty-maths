@@ -10,7 +10,6 @@
 ///
 /// **Limitation:** Nested variadic functions are not supported. For example,
 /// `avg(1, min(2, 3), 4)` will produce an error. Only simple parameters are allowed.
-
 use crate::{
     equation_analyzer::structs::token::{Token, TokenType},
     utilities::factorial,
@@ -45,6 +44,7 @@ impl ParamCollector {
     }
 
     /// Returns true if currently collecting parameters
+    #[cfg(test)]
     pub fn is_collecting(&self) -> bool {
         self.collecting
     }
@@ -203,7 +203,7 @@ impl ParamCollector {
         self.params
             .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let len = self.params.len();
-        let result = if len % 2 == 0 {
+        let result = if len.is_multiple_of(2) {
             let mid = len / 2;
             (self.params[mid - 1] + self.params[mid]) / 2.0
         } else {

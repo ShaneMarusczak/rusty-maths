@@ -9,7 +9,6 @@
 /// - **parser**: Shunting Yard algorithm (buffered output)
 /// - **streaming_parser**: Fully streaming Shunting Yard (lazy output)
 /// - **evaluator**: Generic RPN evaluator (works with any iterator)
-
 pub mod vec_tokenizer;
 pub mod streaming_tokenizer;
 pub mod evaluator;

@@ -30,7 +30,6 @@
 ///
 /// let result = calculator::calculate("sin(π/2)").unwrap();
 /// ```
-
 // Recommended default: hybrid_pipeline (fastest and most practical)
 pub mod calculator {
     pub use super::hybrid_pipeline::calculator::*;

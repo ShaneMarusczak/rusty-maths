@@ -47,14 +47,10 @@ impl<'a> StreamingTokenizer<'a> {
         self.eq.chars().nth(self.position + n)
     }
 
-    fn get_substring(&self, start: usize, end: usize) -> &'a str {
-        &self.eq[start..end]
-    }
-
     fn previous_match(&self, types: &[TokenType]) -> bool {
         self.previous_token_type
             .as_ref()
-            .map_or(false, |prev| types.contains(prev))
+            .is_some_and(|prev| types.contains(prev))
     }
 
     fn make_token(&mut self, token_type: TokenType) -> Token {
@@ -89,7 +85,7 @@ impl<'a> StreamingTokenizer<'a> {
             }
         }
 
-        if self.peek() == Some('.') && self.peek_ahead(1).map_or(false, |c| c.is_ascii_digit()) {
+        if self.peek() == Some('.') && self.peek_ahead(1).is_some_and(|c| c.is_ascii_digit()) {
             literal.push('.');
             self.advance();
 
@@ -110,7 +106,7 @@ impl<'a> StreamingTokenizer<'a> {
         let after_power = self
             .previous_token_type
             .as_ref()
-            .map_or(false, |t| *t == TokenType::Power);
+            .is_some_and(|t| *t == TokenType::Power);
 
         if coefficient != 1.0 {
             // Queue multiple tokens
@@ -207,7 +203,7 @@ impl<'a> StreamingTokenizer<'a> {
                 } else if self.peek() == Some('π') {
                     self.advance();
                     self.make_token(NegPi)
-                } else if self.peek().map_or(false, |c| c.is_ascii_digit()) {
+                } else if self.peek().is_some_and(|c| c.is_ascii_digit()) {
                     let literal = self.scan_digit()?;
                     if self.peek() != Some('x') {
                         let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
@@ -220,7 +216,7 @@ impl<'a> StreamingTokenizer<'a> {
                 } else if self.peek() == Some('x') {
                     self.advance();
                     return Ok(Some(self.handle_x_token(-1.0)?));
-                } else if matches!(self.peek(), Some('(') | Some('-')) || self.peek().map_or(false, |c| c.is_alphabetic()) {
+                } else if matches!(self.peek(), Some('(') | Some('-')) || self.peek().is_some_and(|c| c.is_alphabetic()) {
                     // -(5) or -sqrt(4) or --2
                     // Queue Star token for next iteration
                     self.pending_tokens.push_back(Token {
@@ -274,7 +270,7 @@ impl<'a> StreamingTokenizer<'a> {
                     }
                     self.advance(); // consume '_'
 
-                    if !self.peek().map_or(false, |c| c.is_ascii_digit()) {
+                    if !self.peek().is_some_and(|c| c.is_ascii_digit()) {
                         return Err("Invalid use of log".to_string());
                     }
 

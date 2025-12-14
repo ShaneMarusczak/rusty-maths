@@ -88,7 +88,7 @@ impl Tokenizer for TokenizerState<'_> {
     fn take_x(&mut self, coefficient: String) -> Result<(), String> {
         let coef: f32 = coefficient.parse().unwrap();
         // Check if previous token was Power - if so, we need to wrap this in parens
-        let after_power = self.tokens.last().map_or(false, |t| t.token_type == TokenType::Power);
+        let after_power = self.tokens.last().is_some_and(|t| t.token_type == TokenType::Power);
 
         if coef != 1.0 {
             if after_power {
