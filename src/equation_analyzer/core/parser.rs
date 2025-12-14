@@ -39,19 +39,32 @@ where
         let token = token_result?;
 
         // Handle variadic function parameter collection
+        // With frame-based evaluation, we now allow full expressions in parameters
         if param_token != ParamToken::None {
-            if matches!(token.token_type, TokenType::Number | TokenType::X) {
-                output.push(token);
-                continue;
-            } else if token.token_type == TokenType::Comma {
+            if token.token_type == TokenType::Comma {
+                // Commas separate parameters, skip them
                 continue;
             } else if token.token_type == TokenType::CloseParen {
+                // End of parameter list - pop all operators until OpenParen
+                while !operator_stack.is_empty() {
+                    let last = operator_stack.last().ok_or("Missing operator on stack")?;
+                    if last.paren_opener {
+                        break;
+                    }
+                    let op = operator_stack.pop().ok_or("Operator stack empty")?;
+                    output.push(op.token);
+                }
+
+                // Output the End* token
                 output.push(make_synthetic_token(param_token.to_end_token_type()));
                 param_token = ParamToken::None;
+
+                // Pop the OpenParen marker
+                operator_stack.pop();
+                paren_depth -= 1;
                 continue;
-            } else {
-                return Err("Params can only be numbers".to_string());
             }
+            // Fall through to normal token processing to allow operators, functions, etc.
         }
 
         match token.token_type {
@@ -64,6 +77,7 @@ where
             }
 
             // Variadic functions - start parameter collection
+            // Note: The actual OpenParen token that follows will be handled specially
             TokenType::Avg => {
                 output.push(token);
                 param_token = ParamToken::Avg;

@@ -206,14 +206,75 @@ impl<'a> StreamingTokenizer<'a> {
                     self.advance();
                     self.make_token(NegPi)
                 } else if self.peek().is_some_and(|c| c.is_ascii_digit()) {
+                    // Emit -1 * NUMBER to preserve operator precedence
+                    // This ensures -2^2 evaluates as -(2^2) = -4, not (-2)^2 = 4
                     let literal = self.scan_digit()?;
+                    let after_power = self.previous_token_type.as_ref().is_some_and(|t| *t == TokenType::Power);
+
                     if self.peek() != Some('x') {
                         let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
-                        self.make_token_with_values(Number, -val, 0.0)  // Negate!
+                        // If after power operator, wrap in parentheses: 3^(-1 * 2)
+                        if after_power {
+                            self.pending_tokens.push_back(Token {
+                                token_type: Star,
+                                numeric_value_1: 0.0,
+                                numeric_value_2: 0.0,
+                            });
+                            self.pending_tokens.push_back(Token {
+                                token_type: Number,
+                                numeric_value_1: val,
+                                numeric_value_2: 0.0,
+                            });
+                            self.pending_tokens.push_back(Token {
+                                token_type: CloseParen,
+                                numeric_value_1: 0.0,
+                                numeric_value_2: 0.0,
+                            });
+                            self.pending_tokens.push_back(Token {
+                                token_type: Number,
+                                numeric_value_1: -1.0,
+                                numeric_value_2: 0.0,
+                            });
+                            self.make_token(OpenParen)
+                        } else {
+                            // Normal case: -1 * NUMBER
+                            self.pending_tokens.push_back(Token {
+                                token_type: Star,
+                                numeric_value_1: 0.0,
+                                numeric_value_2: 0.0,
+                            });
+                            self.pending_tokens.push_back(Token {
+                                token_type: Number,
+                                numeric_value_1: val,
+                                numeric_value_2: 0.0,
+                            });
+                            self.make_token_with_values(Number, -1.0, 0.0)
+                        }
                     } else {
                         self.advance(); // consume 'x'
                         let coef: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
-                        return Ok(Some(self.handle_x_token(-coef)?));  // Negate!
+                        // For -Nx, emit -1 * N * x
+                        self.pending_tokens.push_back(Token {
+                            token_type: Star,
+                            numeric_value_1: 0.0,
+                            numeric_value_2: 0.0,
+                        });
+                        self.pending_tokens.push_back(Token {
+                            token_type: Number,
+                            numeric_value_1: coef,
+                            numeric_value_2: 0.0,
+                        });
+                        self.pending_tokens.push_back(Token {
+                            token_type: Star,
+                            numeric_value_1: 0.0,
+                            numeric_value_2: 0.0,
+                        });
+                        self.pending_tokens.push_back(Token {
+                            token_type: X,
+                            numeric_value_1: 1.0,
+                            numeric_value_2: 1.0,
+                        });
+                        self.make_token_with_values(Number, -1.0, 0.0)
                     }
                 } else if self.peek() == Some('x') {
                     self.advance();

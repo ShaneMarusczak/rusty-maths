@@ -62,23 +62,47 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     s.advance()?;
                     s.add_token(NegPi);
                 } else if s.peek()?.is_ascii_digit() {
+                    // Emit -1 * NUMBER to preserve operator precedence
+                    // This ensures -2^2 evaluates as -(2^2) = -4, not (-2)^2 = 4
                     s.digit()?;
-                    if s.peek()? != 'x' {
-                        let literal = get_str_section(eq, s.start, s.current);
+                    let after_power = s.tokens.last().is_some_and(|t| t.token_type == Power);
 
+                    if s.peek()? != 'x' {
+                        // Skip the minus, just get the digits
+                        let literal = get_str_section(eq, s.start + 1, s.current);
                         let num = literal.parse::<f32>()
                             .map_err(|_| format!("Invalid number: {}", literal))?;
-                        s.add_token_n(Number, num, 0.0);
+                        // If after power operator, wrap in parentheses: 3^(-1 * 2)
+                        if after_power {
+                            s.add_token(OpenParen);
+                            s.add_token_n(Number, -1.0, 0.0);
+                            s.add_token(Star);
+                            s.add_token_n(Number, num, 0.0);
+                            s.add_token(CloseParen);
+                        } else {
+                            // Normal case: -1 * NUMBER
+                            s.add_token_n(Number, -1.0, 0.0);
+                            s.add_token(Star);
+                            s.add_token_n(Number, num, 0.0);
+                        }
                     } else {
-                        let coefficient = get_str_section(eq, s.start, s.current);
-                        //consume the x
-                        s.advance()?;
-                        s.take_x(coefficient)?;
+                        // For -Nx, emit -1 * N * x
+                        let coefficient = get_str_section(eq, s.start + 1, s.current);
+                        let coef_val = coefficient.parse::<f32>()
+                            .map_err(|_| format!("Invalid coefficient: {}", coefficient))?;
+                        s.advance()?; // consume the x
+                        s.add_token_n(Number, -1.0, 0.0);
+                        s.add_token(Star);
+                        s.add_token_n(Number, coef_val, 0.0);
+                        s.add_token(Star);
+                        s.add_token_n(X, 1.0, 1.0);
                     }
                 } else if s.peek()? == 'x' {
-                    let coefficient = String::from("-1");
-                    s.advance()?;
-                    s.take_x(coefficient)?;
+                    // For -x, emit -1 * x
+                    s.advance()?; // consume the x
+                    s.add_token_n(Number, -1.0, 0.0);
+                    s.add_token(Star);
+                    s.add_token_n(X, 1.0, 1.0);
                 } else if s.peek()? == '(' || s.peek()?.is_alphabetic() || s.peek()? == '-' {
                     //-(5) or -sqrt(4) or --2
                     s.add_token_n(Number, -1.0, 0.0);

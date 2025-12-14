@@ -571,7 +571,9 @@ mod rm_tests {
             get_token(OpenParen),
             get_token_n(Number, 3.0, 0.0),
             get_token(Minus),
-            get_token_n(Number, -2.0, 0.0),
+            get_token_n(Number, -1.0, 0.0),
+            get_token(Star),
+            get_token_n(Number, 2.0, 0.0),
             get_token(CloseParen),
             get_token(Slash),
             get_token_n(Number, 6.0, 0.0),
@@ -619,6 +621,8 @@ mod rm_tests {
             get_token(Power),
             get_token(OpenParen),
             get_token_n(Number, -1.0, 0.0),
+            get_token(Star),
+            get_token_n(Number, 1.0, 0.0),
             get_token(Slash),
             get_token_n(Number, 2.0, 0.0),
             get_token(CloseParen),
@@ -635,7 +639,11 @@ mod rm_tests {
             get_token(Equal),
             get_token_n(Number, 3.0, 0.0),
             get_token(Power),
-            get_token_n(Number, -2.0, 0.0),
+            get_token(OpenParen),
+            get_token_n(Number, -1.0, 0.0),
+            get_token(Star),
+            get_token_n(Number, 2.0, 0.0),
+            get_token(CloseParen),
             get_token(End),
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
@@ -1188,10 +1196,11 @@ mod rm_tests {
 
     #[test]
     fn avg_test_4() {
+        // Now allows expressions in parameters (frame-based evaluation)
         let test = "avg(1,2,sin(0))";
-        let expected_result = "Params can only be numbers";
-        let actual_result = calculate(test).unwrap_err();
-        assert_eq!(actual_result, expected_result);
+        let expected_result = 1.0; // avg(1, 2, 0) = 1.0
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
     }
 
     #[test]
@@ -1286,11 +1295,11 @@ mod rm_tests {
 
     #[test]
     fn test_nested_variadic_not_supported() {
-        // Nested variadic functions are not supported
-        // The inner function will be treated as a parameter and should error
+        // Nested variadic functions NOW WORK with frame-based evaluation!
         let result = calculate("avg(1, min(2, 3), 4)");
-        assert!(result.is_err(), "Nested variadic functions should error");
-        assert!(result.unwrap_err().contains("Params can only be numbers"));
+        // avg(1, 2, 4) = 7/3 ≈ 2.333...
+        assert!(result.is_ok(), "Nested variadic functions should work");
+        assert!(is_close(result.unwrap(), 7.0 / 3.0));
     }
 
     #[test]
@@ -1316,9 +1325,11 @@ mod rm_tests {
 
     #[test]
     fn test_variadic_parameters_must_be_simple() {
-        // Variadic functions only accept simple numbers and x, not expressions
+        // Variadic functions NOW ACCEPT full expressions with frame-based evaluation!
         let result = calculate("avg(1+1, 2)");
-        assert!(result.is_err(), "Arithmetic inside variadic params should error");
+        // avg(2, 2) = 2.0
+        assert!(result.is_ok(), "Arithmetic inside variadic params should work");
+        assert!(is_close(result.unwrap(), 2.0));
     }
 
     #[test]

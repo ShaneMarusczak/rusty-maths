@@ -46,19 +46,32 @@ where
 
     fn process_token(&mut self, token: Token) -> Result<(), String> {
         // Handle variadic function parameter collection
+        // With frame-based evaluation, we now allow full expressions in parameters
         if self.param_token != ParamToken::None {
-            if matches!(token.token_type, TokenType::Number | TokenType::X) {
-                self.output_queue.push_back(token);
-                return Ok(());
-            } else if token.token_type == TokenType::Comma {
+            if token.token_type == TokenType::Comma {
+                // Commas separate parameters, skip them
                 return Ok(());
             } else if token.token_type == TokenType::CloseParen {
+                // End of parameter list - pop all operators until OpenParen
+                while !self.operator_stack.is_empty() {
+                    let last = self.operator_stack.last().ok_or("Missing operator on stack")?;
+                    if last.paren_opener {
+                        break;
+                    }
+                    let op = self.operator_stack.pop().ok_or("Operator stack empty")?;
+                    self.output_queue.push_back(op.token);
+                }
+
+                // Output the End* token
                 self.output_queue.push_back(make_synthetic_token(self.param_token.to_end_token_type()));
                 self.param_token = ParamToken::None;
+
+                // Pop the OpenParen marker
+                self.operator_stack.pop();
+                self.paren_depth -= 1;
                 return Ok(());
             }
-
-            return Err("Params can only be numbers".to_string());
+            // Fall through to normal token processing to allow operators, functions, etc.
         }
 
         match token.token_type {
@@ -72,6 +85,7 @@ where
             }
 
             // Variadic functions - start parameter collection
+            // Note: The actual OpenParen token that follows will be handled normally
             TokenType::Avg => {
                 self.output_queue.push_back(token);
                 self.param_token = ParamToken::Avg;
