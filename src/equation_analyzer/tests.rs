@@ -2142,4 +2142,228 @@ mod rm_tests {
         assert_eq!(calculate(test).unwrap(), 0.0);
     }
 
+    // ========== Factorial Edge Cases ==========
+
+    #[test]
+    fn factorial_of_zero() {
+        let test = "0!";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn factorial_of_negative() {
+        let test = "(-5)!";
+        let result = calculate(test);
+        assert!(result.is_err(), "Factorial of negative should error");
+    }
+
+    #[test]
+    fn factorial_of_non_integer() {
+        let test = "5.5!";
+        let result = calculate(test);
+        assert!(result.is_err(), "Factorial of non-integer should error");
+    }
+
+    #[test]
+    fn factorial_large() {
+        let test = "20!";
+        let result = calculate(test).unwrap();
+        let expected = 2432902008176640000.0;
+        assert!((result - expected).abs() / expected < 0.01, "20! = {}, expected ~{}", result, expected);
+    }
+
+    // ========== Operator Precedence & Associativity ==========
+
+    #[test]
+    fn unary_minus_vs_power() {
+        let test = "-2^2";
+        assert_eq!(calculate(test).unwrap(), -4.0);
+    }
+
+    #[test]
+    fn power_right_associative() {
+        let test = "2^3^2";
+        assert_eq!(calculate(test).unwrap(), 512.0); // 2^(3^2) = 2^9 = 512
+    }
+
+    #[test]
+    fn double_negative() {
+        let test = "--5";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn triple_negative() {
+        let test = "---5";
+        assert_eq!(calculate(test).unwrap(), -5.0);
+    }
+
+    // ========== Trigonometric Precision ==========
+
+    #[test]
+    fn sin_of_pi() {
+        let test = "sin(π)";
+        let result = calculate(test).unwrap();
+        assert!(result.abs() < 0.0001, "sin(π) should be ≈0, got {}", result);
+    }
+
+    #[test]
+    fn cos_of_pi_over_2() {
+        let test = "cos(π/2)";
+        let result = calculate(test).unwrap();
+        assert!(result.abs() < 0.0001, "cos(π/2) should be ≈0, got {}", result);
+    }
+
+    #[test]
+    fn tan_of_pi_over_2() {
+        let test = "tan(π/2)";
+        let result = calculate(test).unwrap();
+        assert!(result.abs() > 1000.0 || result.is_infinite(), "tan(π/2) should be very large or infinite, got {}", result);
+    }
+
+    #[test]
+    fn tan_of_pi_over_4() {
+        let test = "tan(π/4)";
+        let result = calculate(test).unwrap();
+        assert!((result - 1.0).abs() < 0.001, "tan(π/4) should be 1, got {}", result);
+    }
+
+    // ========== Logarithm Edge Cases ==========
+
+    #[test]
+    fn log_2_of_2() {
+        let test = "log_2(2)";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn log_10_of_10() {
+        let test = "log_10(10)";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn ln_of_e_constant() {
+        let test = "ln(e)";
+        let result = calculate(test).unwrap();
+        assert!((result - 1.0).abs() < 0.0001, "ln(e) should be 1, got {}", result);
+    }
+
+    #[test]
+    fn ln_of_negative() {
+        let test = "ln(-5)";
+        let result = calculate(test).unwrap();
+        assert!(result.is_nan(), "ln(-5) should be NaN");
+    }
+
+    #[test]
+    fn log_of_negative() {
+        let test = "log_2(-8)";
+        let result = calculate(test).unwrap();
+        assert!(result.is_nan(), "log_2(-8) should be NaN");
+    }
+
+    // ========== Function Argument Counts ==========
+
+    #[test]
+    fn avg_single_argument() {
+        let test = "avg(5)";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn max_single_argument() {
+        let test = "max(5)";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn min_single_argument() {
+        let test = "min(5)";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    // ========== Malformed Expressions (Should Error) ==========
+
+    #[test]
+    fn ends_with_operator() {
+        let test = "5 +";
+        let result = calculate(test);
+        assert!(result.is_err(), "Expression ending with operator should error");
+    }
+
+    #[test]
+    fn starts_with_operator() {
+        let test = "+ 5";
+        let result = calculate(test);
+        assert!(result.is_err(), "Expression starting with operator should error");
+    }
+
+    #[test]
+    fn missing_operator() {
+        let test = "5 5";
+        let result = calculate(test);
+        assert!(result.is_err(), "Missing operator should error");
+    }
+
+    #[test]
+    fn empty_parentheses() {
+        let test = "()";
+        let result = calculate(test);
+        assert!(result.is_err(), "Empty parentheses should error");
+    }
+
+    #[test]
+    fn operator_with_empty_parens() {
+        let test = "5 + ()";
+        let result = calculate(test);
+        assert!(result.is_err(), "Operator with empty parentheses should error");
+    }
+
+    // ========== Numerical Overflow ==========
+
+    #[test]
+    fn overflow_to_infinity() {
+        let test = "1e38 * 1e38";
+        let result = calculate(test).unwrap();
+        assert!(result.is_infinite(), "1e38 * 1e38 should overflow to infinity");
+    }
+
+    #[test]
+    fn large_power_overflow() {
+        let test = "999999999999^2";
+        let result = calculate(test).unwrap();
+        assert!(result.is_infinite() || result > 1e20, "Large power should overflow or be very large");
+    }
+
+    // ========== Constants ==========
+
+    #[test]
+    fn e_times_pi() {
+        let test = "e * π";
+        let result = calculate(test).unwrap();
+        let expected = std::f32::consts::E * std::f32::consts::PI;
+        assert!((result - expected).abs() < 0.001, "e * π = {}, expected {}", result, expected);
+    }
+
+    #[test]
+    fn pi_divided_by_pi() {
+        let test = "π / π";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn e_to_zero_power() {
+        let test = "e^0";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn pi_squared() {
+        let test = "π^2";
+        let result = calculate(test).unwrap();
+        let expected = std::f32::consts::PI * std::f32::consts::PI;
+        assert!((result - expected).abs() < 0.001, "π² = {}, expected {}", result, expected);
+    }
+
 }
