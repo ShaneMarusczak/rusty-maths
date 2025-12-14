@@ -124,28 +124,22 @@ cargo bench --bench equation_analyzer
             ▲              ▲              ▲
             └──────────────┴──────────────┘
                    Shared by all pipelines
-         ┌──────────────┬──────────────┬──────────────┐
-    vec_pipeline   hybrid_pipeline   full_pipeline
+         ┌──────────────┬──────────────┐
+    vec_pipeline   hybrid_pipeline
 ```
 
 **Vec Pipeline** - Traditional fully-buffered approach
 - Best for: Debugging, learning, baseline reference
 - Characteristics: Complete buffering at each stage
 
-**Hybrid Pipeline** - Streaming input, buffered output
+**Hybrid Pipeline** - Streaming input, buffered output (Recommended)
 - Best for: Production use, drop-in performance improvement
 - Characteristics: Iterator-based tokenizer, Vec-based parser
 - Performance: 1.6x faster than baseline
 
-**Full Pipeline** - Fully streaming with minimal buffers
-- Best for: Architectural elegance, early termination scenarios
-- Characteristics: All stages are iterators, minimal partial buffers
-- Performance: 1.4x faster than baseline
-
 See individual pipeline READMEs for detailed architecture documentation:
 - [Vec Pipeline](src/equation_analyzer/vec_pipeline/README.md)
 - [Hybrid Pipeline](src/equation_analyzer/hybrid_pipeline/README.md)
-- [Full Pipeline](src/equation_analyzer/full_pipeline/README.md)
 
 ## Installation
 
@@ -228,8 +222,7 @@ rusty-maths/
 │   ├── equation_analyzer/      # Equation parsing and evaluation
 │   │   ├── core/               # Shared implementations (DRY)
 │   │   ├── vec_pipeline/       # Fully-buffered pipeline
-│   │   ├── hybrid_pipeline/    # Hybrid streaming pipeline
-│   │   └── full_pipeline/      # Fully streaming pipeline
+│   │   └── hybrid_pipeline/    # Hybrid streaming pipeline
 │   ├── statistics/             # Statistical functions
 │   ├── linear_algebra/         # Vector/matrix operations
 │   ├── geometry/               # Geometric calculations

@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use rusty_maths::equation_analyzer::{vec_pipeline, hybrid_pipeline, full_pipeline};
+use rusty_maths::equation_analyzer::{vec_pipeline, hybrid_pipeline};
 
 /// Benchmark calculate() across pipelines with equations of varying complexity
 fn bench_calculate(c: &mut Criterion) {
@@ -21,10 +21,6 @@ fn bench_calculate(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("hybrid", name), &eq, |b, &equation| {
             b.iter(|| hybrid_pipeline::calculator::calculate(black_box(equation)));
-        });
-
-        group.bench_with_input(BenchmarkId::new("full", name), &eq, |b, &equation| {
-            b.iter(|| full_pipeline::calculator::calculate(black_box(equation)));
         });
     }
 
@@ -50,10 +46,6 @@ fn bench_plot(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("hybrid", name), &(equation, step), |b, &(eq, s)| {
             b.iter(|| hybrid_pipeline::calculator::plot(black_box(eq), -5.0, 5.0, s));
-        });
-
-        group.bench_with_input(BenchmarkId::new("full", name), &(equation, step), |b, &(eq, s)| {
-            b.iter(|| full_pipeline::calculator::plot(black_box(eq), -5.0, 5.0, s));
         });
     }
 

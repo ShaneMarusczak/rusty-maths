@@ -173,5 +173,4 @@ let points = plot("y = x^2", -10.0, 10.0, 0.1).unwrap();
 
 ## Related
 
-- See **hybrid_pipeline/** for streaming tokenizer with Vec parser
-- See **full_pipeline/** for fully streaming with minimal buffers
+- See **hybrid_pipeline/** for streaming tokenizer with Vec parser (recommended for better performance)

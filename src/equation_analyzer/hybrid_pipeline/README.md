@@ -252,7 +252,6 @@ let result = calculate("sin(π / 2)").unwrap();
 
 **Consider alternatives when:**
 - 📚 Want absolute simplest code (use vec_pipeline)
-- 🚀 Want maximum streaming (use full_pipeline, though gains are marginal)
 
 ## Key Innovations
 
@@ -296,4 +295,3 @@ for token in tokenizer {  // ← Parser pulls
 ## Related
 
 - See **vec_pipeline/** for the baseline implementation
-- See **full_pipeline/** for fully streaming with minimal buffers

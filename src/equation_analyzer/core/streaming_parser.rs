@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 
 /// A fully streaming parser that implements Iterator, yielding RPN tokens on demand.
 ///
-/// This is the core streaming parser shared by full_pipeline implementations.
+/// This is the core streaming parser used by hybrid_pipeline.
 /// Unlike the buffered Shunting Yard parser, this maintains only a minimal operator stack
 /// (partial buffer) and yields tokens as soon as they can be output in RPN order.
 ///
