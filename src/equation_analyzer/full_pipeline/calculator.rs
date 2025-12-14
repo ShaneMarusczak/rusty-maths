@@ -1,6 +1,6 @@
 use crate::equation_analyzer::utils::{get_x_values, Point};
 use crate::equation_analyzer::core::streaming_tokenizer::StreamingTokenizer;
-use crate::equation_analyzer::hybrid_pipeline::parser::parse_streaming;
+use crate::equation_analyzer::core::parser::parse;
 use super::evaluator::evaluate_fully_streaming;
 use super::parser::FullyStreamingParser;
 
@@ -72,7 +72,7 @@ pub fn plot(
     // For plotting, we parse once and collect RPN tokens
     // Then evaluate in parallel for each x value
     let tokenizer = StreamingTokenizer::new(eq)?;
-    let parsed_eq = parse_streaming(tokenizer)?;
+    let parsed_eq = parse(tokenizer)?;
 
     let x_values = get_x_values(x_min, x_max, step_size);
 

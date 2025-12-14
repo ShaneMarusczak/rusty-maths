@@ -72,9 +72,9 @@ Next call:   → Pop X from pending queue
 - **Memory efficient**: No full token Vec allocation
 - **UTF-8 aware**: Tracks byte positions for π, e characters
 
-### 2. Streaming Parser (parser.rs)
+### 2. Streaming Parser (core/parser.rs)
 ```rust
-pub fn parse_streaming<I>(tokens: I) -> Result<Vec<Token>, String>
+pub fn parse<I>(tokens: I) -> Result<Vec<Token>, String>
 where
     I: IntoIterator<Item = Result<Token, String>>
 ```
@@ -88,7 +88,7 @@ where
 **Example:**
 ```rust
 let tokenizer = StreamingTokenizer::new("2 + 3 * 4")?;
-let rpn_tokens = parse_streaming(tokenizer)?;
+let rpn_tokens = parse(tokenizer)?;
 
 // Parser loop:
 for token_result in tokens {              // ← Pulls from tokenizer
@@ -287,12 +287,11 @@ for token in tokenizer {  // ← Parser pulls
 
 ## Files in this Directory
 
-- **parser.rs** - Iterator<Token> → Vec<Token> (RPN)
-- **evaluator.rs** - Vec<Token> (RPN) → f32 result
+- **evaluator.rs** - Vec<Token> (RPN) → f32 result - wraps core/evaluator
 - **calculator.rs** - Public API (calculate, plot)
 - **mod.rs** - Module exports
 
-**Note:** This pipeline uses `core/streaming_tokenizer.rs` (shared across pipelines).
+**Note:** This pipeline uses `core/streaming_tokenizer.rs` and `core/parser.rs` (shared across pipelines).
 
 ## Related
 

@@ -1,7 +1,7 @@
 use crate::equation_analyzer::utils::{get_x_values, Point};
 use crate::equation_analyzer::core::streaming_tokenizer::StreamingTokenizer;
 use super::evaluator::evaluate_streaming;
-use super::parser::parse_streaming;
+use crate::equation_analyzer::core::parser::parse;
 
 use rayon::prelude::*;
 
@@ -27,7 +27,7 @@ use rayon::prelude::*;
 /// for more efficient memory usage and lazy evaluation.
 pub fn calculate(eq: &str) -> Result<f32, String> {
     let tokenizer = StreamingTokenizer::new(eq)?;
-    let parsed = parse_streaming(tokenizer)?;
+    let parsed = parse(tokenizer)?;
     evaluate_streaming(&parsed, None)
 }
 
@@ -56,7 +56,7 @@ pub fn calculate(eq: &str) -> Result<f32, String> {
 /// The equation is still parsed once and then evaluated multiple times for efficiency.
 pub fn plot(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<Vec<Point>, String> {
     let tokenizer = StreamingTokenizer::new(eq)?;
-    let parsed_eq = parse_streaming(tokenizer)?;
+    let parsed_eq = parse(tokenizer)?;
 
     let x_values = get_x_values(x_min, x_max, step_size);
 
