@@ -215,6 +215,14 @@ impl<'a> StreamingTokenizer<'a> {
                         let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
                         // If after power operator, wrap in parentheses: 3^(-1 * 2)
                         if after_power {
+                            // Push in the order they should be returned: OpenParen, -1, *, val, CloseParen
+                            // Since we return the first token immediately and pop from front,
+                            // we push the rest in order
+                            self.pending_tokens.push_back(Token {
+                                token_type: Number,
+                                numeric_value_1: -1.0,
+                                numeric_value_2: 0.0,
+                            });
                             self.pending_tokens.push_back(Token {
                                 token_type: Star,
                                 numeric_value_1: 0.0,
@@ -228,11 +236,6 @@ impl<'a> StreamingTokenizer<'a> {
                             self.pending_tokens.push_back(Token {
                                 token_type: CloseParen,
                                 numeric_value_1: 0.0,
-                                numeric_value_2: 0.0,
-                            });
-                            self.pending_tokens.push_back(Token {
-                                token_type: Number,
-                                numeric_value_1: -1.0,
                                 numeric_value_2: 0.0,
                             });
                             self.make_token(OpenParen)

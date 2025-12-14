@@ -1304,15 +1304,20 @@ mod rm_tests {
 
     #[test]
     fn test_nested_variadic_min_in_max() {
-        // Another nested variadic test
+        // Nested variadic functions work with frame-based evaluation!
         let result = calculate("max(1, min(2, 3))");
-        assert!(result.is_err(), "Nested variadic functions should error");
+        assert!(result.is_ok(), "Nested variadic functions should work");
+        // max(1, 2) = 2
+        assert_eq!(result.unwrap(), 2.0);
     }
 
     #[test]
     fn test_nested_variadic_mode_in_avg() {
+        // Nested variadic functions work with frame-based evaluation!
         let result = calculate("avg(mode(1, 1, 2), 5)");
-        assert!(result.is_err(), "Nested variadic functions should error");
+        assert!(result.is_ok(), "Nested variadic functions should work");
+        // mode(1, 1, 2) = 1, so avg(1, 5) = 3
+        assert_eq!(result.unwrap(), 3.0);
     }
 
     #[test]
@@ -1359,7 +1364,7 @@ mod rm_tests {
     #[test]
     fn choice_test_error() {
         let test = "ch(20,9, 0)";
-        let expected_result = "Expected at most 2 parameters, got 3";
+        let expected_result = "choice requires exactly 2 parameters, got 3";
         let actual_result = calculate(test).unwrap_err();
         assert_eq!(expected_result, actual_result);
     }

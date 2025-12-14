@@ -23,7 +23,7 @@ where
     operator_stack: Vec<Operand>,
     output_queue: VecDeque<Token>,
     paren_depth: i32,
-    param_token: ParamToken,
+    param_token_stack: Vec<ParamToken>,  // Stack for nested variadic functions
     finished: bool,
     found_end: bool,
 }
@@ -38,7 +38,7 @@ where
             operator_stack: Vec::new(),
             output_queue: VecDeque::new(),
             paren_depth: 0,
-            param_token: ParamToken::None,
+            param_token_stack: Vec::new(),
             finished: false,
             found_end: false,
         }
@@ -47,31 +47,46 @@ where
     fn process_token(&mut self, token: Token) -> Result<(), String> {
         // Handle variadic function parameter collection
         // With frame-based evaluation, we now allow full expressions in parameters
-        if self.param_token != ParamToken::None {
-            if token.token_type == TokenType::Comma {
-                // Commas separate parameters, skip them
-                return Ok(());
-            } else if token.token_type == TokenType::CloseParen {
-                // End of parameter list - pop all operators until OpenParen
-                while !self.operator_stack.is_empty() {
-                    let last = self.operator_stack.last().ok_or("Missing operator on stack")?;
-                    if last.paren_opener {
-                        break;
+        if let Some(&current_param) = self.param_token_stack.last() {
+            match token.token_type {
+                // Comma: pop all pending operators (they belong to current parameter expression)
+                TokenType::Comma => {
+                    while !self.operator_stack.is_empty() {
+                        let last = self.operator_stack.last().ok_or("Missing operator on stack")?;
+                        if last.paren_opener {
+                            break;
+                        }
+                        let op = self.operator_stack.pop().ok_or("Operator stack empty")?;
+                        self.output_queue.push_back(op.token);
                     }
-                    let op = self.operator_stack.pop().ok_or("Operator stack empty")?;
-                    self.output_queue.push_back(op.token);
+                    return Ok(());
                 }
 
-                // Output the End* token
-                self.output_queue.push_back(make_synthetic_token(self.param_token.to_end_token_type()));
-                self.param_token = ParamToken::None;
+                // CloseParen ends the function call
+                TokenType::CloseParen => {
+                    // Pop all operators until OpenParen marker
+                    while !self.operator_stack.is_empty() {
+                        let last = self.operator_stack.last().ok_or("Missing operator on stack")?;
+                        if last.paren_opener {
+                            break;
+                        }
+                        let op = self.operator_stack.pop().ok_or("Operator stack empty")?;
+                        self.output_queue.push_back(op.token);
+                    }
 
-                // Pop the OpenParen marker
-                self.operator_stack.pop();
-                self.paren_depth -= 1;
-                return Ok(());
+                    // Pop the OpenParen marker
+                    self.operator_stack.pop();
+                    self.paren_depth -= 1;
+
+                    // Emit the End* token
+                    self.output_queue.push_back(make_synthetic_token(current_param.to_end_token_type()));
+                    self.param_token_stack.pop();  // Exit this param mode
+                    return Ok(());
+                }
+
+                // All other tokens fall through to normal processing
+                _ => {}
             }
-            // Fall through to normal token processing to allow operators, functions, etc.
         }
 
         match token.token_type {
@@ -85,40 +100,52 @@ where
             }
 
             // Variadic functions - start parameter collection
-            // Note: The actual OpenParen token that follows will be handled normally
+            // Note: The tokenizer consumes the OpenParen, so we need to push a marker
             TokenType::Avg => {
                 self.output_queue.push_back(token);
-                self.param_token = ParamToken::Avg;
+                self.param_token_stack.push(ParamToken::Avg);
+                self.operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
+                self.paren_depth += 1;
                 Ok(())
             }
 
             TokenType::Choice => {
                 self.output_queue.push_back(token);
-                self.param_token = ParamToken::Choice;
+                self.param_token_stack.push(ParamToken::Choice);
+                self.operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
+                self.paren_depth += 1;
                 Ok(())
             }
 
             TokenType::Min => {
                 self.output_queue.push_back(token);
-                self.param_token = ParamToken::Min;
+                self.param_token_stack.push(ParamToken::Min);
+                self.operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
+                self.paren_depth += 1;
                 Ok(())
             }
 
             TokenType::Max => {
                 self.output_queue.push_back(token);
-                self.param_token = ParamToken::Max;
+                self.param_token_stack.push(ParamToken::Max);
+                self.operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
+                self.paren_depth += 1;
                 Ok(())
             }
 
             TokenType::Med => {
                 self.output_queue.push_back(token);
-                self.param_token = ParamToken::Med;
+                self.param_token_stack.push(ParamToken::Med);
+                self.operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
+                self.paren_depth += 1;
                 Ok(())
             }
 
             TokenType::Mode => {
                 self.output_queue.push_back(token);
-                self.param_token = ParamToken::Mode;
+                self.param_token_stack.push(ParamToken::Mode);
+                self.operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
+                self.paren_depth += 1;
                 Ok(())
             }
 
