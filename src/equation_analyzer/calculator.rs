@@ -1,11 +1,11 @@
 use crate::equation_analyzer::utils::{get_x_values, Point};
-use crate::equation_analyzer::core::streaming_tokenizer::StreamingTokenizer;
-use super::evaluator::evaluate_streaming;
-use crate::equation_analyzer::core::parser::parse;
+use crate::equation_analyzer::pipeline::tokenizer::StreamingTokenizer;
+use crate::equation_analyzer::pipeline::evaluator::evaluate;
+use crate::equation_analyzer::pipeline::parser::parse;
 
 use rayon::prelude::*;
 
-/// Calculates the result of a mathematical equation using the hybrid streaming pipeline.
+/// Calculates the result of a mathematical equation.
 ///
 /// # Arguments
 /// * `eq` - A string slice containing the equation to calculate
@@ -16,22 +16,18 @@ use rayon::prelude::*;
 ///
 /// # Examples
 /// ```
-/// use rusty_maths::equation_analyzer::hybrid_pipeline::calculator::calculate;
+/// use rusty_maths::equation_analyzer::calculator::calculate;
 ///
 /// let result = calculate("2 + 2 * 3").unwrap();
 /// assert_eq!(result, 8.0);
 /// ```
-///
-/// # Note
-/// This is the hybrid streaming implementation that uses an iterator-based tokenizer
-/// for more efficient memory usage and lazy evaluation.
 pub fn calculate(eq: &str) -> Result<f32, String> {
     let tokenizer = StreamingTokenizer::new(eq)?;
     let parsed = parse(tokenizer)?;
-    evaluate_streaming(&parsed, None)
+    evaluate(parsed.iter().copied(), None)
 }
 
-/// Plots a mathematical equation over a range of x values using the hybrid streaming pipeline.
+/// Plots a mathematical equation over a range of x values.
 ///
 /// # Arguments
 /// * `eq` - A string slice containing the equation to plot (must contain variable 'x')
@@ -45,15 +41,11 @@ pub fn calculate(eq: &str) -> Result<f32, String> {
 ///
 /// # Examples
 /// ```
-/// use rusty_maths::equation_analyzer::hybrid_pipeline::calculator::plot;
+/// use rusty_maths::equation_analyzer::calculator::plot;
 ///
 /// let points = plot("y = x^2", -2.0, 2.0, 1.0).unwrap();
 /// assert_eq!(points.len(), 5); // Points at x = -2, -1, 0, 1, 2
 /// ```
-///
-/// # Note
-/// This is the hybrid streaming implementation that uses an iterator-based tokenizer.
-/// The equation is still parsed once and then evaluated multiple times for efficiency.
 pub fn plot(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<Vec<Point>, String> {
     let tokenizer = StreamingTokenizer::new(eq)?;
     let parsed_eq = parse(tokenizer)?;
@@ -63,7 +55,7 @@ pub fn plot(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<Vec<Poin
     let points: Result<Vec<Point>, String> = x_values
         .par_iter()
         .map(|&x| {
-            let y = evaluate_streaming(&parsed_eq, x)?;
+            let y = evaluate(parsed_eq.iter().copied(), x)?;
             Ok(Point { x, y })
         })
         .collect();
