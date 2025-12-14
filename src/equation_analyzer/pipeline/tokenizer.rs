@@ -53,7 +53,7 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                 }
             }
             '-' => {
-                if s.previous_match(&[_E, _Pi, Number, CloseParen, Factorial]) {
+                if s.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
                     s.add_token(Minus);
                 } else if s.peek()? == 'e' {
                     s.advance()?;
@@ -63,9 +63,20 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     s.add_token(NegPi);
                 } else if s.peek()?.is_ascii_digit() {
                     s.digit()?;
-                    let literal = get_str_section(eq, s.start, s.current);
+                    if s.peek()? != 'x' {
+                        let literal = get_str_section(eq, s.start, s.current);
 
-                    s.add_token_n(Number, literal.parse().unwrap(), 0.0);
+                        s.add_token_n(Number, literal.parse().unwrap(), 0.0);
+                    } else {
+                        let coefficient = get_str_section(eq, s.start, s.current);
+                        //consume the x
+                        s.advance()?;
+                        s.take_x(coefficient)?;
+                    }
+                } else if s.peek()? == 'x' {
+                    let coefficient = String::from("-1");
+                    s.advance()?;
+                    s.take_x(coefficient)?;
                 } else if s.peek()? == '(' || s.peek()?.is_alphabetic() || s.peek()? == '-' {
                     //-(5) or -sqrt(4) or --2
                     s.add_token_n(Number, -1.0, 0.0);
@@ -75,12 +86,23 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
             '(' => s.add_token(OpenParen),
             ')' => s.add_token(CloseParen),
             '^' => s.add_token(Power),
+            'x' => {
+                let coefficient = String::from("1");
+                s.take_x(coefficient)?;
+            }
             _ => {
                 if c.is_ascii_digit() {
                     s.digit()?;
-                    let literal = get_str_section(eq, s.start, s.current);
+                    if s.peek()? != 'x' {
+                        let literal = get_str_section(eq, s.start, s.current);
 
-                    s.add_token_n(Number, literal.parse().unwrap(), 0.0);
+                        s.add_token_n(Number, literal.parse().unwrap(), 0.0);
+                    } else {
+                        let coefficient = get_str_section(eq, s.start, s.current);
+                        //consume the x
+                        s.advance()?;
+                        s.take_x(coefficient)?;
+                    }
                 } else if c.is_alphabetic() {
                     while s.peek()?.is_alphabetic() {
                         s.advance()?;

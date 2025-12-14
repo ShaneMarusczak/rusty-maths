@@ -11,11 +11,12 @@ use std::{
 ///
 /// # Arguments
 /// * `parsed_eq` - A slice of tokens in RPN format
+/// * `x` - The value of the variable x (defaults to 0.0 for non-parametric equations)
 ///
 /// # Returns
 /// * `Ok(f32)` - The result of the evaluation
 /// * `Err(String)` - An error message if evaluation fails
-pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
+pub(crate) fn evaluate(parsed_eq: &[Token], x: f32) -> Result<f32, String> {
     if parsed_eq.is_empty() {
         return Err(String::from("Invalid equation supplied"));
     }
@@ -29,6 +30,7 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
         if collecting_params {
             match token.token_type {
                 TokenType::Number => params.push(token.numeric_value_1),
+                TokenType::X => params.push(token.numeric_value_1 * x.powf(token.numeric_value_2)),
                 TokenType::EndAvg => {
                     let avg = params.iter().sum::<f32>() / params.len() as f32;
                     stack.push(avg);
@@ -94,7 +96,7 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
                 }
                 _ => unreachable!(),
             }
-            if !matches!(token.token_type, TokenType::Number) {
+            if !matches!(token.token_type, TokenType::Number | TokenType::X) {
                 collecting_params = false;
                 params.clear();
             }
@@ -166,6 +168,7 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
                 let temp = stack.pop().ok_or("Insufficient operands for log function")?;
                 stack.push(temp.log(token.numeric_value_1));
             }
+            TokenType::X => stack.push(token.numeric_value_1 * x.powf(token.numeric_value_2)),
             _ => {
                 if let (Some(rhs), Some(lhs)) = (stack.pop(), stack.pop()) {
                     match token.token_type {

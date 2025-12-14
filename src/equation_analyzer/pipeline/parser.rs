@@ -26,7 +26,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
 
     for token in tokens {
         if param_token != ParamToken::None {
-            if matches!(token.token_type, TokenType::Number) {
+            if matches!(token.token_type, TokenType::Number | TokenType::X) {
                 output.push(token);
                 continue;
             } else if token.token_type == TokenType::Comma {
@@ -207,7 +207,7 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
                 operator_stack.push(o_1);
             }
 
-            TokenType::Number => output.push(token),
+            TokenType::Number | TokenType::X => output.push(token),
             TokenType::End => {
                 found_end = true;
             }

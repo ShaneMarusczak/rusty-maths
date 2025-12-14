@@ -22,6 +22,8 @@ pub(crate) trait Tokenizer {
 
     fn add_token(&mut self, token_type: TokenType);
 
+    fn take_x(&mut self, coefficient: String) -> Result<(), String>;
+
     fn digit(&mut self) -> Result<(), String>;
 }
 
@@ -81,6 +83,25 @@ impl Tokenizer for TokenizerState<'_> {
 
     fn add_token(&mut self, token_type: TokenType) {
         self.add_token_n(token_type, 0.0, 0.0);
+    }
+
+    fn take_x(&mut self, coefficient: String) -> Result<(), String> {
+        let coef: f32 = coefficient.parse().unwrap();
+        // Check if previous token was Power - if so, we need to wrap this in parens
+        let after_power = self.tokens.last().map_or(false, |t| t.token_type == TokenType::Power);
+
+        if coef != 1.0 {
+            if after_power {
+                self.add_token(TokenType::OpenParen);
+            }
+            self.add_token_n(TokenType::Number, coef, 0.0);
+            self.add_token(TokenType::Star);
+        }
+        self.add_token_n(TokenType::X, 1.0, 1.0);
+        if after_power && coef != 1.0 {
+            self.add_token(TokenType::CloseParen);
+        }
+        Ok(())
     }
 
     fn digit(&mut self) -> Result<(), String> {
