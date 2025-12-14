@@ -1,7 +1,7 @@
-use crate::equation_analyzer::utils::{get_x_values, Point};
-use crate::equation_analyzer::pipeline::tokenizer::StreamingTokenizer;
 use crate::equation_analyzer::pipeline::evaluator::evaluate;
 use crate::equation_analyzer::pipeline::parser::parse;
+use crate::equation_analyzer::pipeline::tokenizer::StreamingTokenizer;
+use crate::equation_analyzer::utils::{get_x_values, Point};
 
 use rayon::prelude::*;
 

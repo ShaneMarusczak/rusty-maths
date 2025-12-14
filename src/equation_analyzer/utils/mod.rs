@@ -60,7 +60,9 @@ pub fn get_x_values(x_min: f32, x_max: f32, step_size: f32) -> Vec<f32> {
 ///
 /// # Returns
 /// A Token with the specified type and zero numeric values
-pub fn make_synthetic_token(token_type: crate::equation_analyzer::structs::token::TokenType) -> Token {
+pub fn make_synthetic_token(
+    token_type: crate::equation_analyzer::structs::token::TokenType,
+) -> Token {
     Token {
         token_type,
         numeric_value_1: 0_f32,

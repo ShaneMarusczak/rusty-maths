@@ -60,7 +60,7 @@ pub(crate) enum TokenType {
     Slash,
     Plus,
     Minus,
-    UnaryMinus,  // Unary negation operator
+    UnaryMinus, // Unary negation operator
     Power,
     Modulo,
     Percent,

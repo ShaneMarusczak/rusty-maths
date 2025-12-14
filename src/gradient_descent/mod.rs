@@ -8,11 +8,31 @@ pub fn sum_of_squares(v: &Vector) -> f64 {
     dot_product(v, v)
 }
 
+/// Approximates the derivative of a function using the difference quotient
+///
+/// # Arguments
+///
+/// * `f` - The function to differentiate
+/// * `x` - The point at which to approximate the derivative
+/// * `h` - A small step size for the approximation
+///
+/// # Returns
+///
+/// The approximate derivative f'(x) ≈ (f(x + h) - f(x)) / h
 pub fn difference_quotient(f: &dyn Fn(f64) -> f64, x: f64, h: f64) -> f64 {
     (f(x + h) - f(x)) / h
 }
 
-///Returns the i-th partial difference quotient of f at v
+/// Returns the i-th partial difference quotient of f at v
+///
+/// Computes the partial derivative with respect to the i-th variable
+///
+/// # Arguments
+///
+/// * `f` - The multivariate function to differentiate
+/// * `v` - The point at which to approximate the partial derivative
+/// * `i` - The index of the variable with respect to which to differentiate
+/// * `h` - A small step size for the approximation
 pub fn partial_difference_quotient(f: &dyn Fn(Vector) -> f64, v: &Vector, i: usize, h: f64) -> f64 {
     let f_v = f(v.to_owned());
     let w = v
@@ -23,6 +43,14 @@ pub fn partial_difference_quotient(f: &dyn Fn(Vector) -> f64, v: &Vector, i: usi
     (f(w) - f_v) / h
 }
 
+/// Estimates the gradient of a multivariate function at a point
+///
+/// Returns a vector of partial derivatives, one for each input dimension
+///
+/// # Arguments
+///
+/// * `f` - The multivariate function
+/// * `v` - The point at which to estimate the gradient
 pub fn estimate_gradient(f: &dyn Fn(Vector) -> f64, v: &Vector) -> Vector {
     let mut vec = vec![];
     for i in 0..v.len() {
@@ -38,10 +66,27 @@ pub fn gradient_step(v: &Vector, gradient: &Vector, step_size: f64) -> Vector {
     vec_add(v, &step)
 }
 
+/// Computes the gradient of the sum of squares function
+///
+/// For f(v) = v₁² + v₂² + ... + vₙ², returns ∇f(v) = [2v₁, 2v₂, ..., 2vₙ]
 pub fn sum_of_squares_gradient(v: &Vector) -> Vector {
     v.iter().map(|v_i| 2_f64 * v_i).collect()
 }
 
+/// Computes the gradient for linear regression at a single data point
+///
+/// For a linear model y = slope * x + intercept, computes the gradient
+/// of the squared error with respect to [slope, intercept]
+///
+/// # Arguments
+///
+/// * `x` - The input feature value
+/// * `y` - The target value
+/// * `theta` - The parameters [slope, intercept]
+///
+/// # Returns
+///
+/// The gradient vector [∂error/∂slope, ∂error/∂intercept]
 pub fn linear_gradient(x: f64, y: f64, theta: &Vector) -> Vector {
     let slope = theta[0];
     let intercept = theta[1];
@@ -53,6 +98,22 @@ pub fn linear_gradient(x: f64, y: f64, theta: &Vector) -> Vector {
     vec![2_f64 * error * x, 2_f64 * error]
 }
 
+/// Splits a dataset into mini-batches for stochastic gradient descent
+///
+/// # Arguments
+///
+/// * `data_set` - The complete dataset to split
+/// * `batch_size` - The size of each mini-batch
+/// * `shuffle` - Whether to shuffle the batch order
+///
+/// # Returns
+///
+/// A vector of mini-batches, each containing `batch_size` elements
+///
+/// # Note
+///
+/// If the dataset size is not evenly divisible by batch_size,
+/// the last partial batch is dropped
 pub fn mini_batches<T: Clone>(data_set: &[T], batch_size: usize, shuffle: bool) -> Vec<Vec<T>> {
     let mut batch_starts = vec![];
     for start in 0..data_set.len() {

@@ -83,6 +83,40 @@ let weights = gradient_descent::mini_batch(
 );
 ```
 
+### 🧠 Neural Networks
+
+Simple but powerful neural network implementation with multiple layer types:
+```rust
+use rusty_maths::neural_network::{Network, Dense, ActivationLayer, ReLU, Sigmoid};
+
+// Create a neural network
+let mut network = Network::new();
+network.add(Box::new(Dense::new(2, 4)));              // Input: 2, Hidden: 4
+network.add(Box::new(ActivationLayer::new(ReLU, 4)));
+network.add(Box::new(Dense::new(4, 1)));              // Output: 1
+network.add(Box::new(ActivationLayer::new(Sigmoid, 1)));
+
+// Training data (XOR problem)
+let inputs = vec![
+    vec![0.0, 0.0], vec![0.0, 1.0],
+    vec![1.0, 0.0], vec![1.0, 1.0],
+];
+let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![0.0]];
+
+// Train the network
+let losses = network.train(&inputs, &targets, 0.1, 1000);
+
+// Make predictions
+let prediction = network.predict(&vec![1.0, 0.0]);
+```
+
+**Supported Features:**
+- Dense (Fully Connected) layers
+- Activation functions: ReLU, Sigmoid, Tanh, Linear
+- Backpropagation with gradient descent
+- Mean Squared Error loss
+- Xavier/Glorot weight initialization
+
 ## Performance
 
 The equation analyzer has been optimized with a streaming tokenizer architecture:
@@ -145,6 +179,7 @@ cargo build --release
 use rusty_maths::equation_analyzer::calculator;
 use rusty_maths::statistics;
 use rusty_maths::linear_algebra;
+use rusty_maths::neural_network::{Network, Dense, ActivationLayer, ReLU};
 
 fn main() {
     // Equation analysis
@@ -162,6 +197,15 @@ fn main() {
     let dot = linear_algebra::dot_product(&v1, &v2);
     println!("Dot product: {}", dot); // 32.0
 
+    // Neural network
+    let mut network = Network::new();
+    network.add(Box::new(Dense::new(2, 3)));
+    network.add(Box::new(ActivationLayer::new(ReLU, 3)));
+    network.add(Box::new(Dense::new(3, 1)));
+
+    let prediction = network.predict(&vec![0.5, 0.5]);
+    println!("Prediction: {:?}", prediction);
+
     // Plot a function
     let points = calculator::plot("x^2", -5.0, 5.0, 0.5).unwrap();
     for point in points.iter().take(5) {
@@ -177,17 +221,46 @@ Run the comprehensive test suite:
 cargo test
 ```
 
-**350 tests** covering:
+**436 tests** covering:
 - Equation analyzer tests (parsing, evaluation, plotting)
+- Neural network tests (layers, activations, training)
 - Statistics, linear algebra, geometry, and gradient descent
 - Edge cases and error handling
+
+### Long-Running Tests
+
+Some tests are marked with `#[ignore]` to prevent them from slowing down regular test runs. These demonstrate the neural network's learning capabilities:
+
+**Available Learning Tests:**
+- `xor_learning_test` - XOR gate (non-linearly separable, requires hidden layer)
+- `and_gate_test` - AND gate (linearly separable)
+- `or_gate_test` - OR gate (linearly separable)
+- `linear_regression_test` - Learn y = 2x + 1
+- `sine_approximation_test` - Approximate sin(x) function
+- `circle_classification_test` - Classify points inside/outside unit circle
+
+```bash
+# Run a specific test
+cargo test xor_learning_test -- --ignored --nocapture
+
+# Run all neural network learning tests
+cargo test neural_network -- --ignored --nocapture
+
+# Run all ignored tests
+cargo test -- --ignored
+
+# Run all tests including ignored ones
+cargo test -- --include-ignored
+```
+
+Each test trains a network and verifies it learns the target function with detailed output showing training progress and predictions.
 
 ## Code Quality
 
 The codebase emphasizes:
 - **Clean Architecture**: Single, optimized pipeline implementation
 - **Zero-Cost Abstractions**: Generic implementations with zero runtime overhead
-- **Comprehensive Testing**: 350 tests covering all functionality
+- **Comprehensive Testing**: 436 tests covering all functionality
 - **Performance**: Benchmarked and optimized with criterion
 - **Documentation**: Extensive docs for all public APIs and internal architecture
 
@@ -209,6 +282,10 @@ rusty-maths/
 │   │   │   ├── parser.rs       # Shunting Yard parser
 │   │   │   └── evaluator.rs    # RPN evaluator
 │   │   └── structs/            # Token and operator definitions
+│   ├── neural_network/         # Neural network implementation
+│   │   ├── activations.rs      # Activation functions (ReLU, Sigmoid, etc.)
+│   │   ├── layer.rs            # Layer trait and implementations
+│   │   └── network.rs          # Network training and inference
 │   ├── statistics/             # Statistical functions
 │   ├── linear_algebra/         # Vector/matrix operations
 │   ├── geometry/               # Geometric calculations
