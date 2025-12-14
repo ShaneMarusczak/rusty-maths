@@ -1007,7 +1007,7 @@ mod rm_tests {
     fn factorial_test_err() {
         let test = "(2.2)!";
         let ans = calculate(test).unwrap_err();
-        assert_eq!(ans, "Factorial is only defined for positive whole numbers");
+        assert_eq!(ans, "Factorial is only defined for non-negative integers");
     }
 
     #[test]

@@ -111,8 +111,11 @@ where
             }
             TokenType::Factorial => {
                 let temp = stack.pop().ok_or("Insufficient operands for factorial operator")?;
+                if temp < 0.0 {
+                    return Err("Factorial is only defined for non-negative integers".to_string());
+                }
                 if temp % 1.0 != 0.0 {
-                    return Err("Factorial is only defined for positive whole numbers".to_string());
+                    return Err("Factorial is only defined for non-negative integers".to_string());
                 }
                 stack.push(crate::utilities::factorial(temp as isize) as f32);
             }
