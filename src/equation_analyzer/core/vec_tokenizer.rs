@@ -65,15 +65,24 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     // Emit -1 * NUMBER to preserve operator precedence
                     // This ensures -2^2 evaluates as -(2^2) = -4, not (-2)^2 = 4
                     s.digit()?;
-                    let after_power = s.tokens.last().is_some_and(|t| t.token_type == Power);
+                    // Check if we need to wrap in parentheses (after operators with precedence >= 3)
+                    // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
+                    // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
+                    // BUT: For 2^-2^2, don't wrap if next token is ^ (preserves right-associativity)
+                    let next_is_power = s.peek()? == '^';
+                    let prev_is_high_prec = s.tokens.last().is_some_and(|t| matches!(
+                        t.token_type,
+                        Power | Star | Slash | Modulo | Percent
+                    ));
+                    let needs_parens = prev_is_high_prec && !next_is_power;
 
                     if s.peek()? != 'x' {
                         // Skip the minus, just get the digits
                         let literal = get_str_section(eq, s.start + 1, s.current);
                         let num = literal.parse::<f32>()
                             .map_err(|_| format!("Invalid number: {}", literal))?;
-                        // If after power operator, wrap in parentheses: 3^(-1 * 2)
-                        if after_power {
+                        // If after binary operator, wrap in parentheses: 3/(-1 * 2)
+                        if needs_parens {
                             s.add_token(OpenParen);
                             s.add_token_n(Number, -1.0, 0.0);
                             s.add_token(Star);
@@ -86,23 +95,41 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                             s.add_token_n(Number, num, 0.0);
                         }
                     } else {
-                        // For -Nx, emit -1 * N * x
+                        // For -Nx, emit -1 * N * x (with parens if needed)
                         let coefficient = get_str_section(eq, s.start + 1, s.current);
                         let coef_val = coefficient.parse::<f32>()
                             .map_err(|_| format!("Invalid coefficient: {}", coefficient))?;
                         s.advance()?; // consume the x
+                        if needs_parens {
+                            s.add_token(OpenParen);
+                        }
                         s.add_token_n(Number, -1.0, 0.0);
                         s.add_token(Star);
                         s.add_token_n(Number, coef_val, 0.0);
                         s.add_token(Star);
                         s.add_token_n(X, 1.0, 1.0);
+                        if needs_parens {
+                            s.add_token(CloseParen);
+                        }
                     }
                 } else if s.peek()? == 'x' {
-                    // For -x, emit -1 * x
+                    // For -x, emit -1 * x (with parens if needed)
                     s.advance()?; // consume the x
+                    let next_is_power = s.peek()? == '^';
+                    let prev_is_high_prec = s.tokens.last().is_some_and(|t| matches!(
+                        t.token_type,
+                        Power | Star | Slash | Modulo | Percent
+                    ));
+                    let needs_parens = prev_is_high_prec && !next_is_power;
+                    if needs_parens {
+                        s.add_token(OpenParen);
+                    }
                     s.add_token_n(Number, -1.0, 0.0);
                     s.add_token(Star);
                     s.add_token_n(X, 1.0, 1.0);
+                    if needs_parens {
+                        s.add_token(CloseParen);
+                    }
                 } else if s.peek()? == '(' || s.peek()?.is_alphabetic() || s.peek()? == '-' {
                     //-(5) or -sqrt(4) or --2
                     s.add_token_n(Number, -1.0, 0.0);

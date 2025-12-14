@@ -62,9 +62,9 @@ where
                     return Ok(());
                 }
 
-                // CloseParen ends the function call
+                // CloseParen might end the variadic function, or a nested regular function
                 TokenType::CloseParen => {
-                    // Pop all operators until OpenParen marker
+                    // Pop all operators until we find a paren_opener
                     while !self.operator_stack.is_empty() {
                         let last = self.operator_stack.last().ok_or("Missing operator on stack")?;
                         if last.paren_opener {
@@ -74,14 +74,21 @@ where
                         self.output_queue.push_back(op.token);
                     }
 
-                    // Pop the OpenParen marker
-                    self.operator_stack.pop();
-                    self.paren_depth -= 1;
+                    // Check what kind of paren_opener this is
+                    let last_op = self.operator_stack.last().ok_or("Mismatched parentheses")?;
 
-                    // Emit the End* token
-                    self.output_queue.push_back(make_synthetic_token(current_param.to_end_token_type()));
-                    self.param_token_stack.pop();  // Exit this param mode
-                    return Ok(());
+                    // If it's our synthetic OpenParen, this closes the variadic function
+                    if last_op.token.token_type == TokenType::OpenParen {
+                        self.operator_stack.pop();
+                        self.paren_depth -= 1;
+
+                        // Emit the End* token
+                        self.output_queue.push_back(make_synthetic_token(current_param.to_end_token_type()));
+                        self.param_token_stack.pop();  // Exit this param mode
+                        return Ok(());
+                    }
+
+                    // Otherwise, it's a regular function (abs, sqrt, etc.) - fall through to normal processing
                 }
 
                 // All other tokens fall through to normal processing

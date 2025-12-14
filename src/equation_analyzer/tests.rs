@@ -2366,4 +2366,415 @@ mod rm_tests {
         assert!((result - expected).abs() < 0.001, "π² = {}, expected {}", result, expected);
     }
 
+    // ========== DEEP NESTING TESTS ==========
+
+    #[test]
+    fn nested_2_levels_avg_min() {
+        // avg(1, min(2, 3), 4) = avg(1, 2, 4) = 7/3
+        let test = "avg(1, min(2, 3), 4)";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, 7.0 / 3.0));
+    }
+
+    #[test]
+    fn nested_2_levels_max_avg() {
+        // max(5, avg(1, 2, 3)) = max(5, 2) = 5
+        let test = "max(5, avg(1, 2, 3))";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn nested_3_levels_avg_max_min() {
+        // avg(1, max(2, min(3, 4)), 5) = avg(1, max(2, 3), 5) = avg(1, 3, 5) = 3
+        let test = "avg(1, max(2, min(3, 4)), 5)";
+        assert_eq!(calculate(test).unwrap(), 3.0);
+    }
+
+    #[test]
+    fn nested_3_levels_min_avg_max() {
+        // min(10, avg(max(1, 2), 3, 4), 20) = min(10, avg(2, 3, 4), 20) = min(10, 3, 20) = 3
+        let test = "min(10, avg(max(1, 2), 3, 4), 20)";
+        assert_eq!(calculate(test).unwrap(), 3.0);
+    }
+
+    #[test]
+    fn nested_4_levels_deep() {
+        // max(1, min(2, avg(3, max(4, 5))))
+        // = max(1, min(2, avg(3, 5)))
+        // = max(1, min(2, 4))
+        // = max(1, 2)
+        // = 2
+        let test = "max(1, min(2, avg(3, max(4, 5))))";
+        assert_eq!(calculate(test).unwrap(), 2.0);
+    }
+
+    #[test]
+    fn nested_4_levels_very_deep() {
+        // avg(min(max(avg(1, 2), 3), 4), 5)
+        // = avg(min(max(1.5, 3), 4), 5)
+        // = avg(min(3, 4), 5)
+        // = avg(3, 5)
+        // = 4
+        let test = "avg(min(max(avg(1, 2), 3), 4), 5)";
+        assert_eq!(calculate(test).unwrap(), 4.0);
+    }
+
+    #[test]
+    fn nested_5_levels_extreme() {
+        // min(1, max(2, avg(3, min(4, max(5, 6)))))
+        // = min(1, max(2, avg(3, min(4, 6))))
+        // = min(1, max(2, avg(3, 4)))
+        // = min(1, max(2, 3.5))
+        // = min(1, 3.5)
+        // = 1
+        let test = "min(1, max(2, avg(3, min(4, max(5, 6)))))";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn nested_multiple_at_same_level() {
+        // avg(min(1, 2), max(3, 4), min(5, 6))
+        // = avg(1, 4, 5)
+        // = 10/3
+        let test = "avg(min(1, 2), max(3, 4), min(5, 6))";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, 10.0 / 3.0));
+    }
+
+    #[test]
+    fn nested_with_regular_functions() {
+        // max(abs(-5), min(sqrt(16), 10))
+        // = max(5, min(4, 10))
+        // = max(5, 4)
+        // = 5
+        let test = "max(abs(-5), min(sqrt(16), 10))";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn variadic_inside_regular_function() {
+        // sin(avg(0, π/2)) = sin(π/4) ≈ 0.707
+        let test = "sin(avg(0, π/2))";
+        let result = calculate(test).unwrap();
+        let expected = (std::f32::consts::PI / 4.0).sin();
+        assert!(is_close(result, expected));
+    }
+
+    #[test]
+    fn regular_function_inside_variadic() {
+        // avg(sin(0), cos(0), sqrt(4))
+        // = avg(0, 1, 2)
+        // = 1
+        let test = "avg(sin(0), cos(0), sqrt(4))";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn deeply_nested_with_arithmetic() {
+        // max(1 + 2, min(3 * 4, avg(5 - 1, 6 / 2)))
+        // = max(3, min(12, avg(4, 3)))
+        // = max(3, min(12, 3.5))
+        // = max(3, 3.5)
+        // = 3.5
+        let test = "max(1 + 2, min(3 * 4, avg(5 - 1, 6 / 2)))";
+        assert_eq!(calculate(test).unwrap(), 3.5);
+    }
+
+    #[test]
+    fn nested_median_in_mode() {
+        // mode(med(1, 2, 3), med(1, 2, 3), 5)
+        // = mode(2, 2, 5)
+        // = 2
+        let test = "mode(med(1, 2, 3), med(1, 2, 3), 5)";
+        assert_eq!(calculate(test).unwrap(), 2.0);
+    }
+
+    #[test]
+    fn nested_all_statistics() {
+        // max(avg(1, 2), min(3, 4), med(5, 6, 7), mode(8, 8, 9))
+        // = max(1.5, 3, 6, 8)
+        // = 8
+        let test = "max(avg(1, 2), min(3, 4), med(5, 6, 7), mode(8, 8, 9))";
+        assert_eq!(calculate(test).unwrap(), 8.0);
+    }
+
+    // ========== UNARY MINUS TESTS ==========
+
+    #[test]
+    fn unary_minus_basic() {
+        assert_eq!(calculate("-5").unwrap(), -5.0);
+        assert_eq!(calculate("-0").unwrap(), 0.0);
+        assert_eq!(calculate("-100.5").unwrap(), -100.5);
+    }
+
+    #[test]
+    fn unary_minus_double_negative() {
+        // --5 = -(-5) = 5
+        assert_eq!(calculate("--5").unwrap(), 5.0);
+    }
+
+    #[test]
+    fn unary_minus_triple_negative() {
+        // ---5 = -(-(-5)) = -5
+        assert_eq!(calculate("---5").unwrap(), -5.0);
+    }
+
+    #[test]
+    fn unary_minus_with_addition() {
+        // -5 + 3 = -2
+        assert_eq!(calculate("-5 + 3").unwrap(), -2.0);
+        // 3 + -5 = -2
+        assert_eq!(calculate("3 + -5").unwrap(), -2.0);
+    }
+
+    #[test]
+    fn unary_minus_with_subtraction() {
+        // -5 - 3 = -8
+        assert_eq!(calculate("-5 - 3").unwrap(), -8.0);
+        // 3 - -5 = 8
+        assert_eq!(calculate("3 - -5").unwrap(), 8.0);
+    }
+
+    #[test]
+    fn unary_minus_with_multiplication() {
+        // -5 * 3 = -15
+        assert_eq!(calculate("-5 * 3").unwrap(), -15.0);
+        // 5 * -3 = -15
+        assert_eq!(calculate("5 * -3").unwrap(), -15.0);
+        // -5 * -3 = 15
+        assert_eq!(calculate("-5 * -3").unwrap(), 15.0);
+    }
+
+    #[test]
+    fn unary_minus_with_division() {
+        // -10 / 2 = -5
+        assert_eq!(calculate("-10 / 2").unwrap(), -5.0);
+        // 10 / -2 = -5
+        assert_eq!(calculate("10 / -2").unwrap(), -5.0);
+        // -10 / -2 = 5
+        assert_eq!(calculate("-10 / -2").unwrap(), 5.0);
+    }
+
+    #[test]
+    fn unary_minus_power_precedence() {
+        // -2^2 should be -(2^2) = -4, not (-2)^2 = 4
+        assert_eq!(calculate("-2^2").unwrap(), -4.0);
+        // -2^3 = -(2^3) = -8
+        assert_eq!(calculate("-2^3").unwrap(), -8.0);
+        // -3^2 = -(3^2) = -9
+        assert_eq!(calculate("-3^2").unwrap(), -9.0);
+    }
+
+    #[test]
+    fn unary_minus_power_with_parens() {
+        // (-2)^2 = 4
+        assert_eq!(calculate("(-2)^2").unwrap(), 4.0);
+        // (-2)^3 = -8
+        assert_eq!(calculate("(-2)^3").unwrap(), -8.0);
+        // (-3)^2 = 9
+        assert_eq!(calculate("(-3)^2").unwrap(), 9.0);
+    }
+
+    #[test]
+    fn unary_minus_in_exponent() {
+        // 2^-1 = 0.5
+        assert_eq!(calculate("2^-1").unwrap(), 0.5);
+        // 2^-2 = 0.25
+        assert_eq!(calculate("2^-2").unwrap(), 0.25);
+        // 2^-3 = 0.125
+        assert_eq!(calculate("2^-3").unwrap(), 0.125);
+        // 10^-1 = 0.1
+        assert_eq!(calculate("10^-1").unwrap(), 0.1);
+    }
+
+    #[test]
+    fn unary_minus_complex_exponent() {
+        // 2^-2^2 = 2^(-4) = 0.0625
+        let result = calculate("2^-2^2").unwrap();
+        assert!(is_close(result, 0.0625));
+    }
+
+    #[test]
+    fn unary_minus_with_parens() {
+        // -(5 + 3) = -8
+        assert_eq!(calculate("-(5 + 3)").unwrap(), -8.0);
+        // -(10 - 3) = -7
+        assert_eq!(calculate("-(10 - 3)").unwrap(), -7.0);
+        // -(2 * 3) = -6
+        assert_eq!(calculate("-(2 * 3)").unwrap(), -6.0);
+    }
+
+    #[test]
+    fn unary_minus_with_functions() {
+        // -sin(π/2) = -1
+        let result = calculate("-sin(π/2)").unwrap();
+        assert!(is_close(result, -1.0));
+
+        // -abs(-5) = -5
+        assert_eq!(calculate("-abs(-5)").unwrap(), -5.0);
+
+        // -sqrt(16) = -4
+        assert_eq!(calculate("-sqrt(16)").unwrap(), -4.0);
+    }
+
+    #[test]
+    fn unary_minus_in_variadic_functions() {
+        // min(-1, -2, -3) = -3
+        assert_eq!(calculate("min(-1, -2, -3)").unwrap(), -3.0);
+
+        // max(-1, -2, -3) = -1
+        assert_eq!(calculate("max(-1, -2, -3)").unwrap(), -1.0);
+
+        // avg(-1, -2, -3) = -2
+        assert_eq!(calculate("avg(-1, -2, -3)").unwrap(), -2.0);
+    }
+
+    #[test]
+    fn unary_minus_mixed_in_variadic() {
+        // avg(-5, 5, -3, 3) = 0
+        assert_eq!(calculate("avg(-5, 5, -3, 3)").unwrap(), 0.0);
+
+        // min(-10, 5, -3, 8) = -10
+        assert_eq!(calculate("min(-10, 5, -3, 8)").unwrap(), -10.0);
+
+        // max(-10, 5, -3, 8) = 8
+        assert_eq!(calculate("max(-10, 5, -3, 8)").unwrap(), 8.0);
+    }
+
+    #[test]
+    fn unary_minus_with_expressions_in_variadic() {
+        // avg(-2 * 3, -4 + 1, -10 / 2)
+        // = avg(-6, -3, -5)
+        // = -14/3
+        let test = "avg(-2 * 3, -4 + 1, -10 / 2)";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, -14.0 / 3.0));
+    }
+
+    #[test]
+    fn unary_minus_nested_in_variadic() {
+        // max(-min(1, 2), -min(3, 4))
+        // = max(-1, -3)
+        // = -1
+        assert_eq!(calculate("max(-min(1, 2), -min(3, 4))").unwrap(), -1.0);
+
+        // min(-max(1, 2), -max(3, 4))
+        // = min(-2, -4)
+        // = -4
+        assert_eq!(calculate("min(-max(1, 2), -max(3, 4))").unwrap(), -4.0);
+    }
+
+    #[test]
+    fn unary_minus_deeply_nested() {
+        // -avg(-min(-max(-1, -2), -3), -4)
+        // = -avg(-min(-(-1), -3), -4)
+        // = -avg(-min(1, -3), -4)
+        // = -avg(-(-3), -4)
+        // = -avg(3, -4)
+        // = -(-0.5)
+        // = 0.5
+        let test = "-avg(-min(-max(-1, -2), -3), -4)";
+        assert_eq!(calculate(test).unwrap(), 0.5);
+    }
+
+    #[test]
+    fn unary_minus_with_constants() {
+        // -π ≈ -3.14159
+        let result = calculate("-π").unwrap();
+        assert!(is_close(result, -std::f32::consts::PI));
+
+        // -e ≈ -2.71828
+        let result = calculate("-e").unwrap();
+        assert!(is_close(result, -std::f32::consts::E));
+
+        // -π + -e ≈ -5.85987
+        let result = calculate("-π + -e").unwrap();
+        let expected = -std::f32::consts::PI + -std::f32::consts::E;
+        assert!(is_close(result, expected));
+    }
+
+    #[test]
+    fn unary_minus_factorial() {
+        // -5! = -120
+        assert_eq!(calculate("-5!").unwrap(), -120.0);
+
+        // (-2)! should error (factorial of negative)
+        assert!(calculate("(-2)!").is_err());
+    }
+
+    #[test]
+    fn unary_minus_modulo() {
+        // -7 % 3 = -1
+        assert_eq!(calculate("-7 % 3").unwrap(), -1.0);
+
+        // 7 % -3 = 1
+        assert_eq!(calculate("7 % -3").unwrap(), 1.0);
+
+        // -7 % -3 = -1
+        assert_eq!(calculate("-7 % -3").unwrap(), -1.0);
+    }
+
+    #[test]
+    fn combined_nested_and_unary() {
+        // max(-abs(-5), min(-2^2, avg(-1, -2, -3)))
+        // = max(-5, min(-4, -2))
+        // = max(-5, -4)
+        // = -4
+        let test = "max(-abs(-5), min(-2^2, avg(-1, -2, -3)))";
+        assert_eq!(calculate(test).unwrap(), -4.0);
+    }
+
+    #[test]
+    fn combined_extreme_nesting_and_unary() {
+        // -min(-max(-avg(-1, -min(-2, -3)), -4), -5)
+        // Working from inside out:
+        // -min(-2, -3) = -(-3) = 3
+        // -avg(-1, 3) = -avg(-1, 3) = -1
+        // -max(-1, -4) = -(-1) = 1
+        // -min(1, -5) = -(-5) = 5
+        let test = "-min(-max(-avg(-1, -min(-2, -3)), -4), -5)";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn nested_with_all_operators_and_unary() {
+        // avg((-2)^2, -3 * 4, 10 / -2, -5 + 3, 6 - -2)
+        // = avg(4, -12, -5, -2, 8)
+        // = -7/5 = -1.4
+        let test = "avg((-2)^2, -3 * 4, 10 / -2, -5 + 3, 6 - -2)";
+        assert_eq!(calculate(test).unwrap(), -1.4);
+    }
+
+    #[test]
+    fn six_levels_deep_nested() {
+        // avg(1, min(2, max(3, avg(4, min(5, max(6, 7))))))
+        // = avg(1, min(2, max(3, avg(4, min(5, 7)))))
+        // = avg(1, min(2, max(3, avg(4, 5))))
+        // = avg(1, min(2, max(3, 4.5)))
+        // = avg(1, min(2, 4.5))
+        // = avg(1, 2)
+        // = 1.5
+        let test = "avg(1, min(2, max(3, avg(4, min(5, max(6, 7))))))";
+        assert_eq!(calculate(test).unwrap(), 1.5);
+    }
+
+    #[test]
+    fn nested_with_median_and_mode() {
+        // max(med(1, 2, 3, 4, 5), mode(6, 6, 7), avg(8, 9))
+        // = max(3, 6, 8.5)
+        // = 8.5
+        let test = "max(med(1, 2, 3, 4, 5), mode(6, 6, 7), avg(8, 9))";
+        assert_eq!(calculate(test).unwrap(), 8.5);
+    }
+
+    #[test]
+    fn nested_with_choice() {
+        // This uses the binomial coefficient function
+        // avg(ch(5, 2), ch(4, 2))
+        // = avg(10, 6)
+        // = 8
+        let test = "avg(ch(5, 2), ch(4, 2))";
+        assert_eq!(calculate(test).unwrap(), 8.0);
+    }
+
 }

@@ -55,9 +55,9 @@ where
                     continue;
                 }
 
-                // CloseParen ends the function call
+                // CloseParen might end the variadic function, or a nested regular function
                 TokenType::CloseParen => {
-                    // Pop all operators until OpenParen marker
+                    // Pop all operators until we find a paren_opener
                     while !operator_stack.is_empty() {
                         let last = operator_stack.last().ok_or("Missing operator on stack")?;
                         if last.paren_opener {
@@ -67,14 +67,21 @@ where
                         output.push(op.token);
                     }
 
-                    // Pop the OpenParen marker
-                    operator_stack.pop();
-                    paren_depth -= 1;
+                    // Check what kind of paren_opener this is
+                    let last_op = operator_stack.last().ok_or("Mismatched parentheses")?;
 
-                    // Emit the End* token
-                    output.push(make_synthetic_token(current_param.to_end_token_type()));
-                    param_token_stack.pop();  // Exit this param mode
-                    continue;
+                    // If it's our synthetic OpenParen, this closes the variadic function
+                    if last_op.token.token_type == TokenType::OpenParen {
+                        operator_stack.pop();
+                        paren_depth -= 1;
+
+                        // Emit the End* token
+                        output.push(make_synthetic_token(current_param.to_end_token_type()));
+                        param_token_stack.pop();  // Exit this param mode
+                        continue;
+                    }
+
+                    // Otherwise, it's a regular function (abs, sqrt, etc.) - fall through to normal processing
                 }
 
                 // All other tokens fall through to normal processing

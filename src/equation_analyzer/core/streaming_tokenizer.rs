@@ -103,14 +103,24 @@ impl<'a> StreamingTokenizer<'a> {
     }
 
     fn handle_x_token(&mut self, coefficient: f32) -> Result<Token, String> {
-        let after_power = self
+        // Check if we need to wrap in parentheses (after operators with precedence >= 3)
+        // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
+        // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
+        // BUT: For 2^-x^2, don't wrap if next token is ^ (preserves right-associativity)
+        let next_is_power = self.peek() == Some('^');
+        let prev_is_high_prec = self
             .previous_token_type
             .as_ref()
-            .is_some_and(|t| *t == TokenType::Power);
+            .is_some_and(|t| matches!(
+                t,
+                TokenType::Power | TokenType::Star | TokenType::Slash |
+                TokenType::Modulo | TokenType::Percent
+            ));
+        let needs_parens = prev_is_high_prec && !next_is_power;
 
         if coefficient != 1.0 {
             // Queue multiple tokens
-            if after_power {
+            if needs_parens {
                 self.pending_tokens.push_back(Token {
                     token_type: TokenType::OpenParen,
                     numeric_value_1: 0.0,
@@ -136,7 +146,7 @@ impl<'a> StreamingTokenizer<'a> {
                 numeric_value_2: 1.0,
             });
 
-            if after_power {
+            if needs_parens {
                 self.pending_tokens.push_back(Token {
                     token_type: TokenType::CloseParen,
                     numeric_value_1: 0.0,
@@ -209,12 +219,22 @@ impl<'a> StreamingTokenizer<'a> {
                     // Emit -1 * NUMBER to preserve operator precedence
                     // This ensures -2^2 evaluates as -(2^2) = -4, not (-2)^2 = 4
                     let literal = self.scan_digit()?;
-                    let after_power = self.previous_token_type.as_ref().is_some_and(|t| *t == TokenType::Power);
+                    // Check if we need to wrap in parentheses (after operators with precedence >= 3)
+                    // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
+                    // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
+                    // BUT: For 2^-2^2, don't wrap if next token is ^ (preserves right-associativity)
+                    let next_is_power = self.peek() == Some('^');
+                    let prev_is_high_prec = self.previous_token_type.as_ref().is_some_and(|t| matches!(
+                        t,
+                        TokenType::Power | TokenType::Star | TokenType::Slash |
+                        TokenType::Modulo | TokenType::Percent
+                    ));
+                    let needs_parens = prev_is_high_prec && !next_is_power;
 
                     if self.peek() != Some('x') {
                         let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
-                        // If after power operator, wrap in parentheses: 3^(-1 * 2)
-                        if after_power {
+                        // If after binary operator, wrap in parentheses: 3/(-1 * 2)
+                        if needs_parens {
                             // Push in the order they should be returned: OpenParen, -1, *, val, CloseParen
                             // Since we return the first token immediately and pop from front,
                             // we push the rest in order
@@ -256,7 +276,14 @@ impl<'a> StreamingTokenizer<'a> {
                     } else {
                         self.advance(); // consume 'x'
                         let coef: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
-                        // For -Nx, emit -1 * N * x
+                        // For -Nx, emit -1 * N * x (with parens if needed)
+                        if needs_parens {
+                            self.pending_tokens.push_back(Token {
+                                token_type: Number,
+                                numeric_value_1: -1.0,
+                                numeric_value_2: 0.0,
+                            });
+                        }
                         self.pending_tokens.push_back(Token {
                             token_type: Star,
                             numeric_value_1: 0.0,
@@ -277,7 +304,16 @@ impl<'a> StreamingTokenizer<'a> {
                             numeric_value_1: 1.0,
                             numeric_value_2: 1.0,
                         });
-                        self.make_token_with_values(Number, -1.0, 0.0)
+                        if needs_parens {
+                            self.pending_tokens.push_back(Token {
+                                token_type: CloseParen,
+                                numeric_value_1: 0.0,
+                                numeric_value_2: 0.0,
+                            });
+                            self.make_token(OpenParen)
+                        } else {
+                            self.make_token_with_values(Number, -1.0, 0.0)
+                        }
                     }
                 } else if self.peek() == Some('x') {
                     self.advance();
