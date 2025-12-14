@@ -227,6 +227,23 @@ cargo test
 - Statistics, linear algebra, geometry, and gradient descent
 - Edge cases and error handling
 
+### Long-Running Tests
+
+Some tests are marked with `#[ignore]` to prevent them from slowing down regular test runs:
+
+```bash
+# Run the XOR learning test (demonstrates neural network can solve non-linearly separable problems)
+cargo test xor_learning_test -- --ignored --nocapture
+
+# Run all ignored tests
+cargo test -- --ignored
+
+# Run all tests including ignored ones
+cargo test -- --include-ignored
+```
+
+The XOR test trains a neural network for 5000 epochs and verifies it learns the XOR function correctly.
+
 ## Code Quality
 
 The codebase emphasizes:

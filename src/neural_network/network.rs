@@ -233,4 +233,85 @@ mod tests {
         // Loss should decrease
         assert!(losses[losses.len() - 1] < losses[0]);
     }
+
+    /// XOR problem test - demonstrates the network can learn non-linearly separable functions
+    ///
+    /// This test is ignored by default because it takes time to train.
+    /// Run with: `cargo test -- --ignored` or `cargo test xor_learning_test -- --ignored`
+    #[test]
+    #[ignore]
+    fn xor_learning_test() {
+        use crate::neural_network::activations::Sigmoid;
+
+        // XOR is the classic non-linearly separable problem
+        // It requires a hidden layer to solve
+        let mut network = Network::new();
+        network.add(Box::new(Dense::new(2, 4))); // Input: 2, Hidden: 4
+        network.add(Box::new(ActivationLayer::new(ReLU, 4)));
+        network.add(Box::new(Dense::new(4, 1))); // Output: 1
+        network.add(Box::new(ActivationLayer::new(Sigmoid, 1)));
+
+        // XOR truth table
+        let inputs = vec![
+            vec![0.0, 0.0],
+            vec![0.0, 1.0],
+            vec![1.0, 0.0],
+            vec![1.0, 1.0],
+        ];
+        let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![0.0]];
+
+        println!("\nTraining network on XOR problem...");
+        let losses = network.train(&inputs, &targets, 0.5, 5000);
+
+        // Print training progress
+        println!("Initial loss: {:.6}", losses[0]);
+        println!("Final loss:   {:.6}", losses[losses.len() - 1]);
+
+        // Verify the loss decreased significantly
+        assert!(
+            losses[losses.len() - 1] < 0.1,
+            "Network should learn XOR with final loss < 0.1, got {}",
+            losses[losses.len() - 1]
+        );
+
+        println!("\nTesting predictions:");
+
+        // Test each input and verify it learned XOR
+        let test_cases = [
+            (vec![0.0, 0.0], 0.0, "0 XOR 0 = 0"),
+            (vec![0.0, 1.0], 1.0, "0 XOR 1 = 1"),
+            (vec![1.0, 0.0], 1.0, "1 XOR 0 = 1"),
+            (vec![1.0, 1.0], 0.0, "1 XOR 1 = 0"),
+        ];
+
+        for (input, expected, description) in &test_cases {
+            let prediction = network.predict(input);
+            let output = prediction[0];
+
+            println!(
+                "  {} -> {:.4} (expected: {:.1})",
+                description, output, expected
+            );
+
+            // Check that the output is close to the expected value
+            // Using 0.2 threshold to account for sigmoid activation
+            if *expected == 0.0 {
+                assert!(
+                    output < 0.2,
+                    "Expected ~0.0, got {} for input {:?}",
+                    output,
+                    input
+                );
+            } else {
+                assert!(
+                    output > 0.8,
+                    "Expected ~1.0, got {} for input {:?}",
+                    output,
+                    input
+                );
+            }
+        }
+
+        println!("\n✓ Network successfully learned XOR function!");
+    }
 }
