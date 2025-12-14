@@ -1733,8 +1733,14 @@ mod rm_tests {
     #[test]
     fn division_by_zero() {
         let test = "5 / 0";
-        let result = calculate(test).unwrap();
-        assert!(result.is_infinite());
+        // Call all three calculators directly and verify all return infinity
+        let vec_result = vec_calc::calculate(test).unwrap();
+        let hybrid_result = hybrid_calc::calculate(test).unwrap();
+        let full_result = full_calc::calculate(test).unwrap();
+
+        assert!(vec_result.is_infinite(), "vec_pipeline should return infinity");
+        assert!(hybrid_result.is_infinite(), "hybrid_pipeline should return infinity");
+        assert!(full_result.is_infinite(), "full_pipeline should return infinity");
     }
 
     #[test]
@@ -1803,8 +1809,14 @@ mod rm_tests {
     #[test]
     fn zero_to_negative_power() {
         let test = "0^-1";
-        let result = calculate(test).unwrap();
-        assert!(result.is_infinite());
+        // Call all three calculators directly and verify all return infinity
+        let vec_result = vec_calc::calculate(test).unwrap();
+        let hybrid_result = hybrid_calc::calculate(test).unwrap();
+        let full_result = full_calc::calculate(test).unwrap();
+
+        assert!(vec_result.is_infinite(), "vec_pipeline should return infinity");
+        assert!(hybrid_result.is_infinite(), "hybrid_pipeline should return infinity");
+        assert!(full_result.is_infinite(), "full_pipeline should return infinity");
     }
 
     #[test]
