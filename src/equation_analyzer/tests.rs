@@ -1415,4 +1415,316 @@ mod rm_tests {
         let actual_result = calculate(test).unwrap();
         assert!(actual_result.is_nan());
     }
+
+    // ========== Additional Expression Tests ==========
+
+    #[test]
+    fn complex_arithmetic_1() {
+        let test = "5 + 3 * 2 - 8 / 4";
+        assert_eq!(calculate(test).unwrap(), 9.0);
+    }
+
+    #[test]
+    fn complex_arithmetic_2() {
+        let test = "((15 + 5) * 2 - 10) / 5";
+        assert_eq!(calculate(test).unwrap(), 6.0);
+    }
+
+    #[test]
+    fn complex_arithmetic_3() {
+        let test = "100 - 25 * 2 + 10 / 2";
+        assert_eq!(calculate(test).unwrap(), 55.0);
+    }
+
+    #[test]
+    fn power_chain_1() {
+        let test = "3^2^2";
+        assert_eq!(calculate(test).unwrap(), 81.0);
+    }
+
+    #[test]
+    fn power_chain_2() {
+        let test = "(3^2)^2";
+        assert_eq!(calculate(test).unwrap(), 81.0);
+    }
+
+    #[test]
+    fn power_negative() {
+        let test = "2^-3";
+        assert_eq!(calculate(test).unwrap(), 0.125);
+    }
+
+    #[test]
+    fn power_fractional() {
+        let test = "16^0.5";
+        assert_eq!(calculate(test).unwrap(), 4.0);
+    }
+
+    #[test]
+    fn nested_parens_1() {
+        let test = "(((2 + 3) * 4) - 5) + 1";
+        assert_eq!(calculate(test).unwrap(), 16.0);
+    }
+
+    #[test]
+    fn nested_parens_2() {
+        let test = "((10 - (3 + 2)) * 2) + 1";
+        assert_eq!(calculate(test).unwrap(), 11.0);
+    }
+
+    #[test]
+    fn mixed_operations_1() {
+        let test = "sin(0) + cos(0) + tan(0)";
+        assert!(is_close(calculate(test).unwrap(), 1.0));
+    }
+
+    #[test]
+    fn mixed_operations_2() {
+        let test = "sqrt(16) + abs(-5) - 3";
+        assert_eq!(calculate(test).unwrap(), 6.0);
+    }
+
+    #[test]
+    fn trig_nested_1() {
+        let test = "sin(cos(0))";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, 0.8414709848));
+    }
+
+    #[test]
+    fn trig_nested_2() {
+        let test = "cos(sin(0))";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn trig_with_arithmetic() {
+        let test = "2 * sin(π / 2) + 3";
+        assert!(is_close(calculate(test).unwrap(), 5.0));
+    }
+
+    #[test]
+    fn log_operations_1() {
+        let test = "ln(e) + ln(e^2)";
+        assert!(is_close(calculate(test).unwrap(), 3.0));
+    }
+
+    #[test]
+    fn log_operations_2() {
+        let test = "log_10(100) + log_10(1000)";
+        assert!(is_close(calculate(test).unwrap(), 5.0));
+    }
+
+    #[test]
+    fn log_operations_3() {
+        let test = "log_2(8) * log_2(4)";
+        assert!(is_close(calculate(test).unwrap(), 6.0));
+    }
+
+    #[test]
+    fn constants_e_and_pi() {
+        let test = "e * π";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, E * PI));
+    }
+
+    #[test]
+    fn constants_arithmetic() {
+        let test = "π^2 + e^2";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, PI * PI + E * E));
+    }
+
+    #[test]
+    fn division_chain() {
+        let test = "100 / 5 / 2";
+        assert_eq!(calculate(test).unwrap(), 10.0);
+    }
+
+    #[test]
+    fn multiplication_chain() {
+        let test = "2 * 3 * 4 * 5";
+        assert_eq!(calculate(test).unwrap(), 120.0);
+    }
+
+    #[test]
+    fn mixed_trig_1() {
+        let test = "sin(π/6) + cos(π/3)";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, 1.0));
+    }
+
+    #[test]
+    fn mixed_trig_2() {
+        let test = "tan(π/4) * 2";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, 2.0));
+    }
+
+    #[test]
+    fn abs_nested() {
+        let test = "abs(abs(-5) - 10)";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn sqrt_chain() {
+        let test = "sqrt(sqrt(256))";
+        assert_eq!(calculate(test).unwrap(), 4.0);
+    }
+
+    #[test]
+    fn sqrt_with_operations() {
+        let test = "sqrt(9) + sqrt(16) - sqrt(25)";
+        assert_eq!(calculate(test).unwrap(), 2.0);
+    }
+
+    #[test]
+    fn modulo_operations() {
+        let test = "17 %% 5";
+        assert_eq!(calculate(test).unwrap(), 2.0);
+    }
+
+    #[test]
+    fn modulo_with_arithmetic() {
+        let test = "(20 %% 7) + 3";
+        assert_eq!(calculate(test).unwrap(), 9.0);
+    }
+
+    #[test]
+    fn factorial_with_multiplication() {
+        let test = "5! * 2";
+        assert_eq!(calculate(test).unwrap(), 240.0); // 5! * 2 = 120 * 2
+    }
+
+    #[test]
+    fn large_expression_1() {
+        let test = "((5 + 3) * 2^3 - 10) / 2 + sqrt(144)";
+        assert_eq!(calculate(test).unwrap(), 39.0);
+    }
+
+    #[test]
+    fn large_expression_2() {
+        let test = "abs(-10) + sqrt(100) - ln(e) * 5 + 2^3";
+        assert_eq!(calculate(test).unwrap(), 23.0);
+    }
+
+    #[test]
+    fn large_expression_3() {
+        let test = "cos(0) * 100 + sin(0) * 50 - tan(0) * 25";
+        assert!(is_close(calculate(test).unwrap(), 100.0));
+    }
+
+    #[test]
+    fn precedence_test_1() {
+        let test = "2 + 3 * 4^2";
+        assert_eq!(calculate(test).unwrap(), 50.0);
+    }
+
+    #[test]
+    fn precedence_test_2() {
+        let test = "10 - 6 / 2 + 1";
+        assert_eq!(calculate(test).unwrap(), 8.0);
+    }
+
+    #[test]
+    fn precedence_test_3() {
+        let test = "5 * 2^3 + 10 / 2";
+        assert_eq!(calculate(test).unwrap(), 45.0);
+    }
+
+    #[test]
+    fn inverse_trig_1() {
+        let test = "asin(0.5)";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, PI / 6.0));
+    }
+
+    #[test]
+    fn inverse_trig_2() {
+        let test = "acos(0.5)";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, PI / 3.0));
+    }
+
+    #[test]
+    fn inverse_trig_3() {
+        let test = "atan(1)";
+        let result = calculate(test).unwrap();
+        assert!(is_close(result, PI / 4.0));
+    }
+
+    #[test]
+    fn combined_functions_1() {
+        let test = "sqrt(abs(-16)) + ln(e^3)";
+        assert!(is_close(calculate(test).unwrap(), 7.0));
+    }
+
+    #[test]
+    fn combined_functions_2() {
+        let test = "log_2(16) * sqrt(9) - abs(-2)";
+        assert_eq!(calculate(test).unwrap(), 10.0);
+    }
+
+    #[test]
+    fn decimal_operations_1() {
+        let test = "3.5 + 2.7 - 1.2";
+        assert!(is_close(calculate(test).unwrap(), 5.0));
+    }
+
+    #[test]
+    fn decimal_operations_2() {
+        let test = "10.5 * 2.0 / 3.0";
+        assert_eq!(calculate(test).unwrap(), 7.0);
+    }
+
+    #[test]
+    fn decimal_power() {
+        let test = "2.5^2";
+        assert_eq!(calculate(test).unwrap(), 6.25);
+    }
+
+    #[test]
+    fn negative_operations_1() {
+        let test = "-5 + -3";
+        assert_eq!(calculate(test).unwrap(), -8.0);
+    }
+
+    #[test]
+    fn negative_operations_2() {
+        let test = "-10 * -2";
+        assert_eq!(calculate(test).unwrap(), 20.0);
+    }
+
+    #[test]
+    fn negative_operations_3() {
+        let test = "(-4)^2";
+        assert_eq!(calculate(test).unwrap(), 16.0);
+    }
+
+    #[test]
+    fn complex_nested_1() {
+        let test = "sqrt(log_2(64) + ln(e^2))";
+        let result = calculate(test).unwrap();
+        assert!((result - 2.828427).abs() < 0.001);
+    }
+
+    #[test]
+    fn complex_nested_2() {
+        let test = "abs(sin(π) - cos(0))";
+        let result = calculate(test).unwrap();
+        assert!((result - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn zero_operations() {
+        let test = "0 * 1000 + 0 / 5 + 0^10";
+        assert_eq!(calculate(test).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn one_operations() {
+        let test = "1^100 * 1 / 1 + 1 - 1";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
 }
