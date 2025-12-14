@@ -2041,6 +2041,96 @@ mod rm_tests {
     }
 
     #[test]
+    fn sqrt_of_2() {
+        let test = "sqrt(2)";
+        let result = calculate(test).unwrap();
+        let expected = 1.41421356;
+        assert!((result - expected).abs() < 0.001, "sqrt(2) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_4() {
+        let test = "sqrt(4)";
+        assert_eq!(calculate(test).unwrap(), 2.0);
+    }
+
+    #[test]
+    fn sqrt_of_9() {
+        let test = "sqrt(9)";
+        assert_eq!(calculate(test).unwrap(), 3.0);
+    }
+
+    #[test]
+    fn sqrt_of_16() {
+        let test = "sqrt(16)";
+        assert_eq!(calculate(test).unwrap(), 4.0);
+    }
+
+    #[test]
+    fn sqrt_of_50() {
+        let test = "sqrt(50)";
+        let result = calculate(test).unwrap();
+        let expected = 7.071067812;
+        assert!((result - expected).abs() < 0.001, "sqrt(50) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_100() {
+        let test = "sqrt(100)";
+        assert_eq!(calculate(test).unwrap(), 10.0);
+    }
+
+    #[test]
+    fn sqrt_of_123() {
+        let test = "sqrt(123)";
+        let result = calculate(test).unwrap();
+        let expected = 11.09053651;
+        assert!((result - expected).abs() < 0.01, "sqrt(123) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_625() {
+        let test = "sqrt(625)";
+        assert_eq!(calculate(test).unwrap(), 25.0);
+    }
+
+    #[test]
+    fn sqrt_of_10000() {
+        let test = "sqrt(10000)";
+        assert_eq!(calculate(test).unwrap(), 100.0);
+    }
+
+    #[test]
+    fn sqrt_of_999999() {
+        let test = "sqrt(999999)";
+        let result = calculate(test).unwrap();
+        let expected = 999.9995;
+        assert!((result - expected).abs() < 0.1, "sqrt(999999) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_1000000() {
+        let test = "sqrt(1000000)";
+        assert_eq!(calculate(test).unwrap(), 1000.0);
+    }
+
+    #[test]
+    fn sqrt_of_very_large_1() {
+        let test = "sqrt(10000000000)";
+        let result = calculate(test).unwrap();
+        let expected = 100000.0;
+        assert!((result - expected).abs() < 1.0, "sqrt(1e10) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
+    fn sqrt_of_very_large_2() {
+        let test = "sqrt(1000000000000000000)";
+        let result = calculate(test).unwrap();
+        let expected = 1000000000.0;
+        assert!((result - expected).abs() < 1000.0, "sqrt(1e18) = {}, expected ~{}", result, expected);
+    }
+
+    #[test]
     fn modulo_by_one() {
         let test = "5 %% 1";
         assert_eq!(calculate(test).unwrap(), 0.0);

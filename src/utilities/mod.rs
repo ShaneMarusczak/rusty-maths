@@ -153,8 +153,8 @@ fn square_f32(num: f32, i: f32, j: f32) -> f32 {
     let mid = (i + j) / 2_f32;
     let mul = mid * mid;
 
-    // Check if we've converged: either exact match or search bounds are very close
-    if mul == num || abs_f32(j - i) < 0.00001 {
+    // Check if we've converged: exact match, bounds are close, or hit floating point precision limit
+    if mul == num || abs_f32(j - i) < 0.00001 || mid == i || mid == j {
         mid
     } else if mul < num {
         square_f32(num, mid, j)
@@ -191,8 +191,8 @@ fn square(num: f64, i: f64, j: f64) -> f64 {
     let mid = (i + j) / 2_f64;
     let mul = mid * mid;
 
-    // Check if we've converged: either exact match or search bounds are very close
-    if mul == num || abs(j - i) < 0.000000001 {
+    // Check if we've converged: exact match, bounds are close, or hit floating point precision limit
+    if mul == num || abs(j - i) < 0.000000001 || mid == i || mid == j {
         mid
     } else if mul < num {
         square(num, mid, j)
