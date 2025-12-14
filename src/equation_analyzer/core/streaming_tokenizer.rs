@@ -106,8 +106,6 @@ impl<'a> StreamingTokenizer<'a> {
         // Check if we need to wrap in parentheses (after operators with precedence >= 3)
         // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
         // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
-        // BUT: For 2^-x^2, don't wrap if next token is ^ (preserves right-associativity)
-        let next_is_power = self.peek() == Some('^');
         let prev_is_high_prec = self
             .previous_token_type
             .as_ref()
@@ -116,7 +114,7 @@ impl<'a> StreamingTokenizer<'a> {
                 TokenType::Power | TokenType::Star | TokenType::Slash |
                 TokenType::Modulo | TokenType::Percent
             ));
-        let needs_parens = prev_is_high_prec && !next_is_power;
+        let needs_parens = prev_is_high_prec;
 
         if coefficient != 1.0 {
             // Queue multiple tokens
@@ -222,14 +220,12 @@ impl<'a> StreamingTokenizer<'a> {
                     // Check if we need to wrap in parentheses (after operators with precedence >= 3)
                     // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
                     // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
-                    // BUT: For 2^-2^2, don't wrap if next token is ^ (preserves right-associativity)
-                    let next_is_power = self.peek() == Some('^');
                     let prev_is_high_prec = self.previous_token_type.as_ref().is_some_and(|t| matches!(
                         t,
                         TokenType::Power | TokenType::Star | TokenType::Slash |
                         TokenType::Modulo | TokenType::Percent
                     ));
-                    let needs_parens = prev_is_high_prec && !next_is_power;
+                    let needs_parens = prev_is_high_prec;
 
                     if self.peek() != Some('x') {
                         let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;

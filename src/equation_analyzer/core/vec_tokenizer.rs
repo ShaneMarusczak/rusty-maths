@@ -68,13 +68,11 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     // Check if we need to wrap in parentheses (after operators with precedence >= 3)
                     // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
                     // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
-                    // BUT: For 2^-2^2, don't wrap if next token is ^ (preserves right-associativity)
-                    let next_is_power = s.peek()? == '^';
                     let prev_is_high_prec = s.tokens.last().is_some_and(|t| matches!(
                         t.token_type,
                         Power | Star | Slash | Modulo | Percent
                     ));
-                    let needs_parens = prev_is_high_prec && !next_is_power;
+                    let needs_parens = prev_is_high_prec;
 
                     if s.peek()? != 'x' {
                         // Skip the minus, just get the digits
@@ -115,12 +113,11 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                 } else if s.peek()? == 'x' {
                     // For -x, emit -1 * x (with parens if needed)
                     s.advance()?; // consume the x
-                    let next_is_power = s.peek()? == '^';
                     let prev_is_high_prec = s.tokens.last().is_some_and(|t| matches!(
                         t.token_type,
                         Power | Star | Slash | Modulo | Percent
                     ));
-                    let needs_parens = prev_is_high_prec && !next_is_power;
+                    let needs_parens = prev_is_high_prec;
                     if needs_parens {
                         s.add_token(OpenParen);
                     }
