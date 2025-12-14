@@ -1,0 +1,471 @@
+================================================================================
+COMPLEX NUMBER SUPPORT - IMPLEMENTATION PLAN
+================================================================================
+
+CURRENT STATUS:
+---------------
+- sqrt(-4) returns NaN
+- All arithmetic operations work only with real numbers (f32)
+- No support for imaginary or complex number display/calculation
+
+LOCATION OF TODO:
+-----------------
+Search for: "TODO: For now return NaN, I want to return a complex number"
+
+Files:
+- src/equation_analyzer/vec_pipeline/evaluator.rs:152
+- src/equation_analyzer/hybrid_pipeline/evaluator.rs:156
+- src/equation_analyzer/full_pipeline/evaluator.rs:156
+- src/equation_analyzer/pipeline/evaluator.rs:152
+- src/equation_analyzer/pipeline/streaming_evaluator.rs:156
+
+
+================================================================================
+DESIGN CHALLENGES
+================================================================================
+
+1. BREAKING API CHANGE
+   --------------------
+   Current: pub fn calculate(eq: &str) -> Result<f32, String>
+
+   Problem: Changing to Complex<f32> breaks all existing code
+
+   Options:
+   a) Breaking change: Result<Complex<f32>, String>
+      - All users must update their code
+      - Plot function becomes complicated (how to plot complex results?)
+
+   b) Non-breaking: Add new function calculate_complex()
+      - Keep calculate() for real numbers
+      - Add calculate_complex() for complex results
+      - Users opt-in to complex math
+
+   c) String representation: Result<String, String>
+      - Returns "2i" or "3 + 4i" as strings
+      - Can't do math with results
+      - Good for display only
+
+
+2. TOKEN STORAGE ARCHITECTURE
+   ---------------------------
+   Current: Token stores f32 values
+
+   struct Token {
+       token_type: TokenType,
+       val1: f32,  // Real number only
+       val2: f32,  // Real number only
+   }
+
+   Required changes:
+   - Change all f32 to Complex<f32> in Token struct
+   - Update ALL token creation throughout tokenizer
+   - Update ALL token reading throughout evaluator
+   - Massive architectural change affecting hundreds of lines
+
+
+3. OPERATOR SEMANTICS
+   --------------------
+   Complex arithmetic differs from real arithmetic:
+
+   Addition:       (a+bi) + (c+di) = (a+c) + (b+d)i
+   Multiplication: (a+bi) * (c+di) = (ac-bd) + (ad+bc)i
+   Division:       (a+bi) / (c+di) = [(ac+bd)/(c²+d²)] + [(bc-ad)/(c²+d²)]i
+   Power:          Complex exponentiation requires Euler's formula
+
+   Each operator (Plus, Minus, Star, Slash, Power) needs complex logic
+
+
+4. FUNCTION BEHAVIOR CHANGES
+   ---------------------------
+   Trigonometric functions with complex inputs:
+   - sin(i) = i·sinh(1) ≈ 1.175i
+   - cos(2+3i) = cos(2)·cosh(3) - i·sin(2)·sinh(3)
+   - Complex logarithms are multi-valued
+
+   Statistical functions become undefined:
+   - What is max(1+2i, 3+4i)? No ordering exists for complex numbers
+   - Mode, median, min, max all need new definitions or errors
+
+
+5. PLOT FUNCTION COMPLICATIONS
+   -----------------------------
+   Current: plot(eq, x_min, x_max, step) -> Vec<Point{x: f32, y: f32}>
+
+   Problems:
+   - If y is complex, how do we plot it?
+   - 2D plot needs real y-values
+   - Complex plots require 3D or color-coded visualization
+
+   Options:
+   a) Error if result is complex
+   b) Plot only the real part
+   c) Separate plot_complex() function with different visualization
+
+
+================================================================================
+RECOMMENDED IMPLEMENTATION APPROACH
+================================================================================
+
+OPTION 1: SEPARATE COMPLEX PIPELINE (Recommended)
+--------------------------------------------------
+
+Create a fourth pipeline specifically for complex numbers:
+
+    src/equation_analyzer/complex_pipeline/
+    ├── README.md
+    ├── mod.rs
+    ├── tokenizer.rs      (produces Complex<f32> tokens)
+    ├── parser.rs         (same Shunting Yard, different types)
+    ├── evaluator.rs      (complex arithmetic)
+    └── calculator.rs     (calculate_complex() function)
+
+Benefits:
+  ✓ Non-breaking - existing code continues to work
+  ✓ Clean separation of concerns
+  ✓ Users opt-in to complex math
+  ✓ Can iterate on design without affecting real number calculations
+  ✓ Follows the three-pipeline pattern already established
+
+Drawbacks:
+  ✗ Code duplication (tokenizer/parser/evaluator logic repeated)
+  ✗ Maintenance burden (fixes must be applied to 4 pipelines)
+  ✗ Cannot mix real and complex in same equation
+
+
+Implementation Steps:
+  1. Add dependency: num-complex = "0.4" to Cargo.toml
+  2. Copy vec_pipeline/ to complex_pipeline/
+  3. Change all f32 to Complex<f32>
+  4. Update operators for complex arithmetic
+  5. Update functions (sin, cos, log, sqrt, etc.)
+  6. Remove or error on statistical functions (min, max, mode, etc.)
+  7. Create calculate_complex() function
+  8. Add comprehensive tests
+  9. Document limitations in README
+
+
+OPTION 2: GENERIC PIPELINE
+---------------------------
+
+Use Rust generics to support both f32 and Complex<f32>:
+
+    pub struct Token<T> {
+        token_type: TokenType,
+        val1: T,
+        val2: T,
+    }
+
+    pub fn calculate<T: Num>(eq: &str) -> Result<T, String>
+
+Benefits:
+  ✓ Single codebase for all numeric types
+  ✓ Could support f64, BigInt, etc. in future
+  ✓ DRY (Don't Repeat Yourself) principle
+
+Drawbacks:
+  ✗ Massive refactor of entire codebase
+  ✗ Generic trait bounds become complex
+  ✗ Many functions need conditional logic (sqrt works differently)
+  ✗ Statistical functions need trait exclusions
+  ✗ Plot function incompatible with Complex<f32>
+  ✗ High risk of breaking existing code
+
+
+OPTION 3: DISPLAY-ONLY COMPLEX SUPPORT
+---------------------------------------
+
+Add special handling just for display:
+
+    pub fn calculate_complex_string(eq: &str) -> Result<String, String>
+
+    Examples:
+      calculate_complex_string("sqrt(-4)") → Ok("2i")
+      calculate_complex_string("2 + sqrt(-1)") → Ok("2 + i")
+
+Benefits:
+  ✓ Simple to implement
+  ✓ Non-breaking
+  ✓ Good for user-facing display
+
+Drawbacks:
+  ✗ Cannot do math with results
+  ✗ String parsing overhead
+  ✗ Limited utility (no complex arithmetic)
+  ✗ Doesn't solve underlying TODO
+
+
+================================================================================
+DETAILED IMPLEMENTATION PLAN - OPTION 1 (RECOMMENDED)
+================================================================================
+
+PHASE 1: Setup (30 minutes)
+----------------------------
+1. Add num-complex dependency to Cargo.toml:
+
+   [dependencies]
+   num-complex = "0.4"
+   rayon = "1.10"
+
+2. Create directory structure:
+
+   mkdir src/equation_analyzer/complex_pipeline
+
+3. Copy vec_pipeline files as starting point
+
+
+PHASE 2: Type Changes (1-2 hours)
+----------------------------------
+1. Update Token storage in tokenizer:
+
+   use num_complex::Complex32;  // Complex<f32>
+
+   val1: Complex32
+   val2: Complex32
+
+2. Update all number parsing:
+
+   // Real number "5" becomes 5+0i
+   let val = Complex32::new(literal.parse()?, 0.0);
+
+   // Could add support for "2i" syntax later
+   if literal.ends_with('i') {
+       let imag = literal[..literal.len()-1].parse()?;
+       Complex32::new(0.0, imag)
+   }
+
+3. Update constants:
+
+   PI → Complex32::new(std::f32::consts::PI, 0.0)
+   E  → Complex32::new(std::f32::consts::E, 0.0)
+
+
+PHASE 3: Operator Updates (2 hours)
+------------------------------------
+1. Addition/Subtraction: Works automatically with Complex32
+
+2. Multiplication: Works automatically with Complex32
+
+3. Division: Works automatically but check for zero:
+
+   if right.norm() == 0.0 {
+       return Err("Division by zero");
+   }
+   left / right
+
+4. Power: Use complex exponentiation:
+
+   left.powc(right)  // Complex power function
+
+
+PHASE 4: Function Updates (2-3 hours)
+--------------------------------------
+1. Square root (main TODO item):
+
+   TokenType::Sqrt => {
+       let val = stack.pop()?;
+       stack.push(val.sqrt());  // Complex sqrt handles negatives!
+   }
+
+2. Trigonometric functions:
+
+   sin(z)  → val.sin()
+   cos(z)  → val.cos()
+   tan(z)  → val.tan()
+
+   (num-complex provides these)
+
+3. Logarithms:
+
+   ln(z)   → val.ln()
+   log(z)  → val.log(base)
+
+4. Absolute value:
+
+   abs(z)  → Complex32::new(val.norm(), 0.0)  // Returns real number
+
+5. Remove statistical functions:
+
+   min, max, mode, median → return error
+   "Statistical functions not defined for complex numbers"
+
+
+PHASE 5: Calculator Function (30 minutes)
+------------------------------------------
+Create new public API:
+
+    pub fn calculate(eq: &str) -> Result<Complex32, String> {
+        evaluate(&parse(get_tokens(eq)?)?, None)
+    }
+
+    pub fn calculate_string(eq: &str) -> Result<String, String> {
+        let result = calculate(eq)?;
+
+        if result.im == 0.0 {
+            Ok(format!("{}", result.re))
+        } else if result.re == 0.0 {
+            Ok(format!("{}i", result.im))
+        } else if result.im < 0.0 {
+            Ok(format!("{} - {}i", result.re, -result.im))
+        } else {
+            Ok(format!("{} + {}i", result.re, result.im))
+        }
+    }
+
+
+PHASE 6: Testing (2 hours)
+---------------------------
+Add comprehensive tests:
+
+    #[test]
+    fn test_sqrt_negative() {
+        let result = calculate("sqrt(-4)").unwrap();
+        assert_eq!(result.re, 0.0);
+        assert_eq!(result.im, 2.0);
+    }
+
+    #[test]
+    fn test_complex_arithmetic() {
+        // (2+3i) + (4+5i) = 6+8i
+        // Would need to add "i" syntax to tokenizer
+    }
+
+    #[test]
+    fn test_string_display() {
+        assert_eq!(calculate_string("sqrt(-4)").unwrap(), "2i");
+        assert_eq!(calculate_string("sqrt(-1) + 2").unwrap(), "2 + i");
+    }
+
+
+PHASE 7: Documentation (30 minutes)
+------------------------------------
+Create complex_pipeline/README.md explaining:
+- Complex number support
+- Syntax limitations (can't input complex numbers directly yet)
+- Function behavior differences
+- Statistical function unavailability
+- Examples and use cases
+
+
+================================================================================
+ALTERNATIVE: MINIMAL SQRT-ONLY FIX
+================================================================================
+
+If full complex support is too ambitious, a minimal fix just for sqrt:
+
+OPTION: Return Imaginary Part in val2
+--------------------------------------
+
+Keep f32 but use val2 for imaginary part:
+
+    TokenType::Sqrt => {
+        let temp = stack.pop()?;
+        if temp.is_sign_negative() {
+            // Return as 0 + sqrt(|temp|)i
+            // Store imaginary part in val2
+            let token = Token {
+                token_type: Number,
+                val1: 0.0,          // Real part
+                val2: temp.abs().sqrt(),  // Imaginary part
+            };
+            stack.push(token);
+        } else {
+            stack.push(temp.sqrt());
+        }
+    }
+
+Problems:
+  ✗ Breaks arithmetic (2i + 3i won't work correctly)
+  ✗ Multiplication becomes wrong
+  ✗ Confusing token semantics (val2 sometimes means imaginary?)
+  ✗ Plot function needs complex handling
+  ✗ Quick hack, not sustainable
+
+
+================================================================================
+FINAL RECOMMENDATION
+================================================================================
+
+RECOMMENDED PATH:
+-----------------
+1. SHORT TERM: Leave sqrt(-x) returning NaN as is
+   - Current behavior is mathematically honest
+   - NaN indicates "not defined in real numbers"
+   - No breaking changes
+
+2. LONG TERM: Implement Option 1 (Separate Complex Pipeline)
+   - Do it right with full complex number support
+   - Non-breaking addition to the library
+   - Clean architecture following existing patterns
+   - Estimated effort: 6-10 hours for full implementation + tests
+
+ESTIMATED TIMELINE:
+-------------------
+- Phase 1 (Setup):           30 min
+- Phase 2 (Type Changes):    2 hours
+- Phase 3 (Operators):       2 hours
+- Phase 4 (Functions):       3 hours
+- Phase 5 (Calculator):      30 min
+- Phase 6 (Testing):         2 hours
+- Phase 7 (Documentation):   30 min
+- Debugging & Polish:        1-2 hours
+                            ___________
+                   TOTAL:   11-13 hours
+
+
+DEPENDENCIES NEEDED:
+--------------------
+Add to Cargo.toml:
+
+[dependencies]
+num-complex = "0.4"
+
+
+NOTES:
+------
+- Complex number math is non-trivial
+- Many edge cases to consider
+- Requires thorough testing
+- Documentation critical for user expectations
+- Consider whether use cases justify the effort
+
+
+FUTURE ENHANCEMENTS:
+--------------------
+If complex pipeline is built, could add:
+- Direct complex input: "2 + 3i"
+- Polar form: "5∠45°"
+- Complex plotting (3D or separate real/imag plots)
+- Quaternion support (even more complex!)
+
+
+================================================================================
+QUESTIONS TO CONSIDER BEFORE IMPLEMENTING
+================================================================================
+
+1. Do users actually need complex number calculations?
+   - Is sqrt(-x) returning NaN acceptable?
+   - Are there real use cases for complex arithmetic?
+
+2. What input syntax should be supported?
+   - Just sqrt(-x) producing complex results?
+   - Allow typing "2+3i" directly?
+   - Polar notation "5∠45°"?
+
+3. How should results be displayed?
+   - Return Complex<f32> (programmatic use)?
+   - Return formatted string (user display)?
+   - Both?
+
+4. What about plotting?
+   - Error on complex results?
+   - Plot real part only?
+   - Separate plot_complex() function?
+   - 3D visualization?
+
+5. Is the 11-13 hour implementation worth it?
+   - What percentage of users need this?
+   - Are there alternative libraries they could use?
+   - Could time be better spent on other features?
+
+
+================================================================================

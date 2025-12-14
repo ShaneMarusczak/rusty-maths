@@ -64,9 +64,7 @@ pub(crate) fn evaluate_streaming(parsed_eq: &[Token], x: impl Into<Option<f32>>)
                     stack.push(val);
                 }
                 TokenType::EndMode => {
-                    //TODO: uniform and multimodal
-                    //uniform - all values appear the same amount [1,2,3,4,5,6]
-                    //multimodal - tie with 2 or more values that appear more than the rest [1,1,2,2,3,4,5] {1,2}
+                    // Build frequency map
                     let mut seen: HashMap<u32, usize> = HashMap::new();
                     for param in params.iter().clone() {
                         let bits = param.to_bits();
@@ -74,16 +72,28 @@ pub(crate) fn evaluate_streaming(parsed_eq: &[Token], x: impl Into<Option<f32>>)
                         *count += 1;
                     }
 
-                    let mut max_count = 0;
-                    let mut max = 0;
-                    for (key, value) in seen {
-                        if value > max_count {
-                            max_count = value;
-                            max = key;
-                        };
+                    if seen.is_empty() {
+                        return Err("Mode requires at least one parameter".to_string());
                     }
-                    let mode = f32::from_bits(max);
-                    stack.push(mode);
+
+                    let max_count = *seen.values().max().unwrap();
+
+                    // Uniform distribution: all values appear with same frequency
+                    // e.g., [1, 2, 3, 4] - each appears once, no mode exists
+                    if max_count == 1 {
+                        stack.push(f32::NAN);
+                    } else {
+                        // Collect all values with max frequency (handles multimodal)
+                        // e.g., [1, 1, 2, 2, 3] - both 1 and 2 are modes
+                        let modes: Vec<f32> = seen.iter()
+                            .filter(|(_, &count)| count == max_count)
+                            .map(|(&bits, _)| f32::from_bits(bits))
+                            .collect();
+
+                        // Return average of all modes
+                        let mode_avg = modes.iter().sum::<f32>() / modes.len() as f32;
+                        stack.push(mode_avg);
+                    }
                 }
                 TokenType::EndMed => {
                     params.sort_by(|a, b| {

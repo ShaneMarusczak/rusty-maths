@@ -1259,6 +1259,32 @@ mod rm_tests {
     }
 
     #[test]
+    fn mode_test_uniform() {
+        // Uniform distribution: all values appear once, no mode exists
+        let test = "mode(1, 2, 3, 4, 5)";
+        let actual_result = calculate(test).unwrap();
+        assert!(actual_result.is_nan(), "Uniform distribution should return NaN");
+    }
+
+    #[test]
+    fn mode_test_multimodal() {
+        // Multimodal: 1 and 3 both appear twice, should return average (1+3)/2 = 2
+        let test = "mode(1, 1, 3, 3, 5)";
+        let expected_result = 2.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
+    fn mode_test_multimodal_three_modes() {
+        // Three modes: 1, 2, and 3 all appear twice, average = (1+2+3)/3 = 2
+        let test = "mode(1, 1, 2, 2, 3, 3)";
+        let expected_result = 2.0;
+        let actual_result = calculate(test).unwrap();
+        assert!(is_close(actual_result, expected_result));
+    }
+
+    #[test]
     fn choice_test() {
         let test = "ch(5,2)";
         let expected_result = 10.0;
