@@ -1,6 +1,6 @@
-# Hybrid Pipeline - Streaming Tokenizer Implementation
+# Pipeline Implementation
 
-The **Hybrid streaming pipeline** optimizes the first stage by using an iterator-based tokenizer that yields tokens on-demand, while keeping the proven Vec-based parser and evaluator.
+The equation analyzer pipeline uses a streaming tokenizer with buffered parser for optimal performance.
 
 ## Architecture
 
@@ -16,7 +16,7 @@ The **Hybrid streaming pipeline** optimizes the first stage by using an iterator
 
 ## How It Works
 
-### 1. Streaming Tokenization (core/streaming_tokenizer.rs)
+### 1. Streaming Tokenization (tokenizer.rs)
 ```rust
 pub struct StreamingTokenizer<'a> {
     chars: Peekable<Chars<'a>>,
@@ -72,7 +72,7 @@ Next call:   → Pop X from pending queue
 - **Memory efficient**: No full token Vec allocation
 - **UTF-8 aware**: Tracks byte positions for π, e characters
 
-### 2. Streaming Parser (core/parser.rs)
+### 2. Parser (parser.rs)
 ```rust
 pub fn parse<I>(tokens: I) -> Result<Vec<Token>, String>
 where
@@ -82,8 +82,8 @@ where
 **What it does:**
 - Accepts **any iterator** of tokens (not just Vec)
 - Pulls tokens one at a time from iterator
-- Still collects output into Vec<Token> (RPN)
-- Same Shunting Yard algorithm as vec_pipeline
+- Collects output into Vec<Token> (RPN)
+- Uses Dijkstra's Shunting Yard algorithm
 
 **Example:**
 ```rust
@@ -94,7 +94,7 @@ let rpn_tokens = parse(tokenizer)?;
 for token_result in tokens {              // ← Pulls from tokenizer
     let token = token_result?;
     match token.token_type {
-        Number => output.push(token),     // ← Still builds Vec
+        Number => output.push(token),     // ← Builds Vec
         Plus | Star => /* shunting yard */
         End => break
     }
@@ -112,24 +112,24 @@ Parser calls next() → Tokenizer scans "+" → Returns Plus
 
 **Key characteristics:**
 - **Pull-driven**: Parser's for loop drives tokenizer
-- **Hybrid approach**: Accepts Iterator, returns Vec
+- **Accepts Iterator, returns Vec**
 - **No tokenizer blocking**: Don't wait for all tokens upfront
 
 ### 3. Evaluation (evaluator.rs)
 ```rust
-pub fn evaluate_streaming(parsed_eq: &[Token], x: impl Into<Option<f32>>) -> Result<f32, String>
+pub fn evaluate<I>(tokens: I, x: impl Into<Option<f32>>) -> Result<f32, String>
+where
+    I: IntoIterator<Item = Token>
 ```
 
 **What it does:**
-- **Identical to vec_pipeline evaluator**
-- Accepts RPN token slice
+- Accepts RPN token iterator
 - Stack-based RPN evaluation
+- Handles variadic functions with frame markers
 
-**Why not streaming?**
-RPN evaluation fundamentally requires buffering:
+**Why RPN needs buffering:**
 - Must hold operands on stack until operator arrives
 - "2 3 +" requires storing 2 and 3 before seeing +
-- No performance gain from streaming this stage
 
 ## Buffering Strategy
 
@@ -141,52 +141,25 @@ RPN evaluation fundamentally requires buffering:
 | Parser | `Vec<Token>` | Full RPN | Output collection |
 | Evaluator | `Vec<f32>` | Values only | RPN evaluation stack |
 
-**Comparison to Vec Pipeline:**
-- ❌ No full infix token Vec
-- ✅ Still has full RPN token Vec
-- ✅ Minimal tokenizer overhead (VecDeque only when needed)
-
 ## Performance Characteristics
 
 ### Strengths:
-- ⚡ **~2.7x faster** than vec_pipeline
 - 💾 **Lower memory usage**: No full infix token Vec
 - 🔄 **Better cache locality**: Tokens consumed immediately after creation
-- ✅ **Familiar pattern**: Parser and evaluator unchanged
-
-### How It's Faster:
-1. **No allocation overhead**: Tokenizer doesn't allocate full Vec
-2. **Immediate consumption**: Parser uses tokens as they're created
-3. **Better cache utilization**: Token created → used → dropped (hot in L1 cache)
-4. **Early termination**: Parser error stops tokenization immediately
+- ⚡ **Early termination**: Parser error stops tokenization immediately
 
 **Example:**
 ```rust
-// Vec pipeline:     Tokenize ALL → Parse ALL → Evaluate → Error
-// Hybrid pipeline:  Tokenize → Parse → Error (stops early!)
-
 calculate("2 + + 3")  // Syntax error at second +
-// Vec:    Tokenizes entire string, then parser fails
-// Hybrid: Tokenizer yields tokens until parser hits error, stops immediately
+// Tokenizer yields tokens until parser hits error, stops immediately
 ```
-
-### Benchmark Results:
-```
-Simple calculate("2 + 3 * 4"): ~30ms per 10,000 iterations
-Speedup over vec_pipeline: 2.7x faster
-```
-
-### Trade-offs:
-- ⚠️ **Still buffers RPN**: Full Vec of RPN tokens
-- ⚠️ **Iterator complexity**: Slightly more complex than simple Vec
 
 ## Code Example
 
 ```rust
-use rusty_maths::equation_analyzer::hybrid_pipeline::calculator::calculate;
+use rusty_maths::equation_analyzer::calculator;
 
-// Same API as vec_pipeline
-let result = calculate("2 + 3 * 4").unwrap();
+let result = calculator::calculate("2 + 3 * 4").unwrap();
 assert_eq!(result, 14.0);
 
 // Internally:
@@ -195,7 +168,7 @@ assert_eq!(result, 14.0);
 // 3. Evaluator processes RPN Vec → 14.0
 
 // Complex equation with π
-let result = calculate("sin(π / 2)").unwrap();
+let result = calculator::calculate("sin(π / 2)").unwrap();
 // Tokenizer correctly handles multi-byte UTF-8 character π
 ```
 
@@ -242,32 +215,9 @@ let result = calculate("sin(π / 2)").unwrap();
                  14.0
 ```
 
-## When to Use
-
-**Best for:**
-- ⚡ **Performance-critical**: Need speed without full rewrite
-- 🔄 **Drop-in replacement**: Same API as vec_pipeline
-- 💾 **Memory constraints**: Reduce allocation overhead
-- 📊 **Plotting**: Still supports parse-once, eval-many optimization
-
-**Consider alternatives when:**
-- 📚 Want absolute simplest code (use vec_pipeline)
-
 ## Key Innovations
 
-### 1. Iterator-Based Tokenization
-Traditional approach (vec_pipeline):
-```rust
-fn get_tokens(eq: &str) -> Vec<Token> {
-    let mut tokens = Vec::new();
-    for char in eq.chars() {
-        tokens.push(scan(char));  // ← Pushes all
-    }
-    tokens  // ← Returns after collecting all
-}
-```
-
-Streaming approach (hybrid_pipeline):
+### Iterator-Based Tokenization
 ```rust
 impl Iterator for StreamingTokenizer {
     fn next(&mut self) -> Option<Token> {
@@ -276,7 +226,7 @@ impl Iterator for StreamingTokenizer {
 }
 ```
 
-### 2. Pull-Based Architecture
+### Pull-Based Architecture
 Parser controls the flow:
 ```rust
 for token in tokenizer {  // ← Parser pulls
@@ -286,12 +236,11 @@ for token in tokenizer {  // ← Parser pulls
 
 ## Files in this Directory
 
-- **evaluator.rs** - Vec<Token> (RPN) → f32 result - wraps core/evaluator
-- **calculator.rs** - Public API (calculate, plot)
+- **tokenizer.rs** - Iterator-based tokenizer (streaming)
+- **parser.rs** - Shunting Yard parser accepting any iterator
+- **evaluator.rs** - RPN evaluator
 - **mod.rs** - Module exports
-
-**Note:** This pipeline uses `core/streaming_tokenizer.rs` and `core/parser.rs` (shared across pipelines).
 
 ## Related
 
-- See **vec_pipeline/** for the baseline implementation
+- See `calculator.rs` for the public API (calculate, plot)

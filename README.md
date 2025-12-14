@@ -8,16 +8,10 @@ A high-performance Rust library for mathematical operations, featuring an advanc
 
 ### 🚀 High-Performance Equation Analyzer
 
-Three pipeline implementations offering different performance/flexibility trade-offs:
-
-- **Vec Pipeline**: Traditional fully-buffered implementation (baseline)
-- **Hybrid Pipeline**: Streaming tokenizer with buffered parser - **1.6x faster**
-- **Full Pipeline**: Fully streaming architecture with minimal buffers - **1.4x faster**
-
-All pipelines share the same core algorithms through a DRY architecture, ensuring consistent behavior while optimizing for different use cases.
+Optimized pipeline using streaming tokenizer with buffered parser for efficient mathematical expression evaluation.
 
 ```rust
-use rusty_maths::equation_analyzer::hybrid_pipeline::calculator;
+use rusty_maths::equation_analyzer::calculator;
 
 // Evaluate an expression
 let result = calculator::calculate("2 + 3 * 4").unwrap();
@@ -91,15 +85,15 @@ let weights = gradient_descent::mini_batch(
 
 ## Performance
 
-The equation analyzer has been extensively optimized:
+The equation analyzer has been optimized with a streaming tokenizer architecture:
 
-**Benchmark Results** (equation: "2 + 3")
-- Vec Pipeline: 329ns (baseline)
-- Hybrid Pipeline: 194ns (**41% faster**)
-- Full Pipeline: 253ns (**23% faster**)
+**Features:**
+- Iterator-based tokenizer for lazy token generation
+- Efficient memory usage with minimal buffering
+- Early termination on parse errors
+- Parallel evaluation using Rayon for plotting
 
 **Plot Performance** (1000 points, equation: "x^2 + 2x + 1")
-- Parallel evaluation using Rayon
 - Parse once, evaluate many times
 - Scales efficiently with point count
 
@@ -110,36 +104,25 @@ cargo bench --bench equation_analyzer
 
 ## Architecture
 
-### Equation Analyzer Pipeline Comparison
+### Equation Analyzer Pipeline
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                   core/                              │
-│  ┌─────────────┐  ┌──────────┐  ┌──────────────┐   │
-│  │ Tokenizers  │  │  Parsers  │  │  Evaluator   │   │
-│  │ - Vec       │  │ - Shunting│  │  - Generic   │   │
-│  │ - Streaming │  │ - Streaming│  │    RPN      │   │
-│  └─────────────┘  └──────────┘  └──────────────┘   │
-└──────────────────────────────────────────────────────┘
-            ▲              ▲              ▲
-            └──────────────┴──────────────┘
-                   Shared by all pipelines
-         ┌──────────────┬──────────────┐
-    vec_pipeline   hybrid_pipeline
+┌──────────────────┐      ┌─────────┐      ┌───────────┐
+│ StreamTokenizer  │─────▶│ Parser  │─────▶│ Evaluator │─────▶ f32
+│   (Iterator)     │      │         │      │           │
+└──────────────────┘      └─────────┘      └───────────┘
+         │                     │                  │
+    Token (lazy)           Vec<Token>          Result
+    on-demand               (RPN)
 ```
 
-**Vec Pipeline** - Traditional fully-buffered approach
-- Best for: Debugging, learning, baseline reference
-- Characteristics: Complete buffering at each stage
+**Pipeline Characteristics:**
+- Iterator-based tokenizer for lazy evaluation
+- Shunting Yard parser for infix to RPN conversion
+- Stack-based RPN evaluator
+- Minimal memory overhead with strategic buffering
 
-**Hybrid Pipeline** - Streaming input, buffered output (Recommended)
-- Best for: Production use, drop-in performance improvement
-- Characteristics: Iterator-based tokenizer, Vec-based parser
-- Performance: 1.6x faster than baseline
-
-See individual pipeline READMEs for detailed architecture documentation:
-- [Vec Pipeline](src/equation_analyzer/vec_pipeline/README.md)
-- [Hybrid Pipeline](src/equation_analyzer/hybrid_pipeline/README.md)
+See [Pipeline README](src/equation_analyzer/pipeline/README.md) for detailed architecture documentation.
 
 ## Installation
 
@@ -159,7 +142,7 @@ cargo build --release
 ## Quick Start
 
 ```rust
-use rusty_maths::equation_analyzer::hybrid_pipeline::calculator;
+use rusty_maths::equation_analyzer::calculator;
 use rusty_maths::statistics;
 use rusty_maths::linear_algebra;
 
@@ -194,17 +177,17 @@ Run the comprehensive test suite:
 cargo test
 ```
 
-**180 tests** covering:
-- 136 equation analyzer tests (cross-validated across all pipelines)
-- 44 tests for statistics, linear algebra, geometry, and gradient descent
-- All tests ensure behavior consistency across pipeline implementations
+**350 tests** covering:
+- Equation analyzer tests (parsing, evaluation, plotting)
+- Statistics, linear algebra, geometry, and gradient descent
+- Edge cases and error handling
 
 ## Code Quality
 
 The codebase emphasizes:
-- **DRY Principle**: Shared core algorithms eliminate duplication (62% code reduction)
+- **Clean Architecture**: Single, optimized pipeline implementation
 - **Zero-Cost Abstractions**: Generic implementations with zero runtime overhead
-- **Comprehensive Testing**: Cross-validation ensures all pipelines behave identically
+- **Comprehensive Testing**: 350 tests covering all functionality
 - **Performance**: Benchmarked and optimized with criterion
 - **Documentation**: Extensive docs for all public APIs and internal architecture
 
@@ -220,9 +203,12 @@ The codebase emphasizes:
 rusty-maths/
 ├── src/
 │   ├── equation_analyzer/      # Equation parsing and evaluation
-│   │   ├── core/               # Shared implementations (DRY)
-│   │   ├── vec_pipeline/       # Fully-buffered pipeline
-│   │   └── hybrid_pipeline/    # Hybrid streaming pipeline
+│   │   ├── calculator.rs       # Public API (calculate, plot)
+│   │   ├── pipeline/           # Internal implementation
+│   │   │   ├── tokenizer.rs    # Streaming tokenizer
+│   │   │   ├── parser.rs       # Shunting Yard parser
+│   │   │   └── evaluator.rs    # RPN evaluator
+│   │   └── structs/            # Token and operator definitions
 │   ├── statistics/             # Statistical functions
 │   ├── linear_algebra/         # Vector/matrix operations
 │   ├── geometry/               # Geometric calculations
