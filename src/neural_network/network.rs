@@ -1,0 +1,236 @@
+use crate::linear_algebra::Vector;
+use crate::neural_network::layer::Layer;
+
+/// A sequential neural network
+pub struct Network {
+    layers: Vec<Box<dyn Layer>>,
+}
+
+impl Network {
+    /// Creates a new empty network
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rusty_maths::neural_network::network::Network;
+    ///
+    /// let network = Network::new();
+    /// ```
+    pub fn new() -> Self {
+        Network { layers: vec![] }
+    }
+
+    /// Adds a layer to the network
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rusty_maths::neural_network::network::Network;
+    /// use rusty_maths::neural_network::layer::{Dense, ActivationLayer};
+    /// use rusty_maths::neural_network::activations::ReLU;
+    ///
+    /// let mut network = Network::new();
+    /// network.add(Box::new(Dense::new(10, 5)));
+    /// network.add(Box::new(ActivationLayer::new(ReLU, 5)));
+    /// ```
+    pub fn add(&mut self, layer: Box<dyn Layer>) {
+        self.layers.push(layer);
+    }
+
+    /// Performs a forward pass through the network
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - The input vector
+    ///
+    /// # Returns
+    ///
+    /// The output vector after passing through all layers
+    pub fn forward(&mut self, input: &Vector) -> Vector {
+        let mut output = input.clone();
+        for layer in &mut self.layers {
+            output = layer.forward(&output);
+        }
+        output
+    }
+
+    /// Performs a backward pass and updates weights
+    ///
+    /// # Arguments
+    ///
+    /// * `grad_output` - The gradient of the loss w.r.t. the output
+    /// * `learning_rate` - The learning rate for weight updates
+    fn backward(&mut self, grad_output: &Vector, learning_rate: f64) {
+        let mut grad = grad_output.clone();
+        for layer in self.layers.iter_mut().rev() {
+            grad = layer.backward(&grad, learning_rate);
+        }
+    }
+
+    /// Trains the network on a single example
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - The input vector
+    /// * `target` - The target output vector
+    /// * `learning_rate` - The learning rate
+    ///
+    /// # Returns
+    ///
+    /// The mean squared error for this example
+    pub fn train_step(&mut self, input: &Vector, target: &Vector, learning_rate: f64) -> f64 {
+        // Forward pass
+        let output = self.forward(input);
+
+        // Compute loss (MSE) and gradient
+        let mut loss = 0.0;
+        let mut grad_output = vec![0.0; output.len()];
+
+        for (i, (&y_pred, &y_true)) in output.iter().zip(target).enumerate() {
+            let error = y_pred - y_true;
+            loss += error * error;
+            grad_output[i] = 2.0 * error; // Gradient of MSE
+        }
+
+        loss /= output.len() as f64;
+
+        // Backward pass
+        self.backward(&grad_output, learning_rate);
+
+        loss
+    }
+
+    /// Trains the network on a dataset for multiple epochs
+    ///
+    /// # Arguments
+    ///
+    /// * `inputs` - Vector of input vectors
+    /// * `targets` - Vector of target output vectors
+    /// * `learning_rate` - The learning rate
+    /// * `epochs` - Number of training epochs
+    ///
+    /// # Returns
+    ///
+    /// Vector of average losses per epoch
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rusty_maths::neural_network::network::Network;
+    /// use rusty_maths::neural_network::layer::{Dense, ActivationLayer};
+    /// use rusty_maths::neural_network::activations::{ReLU, Linear};
+    ///
+    /// let mut network = Network::new();
+    /// network.add(Box::new(Dense::new(2, 4)));
+    /// network.add(Box::new(ActivationLayer::new(ReLU, 4)));
+    /// network.add(Box::new(Dense::new(4, 1)));
+    /// network.add(Box::new(ActivationLayer::new(Linear, 1)));
+    ///
+    /// let inputs = vec![vec![0.0, 0.0], vec![0.0, 1.0]];
+    /// let targets = vec![vec![0.0], vec![1.0]];
+    ///
+    /// let losses = network.train(&inputs, &targets, 0.1, 10);
+    /// ```
+    pub fn train(
+        &mut self,
+        inputs: &[Vector],
+        targets: &[Vector],
+        learning_rate: f64,
+        epochs: usize,
+    ) -> Vec<f64> {
+        assert_eq!(inputs.len(), targets.len());
+
+        let mut epoch_losses = vec![];
+
+        for _epoch in 0..epochs {
+            let mut total_loss = 0.0;
+
+            for (input, target) in inputs.iter().zip(targets) {
+                let loss = self.train_step(input, target, learning_rate);
+                total_loss += loss;
+            }
+
+            let avg_loss = total_loss / inputs.len() as f64;
+            epoch_losses.push(avg_loss);
+        }
+
+        epoch_losses
+    }
+
+    /// Makes a prediction on a single input
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - The input vector
+    ///
+    /// # Returns
+    ///
+    /// The network's prediction
+    pub fn predict(&mut self, input: &Vector) -> Vector {
+        self.forward(input)
+    }
+
+    /// Gets the number of layers in the network
+    pub fn num_layers(&self) -> usize {
+        self.layers.len()
+    }
+}
+
+impl Default for Network {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::neural_network::activations::{Linear, ReLU};
+    use crate::neural_network::layer::{ActivationLayer, Dense};
+
+    #[test]
+    fn network_creation_test() {
+        let mut network = Network::new();
+        assert_eq!(network.num_layers(), 0);
+
+        network.add(Box::new(Dense::new(2, 3)));
+        network.add(Box::new(ActivationLayer::new(ReLU, 3)));
+
+        assert_eq!(network.num_layers(), 2);
+    }
+
+    #[test]
+    fn network_forward_test() {
+        let mut network = Network::new();
+        network.add(Box::new(Dense::new(2, 3)));
+        network.add(Box::new(ActivationLayer::new(ReLU, 3)));
+
+        let input = vec![1.0, 2.0];
+        let output = network.forward(&input);
+
+        assert_eq!(output.len(), 3);
+    }
+
+    #[test]
+    fn network_training_test() {
+        // Simple test: learn to output the sum of two inputs
+        let mut network = Network::new();
+        network.add(Box::new(Dense::new(2, 4)));
+        network.add(Box::new(ActivationLayer::new(ReLU, 4)));
+        network.add(Box::new(Dense::new(4, 1)));
+        network.add(Box::new(ActivationLayer::new(Linear, 1)));
+
+        let inputs = vec![
+            vec![0.0, 0.0],
+            vec![0.0, 1.0],
+            vec![1.0, 0.0],
+            vec![1.0, 1.0],
+        ];
+        let targets = vec![vec![0.0], vec![1.0], vec![1.0], vec![2.0]];
+
+        let losses = network.train(&inputs, &targets, 0.01, 100);
+
+        // Loss should decrease
+        assert!(losses[losses.len() - 1] < losses[0]);
+    }
+}
