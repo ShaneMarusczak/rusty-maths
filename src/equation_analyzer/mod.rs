@@ -1,4 +1,4 @@
-/// Equation analyzer with three pipeline implementations
+/// Equation analyzer with pipeline implementations
 ///
 /// This module provides mathematical expression parsing, evaluation, and plotting.
 ///
@@ -6,7 +6,6 @@
 ///
 /// - **vec_pipeline**: Traditional fully-buffered implementation (baseline)
 /// - **hybrid_pipeline**: Streaming tokenizer + buffered parser (recommended, 1.6x faster)
-/// - **full_pipeline**: Fully streaming with minimal buffers (1.4x faster)
 ///
 /// # Quick Start
 ///
@@ -35,10 +34,9 @@ pub mod calculator {
     pub use super::hybrid_pipeline::calculator::*;
 }
 
-// Three pipeline implementations - choose based on your needs
+// Pipeline implementations - choose based on your needs
 pub mod vec_pipeline;
 pub mod hybrid_pipeline;
-pub mod full_pipeline;
 
 // Internal modules (not part of public API)
 pub(crate) mod core;

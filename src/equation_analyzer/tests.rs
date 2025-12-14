@@ -2,10 +2,9 @@
 mod rm_tests {
     use crate::equation_analyzer::utils::Point;
 
-    // Import all three pipeline implementations
+    // Import pipeline implementations
     use crate::equation_analyzer::vec_pipeline::calculator as vec_calc;
     use crate::equation_analyzer::hybrid_pipeline::calculator as hybrid_calc;
-    use crate::equation_analyzer::full_pipeline::calculator as full_calc;
 
     // Internal testing utilities from vec_pipeline
     use crate::equation_analyzer::vec_pipeline::evaluator::evaluate;
@@ -23,11 +22,10 @@ mod rm_tests {
         abs_f32(x1 - x2) < f32::EPSILON
     }
 
-    // Test all three calculators produce identical results
+    // Test that vec and hybrid calculators produce identical results
     fn calculate(eq: &str) -> Result<f32, String> {
         let vec_result = vec_calc::calculate(eq)?;
         let hybrid_result = hybrid_calc::calculate(eq)?;
-        let full_result = full_calc::calculate(eq)?;
 
         // Handle NaN specially (NaN != NaN)
         if vec_result.is_nan() {
@@ -36,62 +34,39 @@ mod rm_tests {
                 "Vec is NaN but Hybrid is {} for '{}'",
                 hybrid_result, eq
             );
-            assert!(
-                full_result.is_nan(),
-                "Vec is NaN but Full is {} for '{}'",
-                full_result, eq
-            );
         } else {
             assert!(
                 (vec_result - hybrid_result).abs() < 0.0001,
                 "Vec vs Hybrid differ for '{}': {} vs {}",
                 eq, vec_result, hybrid_result
             );
-            assert!(
-                (vec_result - full_result).abs() < 0.0001,
-                "Vec vs Full differ for '{}': {} vs {}",
-                eq, vec_result, full_result
-            );
         }
 
         Ok(vec_result)
     }
 
-    // Test all three plot functions produce identical results
+    // Test that vec and hybrid plot functions produce identical results
     fn plot(eq: &str, x_min: f32, x_max: f32, step: f32) -> Result<Vec<Point>, String> {
         let vec_result = vec_calc::plot(eq, x_min, x_max, step)?;
         let hybrid_result = hybrid_calc::plot(eq, x_min, x_max, step)?;
-        let full_result = full_calc::plot(eq, x_min, x_max, step)?;
 
         assert_eq!(
             vec_result.len(), hybrid_result.len(),
             "Vec vs Hybrid length differ for '{}': {} vs {}",
             eq, vec_result.len(), hybrid_result.len()
         );
-        assert_eq!(
-            vec_result.len(), full_result.len(),
-            "Vec vs Full length differ for '{}': {} vs {}",
-            eq, vec_result.len(), full_result.len()
-        );
 
-        for (i, ((v, h), f)) in vec_result.iter().zip(hybrid_result.iter()).zip(full_result.iter()).enumerate() {
+        for (i, (v, h)) in vec_result.iter().zip(hybrid_result.iter()).enumerate() {
             assert_eq!(v.x, h.x, "Vec vs Hybrid x differ at index {} for '{}'", i, eq);
-            assert_eq!(v.x, f.x, "Vec vs Full x differ at index {} for '{}'", i, eq);
 
             // Handle NaN in y values
             if v.y.is_nan() {
                 assert!(h.y.is_nan(), "Vec y is NaN but Hybrid is {} at index {} for '{}'", h.y, i, eq);
-                assert!(f.y.is_nan(), "Vec y is NaN but Full is {} at index {} for '{}'", f.y, i, eq);
             } else {
                 assert!(
                     (v.y - h.y).abs() < 0.0001,
                     "Vec vs Hybrid y differ at index {} for '{}': {} vs {}",
                     i, eq, v.y, h.y
-                );
-                assert!(
-                    (v.y - f.y).abs() < 0.0001,
-                    "Vec vs Full y differ at index {} for '{}': {} vs {}",
-                    i, eq, v.y, f.y
                 );
             }
         }
@@ -1749,14 +1724,12 @@ mod rm_tests {
     #[test]
     fn division_by_zero() {
         let test = "5 / 0";
-        // Call all three calculators directly and verify all return infinity
+        // Call both calculators directly and verify both return infinity
         let vec_result = vec_calc::calculate(test).unwrap();
         let hybrid_result = hybrid_calc::calculate(test).unwrap();
-        let full_result = full_calc::calculate(test).unwrap();
 
         assert!(vec_result.is_infinite(), "vec_pipeline should return infinity");
         assert!(hybrid_result.is_infinite(), "hybrid_pipeline should return infinity");
-        assert!(full_result.is_infinite(), "full_pipeline should return infinity");
     }
 
     #[test]
@@ -1825,14 +1798,12 @@ mod rm_tests {
     #[test]
     fn zero_to_negative_power() {
         let test = "0^-1";
-        // Call all three calculators directly and verify all return infinity
+        // Call both calculators directly and verify both return infinity
         let vec_result = vec_calc::calculate(test).unwrap();
         let hybrid_result = hybrid_calc::calculate(test).unwrap();
-        let full_result = full_calc::calculate(test).unwrap();
 
         assert!(vec_result.is_infinite(), "vec_pipeline should return infinity");
         assert!(hybrid_result.is_infinite(), "hybrid_pipeline should return infinity");
-        assert!(full_result.is_infinite(), "full_pipeline should return infinity");
     }
 
     #[test]
