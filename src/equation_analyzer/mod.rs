@@ -9,6 +9,7 @@ pub mod hybrid_pipeline;
 pub mod full_pipeline;
 
 // Internal modules
+pub(crate) mod core;
 pub(crate) mod structs;
 pub(crate) mod utils;
 mod tests;
