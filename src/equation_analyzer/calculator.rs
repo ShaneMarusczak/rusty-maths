@@ -2,8 +2,7 @@ use crate::equation_analyzer::pipeline::evaluator::evaluate;
 use crate::equation_analyzer::pipeline::parser::parse;
 use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
 
-use std::sync::Arc;
-use std::thread;
+use rayon::prelude::*;
 
 /// Calculates the result of a mathematical equation.
 ///
@@ -46,38 +45,19 @@ pub fn calculate(eq: &str) -> Result<f32, String> {
 /// ```
 pub fn plot(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<Vec<Point>, String> {
     let tokens = get_tokens(eq)?;
-    let parsed_eq = Arc::new(parse(tokens)?);
+    let parsed_eq = parse(tokens)?;
 
     let x_values = get_x_values(x_min, x_max, step_size);
-    let mut points = Vec::with_capacity(x_values.len());
 
-    if x_values.len() > 500 {
-        let thread_count = num_cpus::get();
-        let chunk_size = (x_values.len() / thread_count) + 1;
-        let mut threads = Vec::with_capacity(thread_count);
-        let x_chunks: Vec<Vec<f32>> = x_values.chunks(chunk_size).map(|s| s.into()).collect();
-
-        for chunk in x_chunks {
-            let parsed_eq_clone = Arc::clone(&parsed_eq);
-            threads.push(thread::spawn(move || -> Result<Vec<Point>, String> {
-                let mut thread_points = Vec::with_capacity(chunk.len());
-                for x in chunk {
-                    let y = evaluate(&parsed_eq_clone, x)?;
-                    thread_points.push(Point { x, y })
-                }
-                Ok(thread_points)
-            }));
-        }
-        for thread in threads {
-            points.append(&mut thread.join().unwrap()?);
-        }
-    } else {
-        for x in x_values {
+    let points: Result<Vec<Point>, String> = x_values
+        .par_iter()
+        .map(|&x| {
             let y = evaluate(&parsed_eq, x)?;
-            points.push(Point { x, y })
-        }
-    }
-    Ok(points)
+            Ok(Point { x, y })
+        })
+        .collect();
+
+    points
 }
 
 fn get_x_values(x_min: f32, x_max: f32, step_size: f32) -> Vec<f32> {
