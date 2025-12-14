@@ -205,126 +205,13 @@ impl<'a> StreamingTokenizer<'a> {
                 }
             }
             '-' => {
+                // Check if this is binary minus (subtraction) or unary minus (negation)
                 if self.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
+                    // Previous token was an operand, so this is binary subtraction
                     self.make_token(Minus)
-                } else if self.peek() == Some('e') {
-                    self.advance();
-                    self.make_token(NegE)
-                } else if self.peek() == Some('π') {
-                    self.advance();
-                    self.make_token(NegPi)
-                } else if self.peek().is_some_and(|c| c.is_ascii_digit()) {
-                    // Emit -1 * NUMBER to preserve operator precedence
-                    // This ensures -2^2 evaluates as -(2^2) = -4, not (-2)^2 = 4
-                    let literal = self.scan_digit()?;
-                    // Check if we need to wrap in parentheses (after operators with precedence >= 3)
-                    // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
-                    // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
-                    let prev_is_high_prec = self.previous_token_type.as_ref().is_some_and(|t| matches!(
-                        t,
-                        TokenType::Power | TokenType::Star | TokenType::Slash |
-                        TokenType::Modulo | TokenType::Percent
-                    ));
-                    let needs_parens = prev_is_high_prec;
-
-                    if self.peek() != Some('x') {
-                        let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
-                        // If after binary operator, wrap in parentheses: 3/(-1 * 2)
-                        if needs_parens {
-                            // Push in the order they should be returned: OpenParen, -1, *, val, CloseParen
-                            // Since we return the first token immediately and pop from front,
-                            // we push the rest in order
-                            self.pending_tokens.push_back(Token {
-                                token_type: Number,
-                                numeric_value_1: -1.0,
-                                numeric_value_2: 0.0,
-                            });
-                            self.pending_tokens.push_back(Token {
-                                token_type: Star,
-                                numeric_value_1: 0.0,
-                                numeric_value_2: 0.0,
-                            });
-                            self.pending_tokens.push_back(Token {
-                                token_type: Number,
-                                numeric_value_1: val,
-                                numeric_value_2: 0.0,
-                            });
-                            self.pending_tokens.push_back(Token {
-                                token_type: CloseParen,
-                                numeric_value_1: 0.0,
-                                numeric_value_2: 0.0,
-                            });
-                            self.make_token(OpenParen)
-                        } else {
-                            // Normal case: -1 * NUMBER
-                            self.pending_tokens.push_back(Token {
-                                token_type: Star,
-                                numeric_value_1: 0.0,
-                                numeric_value_2: 0.0,
-                            });
-                            self.pending_tokens.push_back(Token {
-                                token_type: Number,
-                                numeric_value_1: val,
-                                numeric_value_2: 0.0,
-                            });
-                            self.make_token_with_values(Number, -1.0, 0.0)
-                        }
-                    } else {
-                        self.advance(); // consume 'x'
-                        let coef: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
-                        // For -Nx, emit -1 * N * x (with parens if needed)
-                        if needs_parens {
-                            self.pending_tokens.push_back(Token {
-                                token_type: Number,
-                                numeric_value_1: -1.0,
-                                numeric_value_2: 0.0,
-                            });
-                        }
-                        self.pending_tokens.push_back(Token {
-                            token_type: Star,
-                            numeric_value_1: 0.0,
-                            numeric_value_2: 0.0,
-                        });
-                        self.pending_tokens.push_back(Token {
-                            token_type: Number,
-                            numeric_value_1: coef,
-                            numeric_value_2: 0.0,
-                        });
-                        self.pending_tokens.push_back(Token {
-                            token_type: Star,
-                            numeric_value_1: 0.0,
-                            numeric_value_2: 0.0,
-                        });
-                        self.pending_tokens.push_back(Token {
-                            token_type: X,
-                            numeric_value_1: 1.0,
-                            numeric_value_2: 1.0,
-                        });
-                        if needs_parens {
-                            self.pending_tokens.push_back(Token {
-                                token_type: CloseParen,
-                                numeric_value_1: 0.0,
-                                numeric_value_2: 0.0,
-                            });
-                            self.make_token(OpenParen)
-                        } else {
-                            self.make_token_with_values(Number, -1.0, 0.0)
-                        }
-                    }
-                } else if self.peek() == Some('x') {
-                    self.advance();
-                    return Ok(Some(self.handle_x_token(-1.0)?));
-                } else if matches!(self.peek(), Some('(') | Some('-')) || self.peek().is_some_and(|c| c.is_alphabetic()) {
-                    // -(5) or -sqrt(4) or --2
-                    // Queue Star token for next iteration
-                    self.pending_tokens.push_back(Token {
-                        token_type: Star,
-                        numeric_value_1: 0.0,
-                        numeric_value_2: 0.0,
-                    });
-                    self.make_token_with_values(Number, -1.0, 0.0)
                 } else {
-                    return Err(format!("Invalid minus sign at position {}", self.position));
+                    // Previous token was an operator, '(', or start of input - this is unary negation
+                    self.make_token(UnaryMinus)
                 }
             }
             '(' => self.make_token(OpenParen),

@@ -23,7 +23,7 @@ pub(crate) fn get_operator(operator: Token) -> Result<Operand, String> {
         TokenType::Star | TokenType::Slash | TokenType::Percent | TokenType::Modulo => {
             Ok(get_op(operator, 3, Assoc::Left, false, false))
         }
-        TokenType::Power => Ok(get_op(operator, 4, Assoc::Right, false, false)),
+        TokenType::UnaryMinus | TokenType::Power => Ok(get_op(operator, 4, Assoc::Right, false, false)),
         TokenType::Sqrt
         | TokenType::Ln
         | TokenType::Abs

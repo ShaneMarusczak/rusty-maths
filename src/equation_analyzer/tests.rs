@@ -12,7 +12,7 @@ mod rm_tests {
     use crate::equation_analyzer::core::vec_tokenizer::get_tokens;
     use crate::equation_analyzer::structs::token::TokenType::{
         CloseParen, End, Equal, Ln, Log, Minus, Number, OpenParen, Plus, Power, Sin, Slash, Star,
-        Y, _E,
+        UnaryMinus, Y, _E,
     };
     use crate::equation_analyzer::structs::token::{Token, TokenType};
     use crate::utilities::abs_f32;
@@ -546,8 +546,7 @@ mod rm_tests {
             get_token(OpenParen),
             get_token_n(Number, 3.0, 0.0),
             get_token(Minus),
-            get_token_n(Number, -1.0, 0.0),
-            get_token(Star),
+            get_token(UnaryMinus),
             get_token_n(Number, 2.0, 0.0),
             get_token(CloseParen),
             get_token(Slash),
@@ -595,8 +594,7 @@ mod rm_tests {
             get_token_n(Number, 3.0, 0.0),
             get_token(Power),
             get_token(OpenParen),
-            get_token_n(Number, -1.0, 0.0),
-            get_token(Star),
+            get_token(UnaryMinus),
             get_token_n(Number, 1.0, 0.0),
             get_token(Slash),
             get_token_n(Number, 2.0, 0.0),
@@ -614,11 +612,8 @@ mod rm_tests {
             get_token(Equal),
             get_token_n(Number, 3.0, 0.0),
             get_token(Power),
-            get_token(OpenParen),
-            get_token_n(Number, -1.0, 0.0),
-            get_token(Star),
+            get_token(UnaryMinus),
             get_token_n(Number, 2.0, 0.0),
-            get_token(CloseParen),
             get_token(End),
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
@@ -2675,14 +2670,14 @@ mod rm_tests {
 
     #[test]
     fn unary_minus_modulo() {
-        // -7 % 3 = -1
-        assert_eq!(calculate("-7 % 3").unwrap(), -1.0);
+        // -7 %% 3 = -1
+        assert_eq!(calculate("-7 %% 3").unwrap(), -1.0);
 
-        // 7 % -3 = 1
-        assert_eq!(calculate("7 % -3").unwrap(), 1.0);
+        // 7 %% -3 = 1
+        assert_eq!(calculate("7 %% -3").unwrap(), 1.0);
 
-        // -7 % -3 = -1
-        assert_eq!(calculate("-7 % -3").unwrap(), -1.0);
+        // -7 %% -3 = -1
+        assert_eq!(calculate("-7 %% -3").unwrap(), -1.0);
     }
 
     #[test]

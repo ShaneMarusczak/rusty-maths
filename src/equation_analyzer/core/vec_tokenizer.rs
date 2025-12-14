@@ -53,84 +53,13 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                 }
             }
             '-' => {
+                // Check if this is binary minus (subtraction) or unary minus (negation)
                 if s.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
+                    // Previous token was an operand, so this is binary subtraction
                     s.add_token(Minus);
-                } else if s.peek()? == 'e' {
-                    s.advance()?;
-                    s.add_token(NegE);
-                } else if s.peek()? == 'π' {
-                    s.advance()?;
-                    s.add_token(NegPi);
-                } else if s.peek()?.is_ascii_digit() {
-                    // Emit -1 * NUMBER to preserve operator precedence
-                    // This ensures -2^2 evaluates as -(2^2) = -4, not (-2)^2 = 4
-                    s.digit()?;
-                    // Check if we need to wrap in parentheses (after operators with precedence >= 3)
-                    // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
-                    // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
-                    let prev_is_high_prec = s.tokens.last().is_some_and(|t| matches!(
-                        t.token_type,
-                        Power | Star | Slash | Modulo | Percent
-                    ));
-                    let needs_parens = prev_is_high_prec;
-
-                    if s.peek()? != 'x' {
-                        // Skip the minus, just get the digits
-                        let literal = get_str_section(eq, s.start + 1, s.current);
-                        let num = literal.parse::<f32>()
-                            .map_err(|_| format!("Invalid number: {}", literal))?;
-                        // If after binary operator, wrap in parentheses: 3/(-1 * 2)
-                        if needs_parens {
-                            s.add_token(OpenParen);
-                            s.add_token_n(Number, -1.0, 0.0);
-                            s.add_token(Star);
-                            s.add_token_n(Number, num, 0.0);
-                            s.add_token(CloseParen);
-                        } else {
-                            // Normal case: -1 * NUMBER
-                            s.add_token_n(Number, -1.0, 0.0);
-                            s.add_token(Star);
-                            s.add_token_n(Number, num, 0.0);
-                        }
-                    } else {
-                        // For -Nx, emit -1 * N * x (with parens if needed)
-                        let coefficient = get_str_section(eq, s.start + 1, s.current);
-                        let coef_val = coefficient.parse::<f32>()
-                            .map_err(|_| format!("Invalid coefficient: {}", coefficient))?;
-                        s.advance()?; // consume the x
-                        if needs_parens {
-                            s.add_token(OpenParen);
-                        }
-                        s.add_token_n(Number, -1.0, 0.0);
-                        s.add_token(Star);
-                        s.add_token_n(Number, coef_val, 0.0);
-                        s.add_token(Star);
-                        s.add_token_n(X, 1.0, 1.0);
-                        if needs_parens {
-                            s.add_token(CloseParen);
-                        }
-                    }
-                } else if s.peek()? == 'x' {
-                    // For -x, emit -1 * x (with parens if needed)
-                    s.advance()?; // consume the x
-                    let prev_is_high_prec = s.tokens.last().is_some_and(|t| matches!(
-                        t.token_type,
-                        Power | Star | Slash | Modulo | Percent
-                    ));
-                    let needs_parens = prev_is_high_prec;
-                    if needs_parens {
-                        s.add_token(OpenParen);
-                    }
-                    s.add_token_n(Number, -1.0, 0.0);
-                    s.add_token(Star);
-                    s.add_token_n(X, 1.0, 1.0);
-                    if needs_parens {
-                        s.add_token(CloseParen);
-                    }
-                } else if s.peek()? == '(' || s.peek()?.is_alphabetic() || s.peek()? == '-' {
-                    //-(5) or -sqrt(4) or --2
-                    s.add_token_n(Number, -1.0, 0.0);
-                    s.add_token(Star);
+                } else {
+                    // Previous token was an operator, '(', or start of input - this is unary negation
+                    s.add_token(UnaryMinus);
                 }
             }
             '(' => s.add_token(OpenParen),

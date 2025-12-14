@@ -94,7 +94,7 @@ where
             TokenType::Y | TokenType::Equal | TokenType::Comma => continue,
 
             // Constants go directly to output
-            TokenType::_Pi | TokenType::_E | TokenType::NegPi | TokenType::NegE => {
+            TokenType::_Pi | TokenType::_E => {
                 output.push(token);
             }
 
@@ -210,6 +210,7 @@ where
             | TokenType::Slash
             | TokenType::Plus
             | TokenType::Minus
+            | TokenType::UnaryMinus
             | TokenType::Power
             | TokenType::Modulo
             | TokenType::Percent

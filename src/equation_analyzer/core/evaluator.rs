@@ -158,8 +158,10 @@ where
             TokenType::Number => stack.push(token.numeric_value_1),
             TokenType::_Pi => stack.push(PI),
             TokenType::_E => stack.push(E),
-            TokenType::NegPi => stack.push(-PI),
-            TokenType::NegE => stack.push(-E),
+            TokenType::UnaryMinus => {
+                let temp = stack.pop().ok_or("Insufficient operands for unary minus operator")?;
+                stack.push(-temp);
+            }
             TokenType::Sin => {
                 let temp = stack.pop().ok_or("Insufficient operands for sin function")?;
                 stack.push(temp.sin());
