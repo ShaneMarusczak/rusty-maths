@@ -9,8 +9,6 @@ use std::f32::consts::{E, PI};
 struct FunctionFrame {
     /// Position in the stack where this function's parameters start
     stack_position: usize,
-    /// Type of function (Min, Max, Avg, etc.)
-    function_type: TokenType,
 }
 
 /// Generic RPN evaluator that works with any iterator of tokens.
@@ -53,7 +51,6 @@ where
             _ if token.token_type.is_variadic_function() => {
                 frames.push(FunctionFrame {
                     stack_position: stack.len(),
-                    function_type: token.token_type,
                 });
             }
             // End tokens - collect params and compute
@@ -92,7 +89,7 @@ where
                 }
                 params.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let len = params.len();
-                let result = if len % 2 == 0 {
+                let result = if len.is_multiple_of(2) {
                     let mid = len / 2;
                     (params[mid - 1] + params[mid]) / 2.0
                 } else {

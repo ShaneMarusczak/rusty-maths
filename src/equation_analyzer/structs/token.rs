@@ -91,7 +91,6 @@ impl TokenType {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub(crate) enum ParamToken {
-    None,
     Avg,
     Min,
     Max,
@@ -102,10 +101,7 @@ pub(crate) enum ParamToken {
 
 impl ParamToken {
     /// Returns the corresponding End* TokenType for this parameter token
-    ///
-    /// # Safety
-    /// Must not be called on ParamToken::None. All call sites check `!= None` before calling.
-    pub fn to_end_token_type(&self) -> TokenType {
+    pub fn to_end_token_type(self) -> TokenType {
         match self {
             ParamToken::Avg => TokenType::EndAvg,
             ParamToken::Min => TokenType::EndMin,
@@ -113,7 +109,6 @@ impl ParamToken {
             ParamToken::Mode => TokenType::EndMode,
             ParamToken::Med => TokenType::EndMed,
             ParamToken::Choice => TokenType::EndChoice,
-            ParamToken::None => unreachable!("to_end_token_type called on ParamToken::None"),
         }
     }
 }

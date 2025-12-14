@@ -2,8 +2,6 @@
 ///
 /// This module contains code that is shared across multiple pipeline implementations
 /// to reduce duplication and ensure consistency.
-pub mod param_collector;
-
 use crate::equation_analyzer::structs::token::Token;
 
 /// Represents a point in 2D space for plotting equations.
