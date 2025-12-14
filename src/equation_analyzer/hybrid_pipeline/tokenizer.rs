@@ -211,11 +211,11 @@ impl<'a> StreamingTokenizer<'a> {
                     let literal = self.scan_digit()?;
                     if self.peek() != Some('x') {
                         let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
-                        self.make_token_with_values(Number, val, 0.0)
+                        self.make_token_with_values(Number, -val, 0.0)  // Negate!
                     } else {
                         self.advance(); // consume 'x'
                         let coef: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
-                        return Ok(Some(self.handle_x_token(coef)?));
+                        return Ok(Some(self.handle_x_token(-coef)?));  // Negate!
                     }
                 } else if self.peek() == Some('x') {
                     self.advance();
