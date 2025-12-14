@@ -121,7 +121,7 @@ where
             | TokenType::Log
             | TokenType::OpenParen => {
                 self.paren_depth += 1;
-                self.operator_stack.push(get_operator(token));
+                self.operator_stack.push(get_operator(token)?);
                 Ok(())
             }
 
@@ -142,7 +142,8 @@ where
                     if last.paren_opener {
                         break;
                     }
-                    let op = self.operator_stack.pop().unwrap();
+                    let op = self.operator_stack.pop()
+                        .ok_or_else(|| String::from("Internal error: operator stack became empty"))?;
                     self.output_queue.push_back(op.token);
                 }
 
@@ -164,7 +165,8 @@ where
                         .last()
                         .ok_or("Missing operator on stack")?;
                     if last.is_func {
-                        let func = self.operator_stack.pop().unwrap();
+                        let func = self.operator_stack.pop()
+                            .ok_or_else(|| String::from("Internal error: operator stack became empty"))?;
                         self.output_queue.push_back(func.token);
                     }
                 }
@@ -180,7 +182,7 @@ where
             | TokenType::Modulo
             | TokenType::Percent
             | TokenType::Factorial => {
-                let o_1 = get_operator(token);
+                let o_1 = get_operator(token)?;
 
                 // Pop higher precedence operators from stack to output queue
                 while !self.operator_stack.is_empty() {
@@ -201,7 +203,8 @@ where
                         break;
                     }
 
-                    let o_2_new = self.operator_stack.pop().unwrap();
+                    let o_2_new = self.operator_stack.pop()
+                        .ok_or_else(|| String::from("Internal error: operator stack became empty"))?;
                     self.output_queue.push_back(o_2_new.token);
                 }
 

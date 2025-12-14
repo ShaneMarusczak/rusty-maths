@@ -55,10 +55,10 @@ impl Tokenizer for TokenizerState<'_> {
     }
 
     fn previous_match(&self, types: &[TokenType]) -> bool {
-        if self.tokens.is_empty() {
+        // If tokens is empty, no previous token matches
+        let Some(prev) = self.tokens.last() else {
             return false;
-        }
-        let prev = self.tokens.last().unwrap();
+        };
 
         for tt in types {
             if prev.token_type == *tt {
@@ -86,7 +86,8 @@ impl Tokenizer for TokenizerState<'_> {
     }
 
     fn take_x(&mut self, coefficient: String) -> Result<(), String> {
-        let coef: f32 = coefficient.parse().unwrap();
+        let coef: f32 = coefficient.parse()
+            .map_err(|_| format!("Invalid coefficient: {}", coefficient))?;
         // Check if previous token was Power - if so, we need to wrap this in parens
         let after_power = self.tokens.last().is_some_and(|t| t.token_type == TokenType::Power);
 

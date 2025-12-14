@@ -144,8 +144,9 @@ impl<'a> StreamingTokenizer<'a> {
                 });
             }
 
-            // Return the first token
-            let first_token = self.pending_tokens.pop_front().unwrap();
+            // Return the first token (we just pushed at least one token above)
+            let first_token = self.pending_tokens.pop_front()
+                .ok_or_else(|| String::from("Internal error: expected token in pending queue"))?;
             self.previous_token_type = Some(first_token.token_type);
             Ok(first_token)
         } else {
@@ -174,7 +175,8 @@ impl<'a> StreamingTokenizer<'a> {
         }
 
         self.start_position = self.position;
-        let c = self.advance().unwrap();
+        let c = self.advance()
+            .ok_or_else(|| String::from("Unexpected end of input"))?;
 
         let token = match c {
             'y' => self.make_token(Y),

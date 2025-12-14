@@ -175,7 +175,9 @@ impl ParamCollector {
             *count += 1;
         }
 
-        let max_count = *seen.values().max().unwrap();
+        // Safety: validate_param_count ensures at least 1 param, so seen is not empty
+        let max_count = *seen.values().max()
+            .ok_or_else(|| String::from("mode requires at least one parameter"))?;
 
         let result = if max_count == 1 {
             // Uniform distribution: all values appear with same frequency

@@ -104,7 +104,8 @@ impl ParamToken {
     /// Returns the corresponding End* TokenType for this parameter token
     ///
     /// # Panics
-    /// Panics if called on ParamToken::None
+    /// Panics if called on ParamToken::None (this should never happen as call sites check != None)
+    #[allow(clippy::panic)]  // Protected by call site checks
     pub fn to_end_token_type(&self) -> TokenType {
         match self {
             ParamToken::Avg => TokenType::EndAvg,

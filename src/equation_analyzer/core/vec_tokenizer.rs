@@ -66,7 +66,9 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     if s.peek()? != 'x' {
                         let literal = get_str_section(eq, s.start, s.current);
 
-                        s.add_token_n(Number, literal.parse().unwrap(), 0.0);
+                        let num = literal.parse::<f32>()
+                            .map_err(|_| format!("Invalid number: {}", literal))?;
+                        s.add_token_n(Number, num, 0.0);
                     } else {
                         let coefficient = get_str_section(eq, s.start, s.current);
                         //consume the x
@@ -96,7 +98,9 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                     if s.peek()? != 'x' {
                         let literal = get_str_section(eq, s.start, s.current);
 
-                        s.add_token_n(Number, literal.parse().unwrap(), 0.0);
+                        let num = literal.parse::<f32>()
+                            .map_err(|_| format!("Invalid number: {}", literal))?;
+                        s.add_token_n(Number, num, 0.0);
                     } else {
                         let coefficient = get_str_section(eq, s.start, s.current);
                         //consume the x
@@ -148,7 +152,10 @@ pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
                         "log" => {
                             let mut literal = get_str_section(eq, s.start, s.current);
                             literal.pop();
-                            let base = literal.split('_').nth(1).unwrap().parse::<f32>().unwrap();
+                            let base_str = literal.split('_').nth(1)
+                                .ok_or_else(|| String::from("Invalid log format: missing base"))?;
+                            let base = base_str.parse::<f32>()
+                                .map_err(|_| format!("Invalid log base: {}", base_str))?;
                             s.add_token_n(Log, base, 0.0);
                         }
                         _ => return Err(format!("Invalid function name {}", name)),
