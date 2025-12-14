@@ -7,7 +7,14 @@ use std::{
     f32::consts::{E, PI},
 };
 
-//TODO: remove all unwraps from this function, not guaranteed to have values
+/// Evaluates a parsed equation in Reverse Polish Notation (RPN).
+///
+/// # Arguments
+/// * `parsed_eq` - A slice of tokens in RPN format
+///
+/// # Returns
+/// * `Ok(f32)` - The result of the evaluation
+/// * `Err(String)` - An error message if evaluation fails
 pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
     if parsed_eq.is_empty() {
         return Err(String::from("Invalid equation supplied"));
@@ -72,7 +79,10 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
                     stack.push(mode);
                 }
                 TokenType::EndMed => {
-                    params.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    params.sort_by(|a, b| {
+                        a.partial_cmp(b)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    });
                     let len = params.len();
                     let med = if len % 2 == 0 {
                         let mid = len / 2;
@@ -106,35 +116,35 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
             TokenType::NegPi => stack.push(-PI),
             TokenType::NegE => stack.push(-E),
             TokenType::Sin => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for sin function")?;
                 stack.push(temp.sin());
             }
             TokenType::Cos => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for cos function")?;
                 stack.push(temp.cos());
             }
             TokenType::Tan => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for tan function")?;
                 stack.push(temp.tan());
             }
             TokenType::Asin => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for asin function")?;
                 stack.push(temp.asin());
             }
             TokenType::Acos => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for acos function")?;
                 stack.push(temp.acos());
             }
             TokenType::Atan => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for atan function")?;
                 stack.push(temp.atan());
             }
             TokenType::Abs => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for abs function")?;
                 stack.push(abs_f32(temp));
             }
             TokenType::Sqrt => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for sqrt function")?;
                 if temp.is_sign_negative() {
                     //TODO: For now return NaN, I want to return a complex number at some point
                     return Ok(f32::NAN);
@@ -142,18 +152,18 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
                 stack.push(square_root_f32(temp));
             }
             TokenType::Ln => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for ln function")?;
                 stack.push(temp.ln());
             }
             TokenType::Factorial => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for factorial operator")?;
                 if temp % 1.0 != 0.0 {
                     return Err("Factorial is only defined for positive whole numbers".to_string());
                 }
                 stack.push(crate::utilities::factorial(temp as isize) as f32);
             }
             TokenType::Log => {
-                let temp = stack.pop().unwrap();
+                let temp = stack.pop().ok_or("Insufficient operands for log function")?;
                 stack.push(temp.log(token.numeric_value_1));
             }
             _ => {
@@ -178,7 +188,12 @@ pub(crate) fn evaluate(parsed_eq: &[Token]) -> Result<f32, String> {
         }
     }
     if stack.len() != 1 {
-        return Err("Invalid evaluation stack, big boo boo".to_string());
+        return Err(format!(
+            "Invalid evaluation: expected 1 result, found {} items in stack",
+            stack.len()
+        ));
     }
-    Ok(stack[0])
+    stack
+        .pop()
+        .ok_or_else(|| "Evaluation stack is empty".to_string())
 }
