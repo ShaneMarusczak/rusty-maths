@@ -137,15 +137,17 @@ pub fn square_root_f32(num: f32) -> f32 {
         return 0.0;
     }
 
+    // Use exponential search to find bounds quickly (doubles each iteration)
     let mut i = 1_f32;
+    while i * i < num {
+        i *= 2_f32;
+    }
 
-    loop {
-        if i * i == num {
-            return i;
-        } else if i * i > num {
-            return square_f32(num, i - 1_f32, i);
-        }
-        i += 1_f32;
+    // Now i*i >= num, so binary search between i/2 and i
+    if i * i == num {
+        i
+    } else {
+        square_f32(num, i / 2_f32, i)
     }
 }
 
@@ -175,15 +177,17 @@ pub fn square_root(num: f64) -> f64 {
         return 0.0;
     }
 
+    // Use exponential search to find bounds quickly (doubles each iteration)
     let mut i = 1_f64;
+    while i * i < num {
+        i *= 2_f64;
+    }
 
-    loop {
-        if i * i == num {
-            return i;
-        } else if i * i > num {
-            return square(num, i - 1_f64, i);
-        }
-        i += 1_f64;
+    // Now i*i >= num, so binary search between i/2 and i
+    if i * i == num {
+        i
+    } else {
+        square(num, i / 2_f64, i)
     }
 }
 
