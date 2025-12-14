@@ -1,11 +1,9 @@
 use crate::{
     equation_analyzer::structs::token::{Token, TokenType},
-    utilities::{abs_f32, factorial, square_root_f32},
+    equation_analyzer::utils::param_collector::{CollectionResult, ParamCollector},
+    utilities::{abs_f32, square_root_f32},
 };
-use std::{
-    collections::HashMap,
-    f32::consts::{E, PI},
-};
+use std::f32::consts::{E, PI};
 
 /// Evaluates RPN tokens from an iterator, maintaining only a minimal value stack.
 ///
@@ -28,103 +26,31 @@ where
 {
     let x = x.into().unwrap_or(0.0);
     let mut stack: Vec<f32> = Vec::new();
-    let mut params = vec![];
-    let mut collecting_params = false;
+    let mut collector = ParamCollector::new();
 
     for token_result in tokens {
         let token = token_result?;
 
-        if collecting_params {
-            match token.token_type {
-                TokenType::Number => params.push(token.numeric_value_1),
-                TokenType::X => params.push(token.numeric_value_1 * x.powf(token.numeric_value_2)),
-                TokenType::EndAvg => {
-                    let avg = params.iter().sum::<f32>() / params.len() as f32;
-                    stack.push(avg);
-                }
-                TokenType::EndMin => {
-                    let min = params.iter().copied().fold(f32::MAX, f32::min);
-                    stack.push(min);
-                }
-                TokenType::EndMax => {
-                    let max = params.iter().copied().fold(f32::MIN, f32::max);
-                    stack.push(max);
-                }
-                TokenType::EndChoice => {
-                    if params.len() != 2 {
-                        return Err(format!(
-                            "Choice function takes two parameters, found {}.",
-                            params.len()
-                        ));
-                    }
-                    if params.iter().any(|p| p % 1.0 != 0.0) {
-                        return Err("Choice is only defined for positive whole numbers".to_string());
-                    }
-                    let n = params[0] as isize;
-                    let k = params[1] as isize;
-                    let val = (factorial(n) / (factorial(k) * factorial(n - k))) as f32;
-                    stack.push(val);
-                }
-                TokenType::EndMode => {
-                    // Build frequency map
-                    let mut seen: HashMap<u32, usize> = HashMap::new();
-                    for param in params.iter().clone() {
-                        let bits = param.to_bits();
-                        let count = seen.entry(bits).or_insert(0);
-                        *count += 1;
-                    }
-
-                    if seen.is_empty() {
-                        return Err("Mode requires at least one parameter".to_string());
-                    }
-
-                    let max_count = *seen.values().max().unwrap();
-
-                    // Uniform distribution: all values appear with same frequency
-                    // e.g., [1, 2, 3, 4] - each appears once, no mode exists
-                    if max_count == 1 {
-                        stack.push(f32::NAN);
-                    } else {
-                        // Collect all values with max frequency (handles multimodal)
-                        // e.g., [1, 1, 2, 2, 3] - both 1 and 2 are modes
-                        let modes: Vec<f32> = seen.iter()
-                            .filter(|(_, &count)| count == max_count)
-                            .map(|(&bits, _)| f32::from_bits(bits))
-                            .collect();
-
-                        // Return average of all modes
-                        let mode_avg = modes.iter().sum::<f32>() / modes.len() as f32;
-                        stack.push(mode_avg);
-                    }
-                }
-                TokenType::EndMed => {
-                    params.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                    let len = params.len();
-                    let med = if len % 2 == 0 {
-                        let mid = len / 2;
-                        (params[mid - 1] + params[mid]) / 2.0
-                    } else {
-                        params[len / 2]
-                    };
-                    stack.push(med);
-                }
-                _ => unreachable!(),
+        // Check if ParamCollector wants to handle this token
+        match collector.process_token(&token, x) {
+            CollectionResult::NotCollecting => {
+                // Fall through to normal token processing
             }
-            if !matches!(token.token_type, TokenType::Number | TokenType::X) {
-                collecting_params = false;
-                params.clear();
+            CollectionResult::Continue => {
+                continue;
             }
-            continue;
+            CollectionResult::Finished(Ok(value)) => {
+                stack.push(value);
+                continue;
+            }
+            CollectionResult::Finished(Err(e)) => {
+                return Err(e);
+            }
         }
 
         match token.token_type {
-            TokenType::Avg
-            | TokenType::Max
-            | TokenType::Min
-            | TokenType::Med
-            | TokenType::Mode
-            | TokenType::Choice => {
-                collecting_params = true;
+            _ if token.token_type.is_variadic_function() => {
+                collector.start_collecting();
             }
             TokenType::Number => stack.push(token.numeric_value_1),
             TokenType::_Pi => stack.push(PI),

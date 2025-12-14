@@ -1,5 +1,6 @@
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
 use crate::equation_analyzer::structs::token::{ParamToken, Token, TokenType};
+use crate::equation_analyzer::utils::make_synthetic_token;
 use std::collections::VecDeque;
 
 /// A fully streaming parser that implements Iterator, yielding RPN tokens on demand.
@@ -44,52 +45,7 @@ where
             } else if token.token_type == TokenType::Comma {
                 return Ok(());
             } else if token.token_type == TokenType::CloseParen {
-                match self.param_token {
-                    ParamToken::Avg => {
-                        self.output_queue.push_back(Token {
-                            token_type: TokenType::EndAvg,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Choice => {
-                        self.output_queue.push_back(Token {
-                            token_type: TokenType::EndChoice,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Med => {
-                        self.output_queue.push_back(Token {
-                            token_type: TokenType::EndMed,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Min => {
-                        self.output_queue.push_back(Token {
-                            token_type: TokenType::EndMin,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Max => {
-                        self.output_queue.push_back(Token {
-                            token_type: TokenType::EndMax,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Mode => {
-                        self.output_queue.push_back(Token {
-                            token_type: TokenType::EndMode,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::None => unreachable!(),
-                }
-
+                self.output_queue.push_back(make_synthetic_token(self.param_token.to_end_token_type()));
                 self.param_token = ParamToken::None;
                 return Ok(());
             }

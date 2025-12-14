@@ -1285,6 +1285,43 @@ mod rm_tests {
     }
 
     #[test]
+    fn test_nested_variadic_not_supported() {
+        // Nested variadic functions are not supported
+        // The inner function will be treated as a parameter and should error
+        let result = calculate("avg(1, min(2, 3), 4)");
+        assert!(result.is_err(), "Nested variadic functions should error");
+        assert!(result.unwrap_err().contains("Params can only be numbers"));
+    }
+
+    #[test]
+    fn test_nested_variadic_min_in_max() {
+        // Another nested variadic test
+        let result = calculate("max(1, min(2, 3))");
+        assert!(result.is_err(), "Nested variadic functions should error");
+    }
+
+    #[test]
+    fn test_nested_variadic_mode_in_avg() {
+        let result = calculate("avg(mode(1, 1, 2), 5)");
+        assert!(result.is_err(), "Nested variadic functions should error");
+    }
+
+    #[test]
+    fn test_variadic_with_arithmetic_outside() {
+        // Arithmetic outside variadic functions works fine
+        assert_eq!(calculate("avg(2, 4, 9) + 1").unwrap(), 6.0); // 5 + 1
+        assert_eq!(calculate("min(3, 5, 6) * 2").unwrap(), 6.0); // 3 * 2
+        assert_eq!(calculate("max(2, 4, 6) - 1").unwrap(), 5.0); // 6 - 1
+    }
+
+    #[test]
+    fn test_variadic_parameters_must_be_simple() {
+        // Variadic functions only accept simple numbers and x, not expressions
+        let result = calculate("avg(1+1, 2)");
+        assert!(result.is_err(), "Arithmetic inside variadic params should error");
+    }
+
+    #[test]
     fn choice_test() {
         let test = "ch(5,2)";
         let expected_result = 10.0;
@@ -1311,7 +1348,7 @@ mod rm_tests {
     #[test]
     fn choice_test_error() {
         let test = "ch(20,9, 0)";
-        let expected_result = "Choice function takes two parameters, found 3.";
+        let expected_result = "Expected at most 2 parameters, got 3";
         let actual_result = calculate(test).unwrap_err();
         assert_eq!(expected_result, actual_result);
     }
@@ -1319,7 +1356,7 @@ mod rm_tests {
     #[test]
     fn choice_test_error_2() {
         let test = "ch(20,9.1)";
-        let expected_result = "Choice is only defined for positive whole numbers";
+        let expected_result = "Parameter 2 must be an integer, got 9.1";
         let actual_result = calculate(test).unwrap_err();
         assert_eq!(expected_result, actual_result);
     }

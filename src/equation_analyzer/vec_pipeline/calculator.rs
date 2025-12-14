@@ -1,6 +1,7 @@
 use super::evaluator::evaluate;
 use super::parser::parse;
 use super::tokenizer::get_tokens;
+use crate::equation_analyzer::utils::get_x_values;
 
 use rayon::prelude::*;
 
@@ -58,18 +59,6 @@ pub fn plot(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<Vec<Poin
         .collect();
 
     points
-}
-
-fn get_x_values(x_min: f32, x_max: f32, step_size: f32) -> Vec<f32> {
-    let x_range = ((x_max - x_min) / step_size).ceil() as usize + 1;
-    let mut x_values = Vec::with_capacity(x_range);
-
-    let mut x_cur = x_min;
-    while x_cur <= x_max {
-        x_values.push(x_cur);
-        x_cur += step_size;
-    }
-    x_values
 }
 
 /// Represents a point in 2D space for plotting equations.
