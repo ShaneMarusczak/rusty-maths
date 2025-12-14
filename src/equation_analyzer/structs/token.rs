@@ -103,9 +103,8 @@ pub(crate) enum ParamToken {
 impl ParamToken {
     /// Returns the corresponding End* TokenType for this parameter token
     ///
-    /// # Panics
-    /// Panics if called on ParamToken::None (this should never happen as call sites check != None)
-    #[allow(clippy::panic)]  // Protected by call site checks
+    /// # Safety
+    /// Must not be called on ParamToken::None. All call sites check `!= None` before calling.
     pub fn to_end_token_type(&self) -> TokenType {
         match self {
             ParamToken::Avg => TokenType::EndAvg,
@@ -114,7 +113,7 @@ impl ParamToken {
             ParamToken::Mode => TokenType::EndMode,
             ParamToken::Med => TokenType::EndMed,
             ParamToken::Choice => TokenType::EndChoice,
-            ParamToken::None => panic!("Cannot convert ParamToken::None to TokenType"),
+            ParamToken::None => unreachable!("to_end_token_type called on ParamToken::None"),
         }
     }
 }
