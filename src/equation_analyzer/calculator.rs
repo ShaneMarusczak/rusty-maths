@@ -21,7 +21,7 @@ use rayon::prelude::*;
 /// assert_eq!(result, 8.0);
 /// ```
 pub fn calculate(eq: &str) -> Result<f32, String> {
-    evaluate(&parse(get_tokens(eq)?)?, 0.0)
+    evaluate(&parse(get_tokens(eq)?)?, None)
 }
 
 /// Plots a mathematical equation over a range of x values.
