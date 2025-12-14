@@ -144,7 +144,7 @@ impl ParamCollector {
 
     /// Computes minimum of collected parameters
     fn finish_min(&mut self) -> Result<f32, String> {
-        self.validate_param_count(2, usize::MAX)?;
+        self.validate_param_count(1, usize::MAX)?;
         let result = self.params.iter().copied().fold(f32::MAX, f32::min);
         self.reset();
         Ok(result)
@@ -152,7 +152,7 @@ impl ParamCollector {
 
     /// Computes maximum of collected parameters
     fn finish_max(&mut self) -> Result<f32, String> {
-        self.validate_param_count(2, usize::MAX)?;
+        self.validate_param_count(1, usize::MAX)?;
         let result = self.params.iter().copied().fold(f32::MIN, f32::max);
         self.reset();
         Ok(result)
@@ -410,15 +410,15 @@ mod tests {
     }
 
     #[test]
-    fn test_min_validation_too_few() {
+    fn test_min_single_param() {
         let mut collector = ParamCollector::new();
         collector.start_collecting();
 
-        collector.process_token(&make_number(1.0), 0.0);
+        collector.process_token(&make_number(42.0), 0.0);
 
         match collector.process_token(&make_end_token(TokenType::EndMin), 0.0) {
-            CollectionResult::Finished(Err(_)) => {} // Expected
-            _ => panic!("Expected Finished(Err(...))"),
+            CollectionResult::Finished(Ok(result)) => assert_eq!(result, 42.0),
+            _ => panic!("Expected Finished(Ok(42.0))"),
         }
     }
 

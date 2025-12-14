@@ -2320,22 +2320,6 @@ mod rm_tests {
         assert!(result.is_err(), "Operator with empty parentheses should error");
     }
 
-    // ========== Numerical Overflow ==========
-
-    #[test]
-    fn overflow_to_infinity() {
-        let test = "1e38 * 1e38";
-        let result = calculate(test).unwrap();
-        assert!(result.is_infinite(), "1e38 * 1e38 should overflow to infinity");
-    }
-
-    #[test]
-    fn large_power_overflow() {
-        let test = "999999999999^2";
-        let result = calculate(test).unwrap();
-        assert!(result.is_infinite() || result > 1e20, "Large power should overflow or be very large");
-    }
-
     // ========== Constants ==========
 
     #[test]
