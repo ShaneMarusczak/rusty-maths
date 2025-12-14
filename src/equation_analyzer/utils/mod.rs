@@ -7,6 +7,31 @@ pub mod param_collector;
 
 use crate::equation_analyzer::structs::token::Token;
 
+/// Represents a point in 2D space for plotting equations.
+///
+/// This struct is used by all pipeline calculators to return plot results.
+#[derive(Debug, PartialEq, Clone)]
+pub struct Point {
+    /// The x-coordinate
+    pub x: f32,
+    /// The y-coordinate (result of evaluating the equation at x)
+    pub y: f32,
+}
+
+impl Point {
+    /// Creates a new Point with the given coordinates.
+    ///
+    /// # Arguments
+    /// * `x` - The x-coordinate
+    /// * `y` - The y-coordinate
+    ///
+    /// # Returns
+    /// A new Point instance
+    pub fn new(x: f32, y: f32) -> Point {
+        Point { x, y }
+    }
+}
+
 /// Generates x values for plotting based on range and step size
 ///
 /// # Arguments

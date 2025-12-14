@@ -1,16 +1,16 @@
 #[cfg(test)]
 mod rm_tests {
-    use crate::equation_analyzer::vec_pipeline::calculator::Point;
+    use crate::equation_analyzer::utils::Point;
 
     // Import all three pipeline implementations
     use crate::equation_analyzer::vec_pipeline::calculator as vec_calc;
     use crate::equation_analyzer::hybrid_pipeline::calculator as hybrid_calc;
     use crate::equation_analyzer::full_pipeline::calculator as full_calc;
 
-    // Legacy imports for backward compatibility and internal testing
-    use crate::equation_analyzer::pipeline::evaluator::evaluate;
-    use crate::equation_analyzer::pipeline::parser::parse;
-    use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
+    // Internal testing utilities from vec_pipeline
+    use crate::equation_analyzer::vec_pipeline::evaluator::evaluate;
+    use crate::equation_analyzer::vec_pipeline::parser::parse;
+    use crate::equation_analyzer::vec_pipeline::tokenizer::get_tokens;
     use crate::equation_analyzer::structs::token::TokenType::{
         CloseParen, End, Equal, Ln, Log, Minus, Number, OpenParen, Plus, Power, Sin, Slash, Star,
         Y, _E,

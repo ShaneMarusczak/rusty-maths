@@ -1,5 +1,4 @@
-use crate::equation_analyzer::vec_pipeline::calculator::Point;
-use crate::equation_analyzer::utils::get_x_values;
+use crate::equation_analyzer::utils::{get_x_values, Point};
 use crate::equation_analyzer::hybrid_pipeline::parser::parse_streaming;
 use super::evaluator::evaluate_fully_streaming;
 use super::parser::FullyStreamingParser;
