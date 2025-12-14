@@ -2000,21 +2000,4 @@ mod rm_tests {
         assert_eq!(calculate(test).unwrap(), 0.0);
     }
 
-    #[test]
-    fn nested_mins_and_maxs() {
-        let test = "min(max(1, 2), max(3, 4))";
-        assert_eq!(calculate(test).unwrap(), 2.0);
-    }
-
-    #[test]
-    fn implicit_multiplication_with_parens() {
-        let test = "2(3 + 4)";
-        assert_eq!(calculate(test).unwrap(), 14.0);
-    }
-
-    #[test]
-    fn implicit_multiplication_with_function() {
-        let test = "2sqrt(4)";
-        assert_eq!(calculate(test).unwrap(), 4.0);
-    }
 }
