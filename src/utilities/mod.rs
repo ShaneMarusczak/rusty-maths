@@ -133,15 +133,33 @@ pub fn abs_f32(num: f32) -> f32 {
 ///assert!(abs_f32(square_root_f32(1.23456) - f32::sqrt(1.23456)) <= 0.0001);
 /// ```
 pub fn square_root_f32(num: f32) -> f32 {
-    let mut i = 1_f32;
+    if num == 0.0 {
+        return 0.0;
+    }
 
-    loop {
-        if i * i == num {
-            return i;
-        } else if i * i > num {
-            return square_f32(num, i - 1_f32, i);
+    // Use exponential search to find bounds quickly
+    if num >= 1.0 {
+        // For num >= 1, double until we overshoot
+        let mut i = 1_f32;
+        while i * i < num {
+            i *= 2_f32;
         }
-        i += 1_f32;
+        if i * i == num {
+            i
+        } else {
+            square_f32(num, i / 2_f32, i)
+        }
+    } else {
+        // For num < 1, halve until we undershoot
+        let mut i = 1_f32;
+        while i * i > num {
+            i /= 2_f32;
+        }
+        if i * i == num {
+            i
+        } else {
+            square_f32(num, i, i * 2_f32)
+        }
     }
 }
 
@@ -149,7 +167,8 @@ fn square_f32(num: f32, i: f32, j: f32) -> f32 {
     let mid = (i + j) / 2_f32;
     let mul = mid * mid;
 
-    if mul == num || abs_f32(mul - num) < 0.0001 {
+    // Check if we've converged: exact match, bounds are close, or hit floating point precision limit
+    if mul == num || abs_f32(j - i) < 0.00001 || mid == i || mid == j {
         mid
     } else if mul < num {
         square_f32(num, mid, j)
@@ -166,15 +185,33 @@ fn square_f32(num: f32, i: f32, j: f32) -> f32 {
 ///assert!(abs(square_root(1.23456789) - f64::sqrt(1.23456789)) <= 0.0000001);
 /// ```
 pub fn square_root(num: f64) -> f64 {
-    let mut i = 1_f64;
+    if num == 0.0 {
+        return 0.0;
+    }
 
-    loop {
-        if i * i == num {
-            return i;
-        } else if i * i > num {
-            return square(num, i - 1_f64, i);
+    // Use exponential search to find bounds quickly
+    if num >= 1.0 {
+        // For num >= 1, double until we overshoot
+        let mut i = 1_f64;
+        while i * i < num {
+            i *= 2_f64;
         }
-        i += 1_f64;
+        if i * i == num {
+            i
+        } else {
+            square(num, i / 2_f64, i)
+        }
+    } else {
+        // For num < 1, halve until we undershoot
+        let mut i = 1_f64;
+        while i * i > num {
+            i /= 2_f64;
+        }
+        if i * i == num {
+            i
+        } else {
+            square(num, i, i * 2_f64)
+        }
     }
 }
 
@@ -182,7 +219,8 @@ fn square(num: f64, i: f64, j: f64) -> f64 {
     let mid = (i + j) / 2_f64;
     let mul = mid * mid;
 
-    if mul == num || abs(mul - num) < 0.0000001 {
+    // Check if we've converged: exact match, bounds are close, or hit floating point precision limit
+    if mul == num || abs(j - i) < 0.000000001 || mid == i || mid == j {
         mid
     } else if mul < num {
         square(num, mid, j)

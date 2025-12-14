@@ -1,164 +1,323 @@
-use crate::equation_analyzer::structs::token::{Token, TokenType::*};
-use crate::equation_analyzer::structs::tokenizer_state::{Tokenizer, TokenizerState};
-use crate::utilities::get_str_section;
+use crate::equation_analyzer::structs::token::{Token, TokenType};
+use std::collections::VecDeque;
+use std::iter::Peekable;
+use std::str::Chars;
 
-/// Tokenizes a mathematical equation string into a vector of tokens.
-///
-/// # Arguments
-/// * `eq` - The equation string to tokenize
-///
-/// # Returns
-/// * `Ok(Vec<Token>)` - A vector of tokens representing the equation
-/// * `Err(String)` - An error message if tokenization fails
-///
-/// # Supported Operations
-/// - Arithmetic: +, -, *, /, ^, %, %%
-/// - Functions: sin, cos, tan, asin, acos, atan, abs, sqrt, ln, log_N
-/// - Statistical: min, max, avg, med, mode
-/// - Constants: e, π
-/// - Factorial: !
-/// - Parentheses: (, )
-pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
-    if eq.is_empty() {
-        return Err(String::from("Invalid equation supplied"));
+/// A streaming tokenizer that implements Iterator, yielding tokens on demand
+pub(crate) struct StreamingTokenizer<'a> {
+    chars: Peekable<Chars<'a>>,
+    eq: &'a str,
+    position: usize,
+    start_position: usize,
+    previous_token_type: Option<TokenType>,
+    finished: bool,
+    pending_tokens: VecDeque<Token>,
+}
+
+impl<'a> StreamingTokenizer<'a> {
+    pub(crate) fn new(eq: &'a str) -> Result<Self, String> {
+        if eq.is_empty() {
+            return Err(String::from("Invalid equation supplied"));
+        }
+
+        Ok(Self {
+            chars: eq.chars().peekable(),
+            eq,
+            position: 0,
+            start_position: 0,
+            previous_token_type: None,
+            finished: false,
+            pending_tokens: VecDeque::new(),
+        })
     }
 
-    let mut s = TokenizerState {
-        tokens: Vec::with_capacity(eq.chars().count()),
-        start: 0,
-        current: 0,
-        eq,
-    };
+    fn advance(&mut self) -> Option<char> {
+        let ch = self.chars.next();
+        if let Some(c) = ch {
+            self.position += c.len_utf8();
+        }
+        ch
+    }
 
-    while !s.at_end() {
-        s.start = s.current;
-        let c = s.advance()?;
-        match c {
-            ' ' | '\r' | '\t' => (),
-            'y' => s.add_token(Y),
-            '=' => s.add_token(Equal),
-            ',' => s.add_token(Comma),
-            'π' => s.add_token(_Pi),
-            'e' => s.add_token(_E),
-            '*' => s.add_token(Star),
-            '/' => s.add_token(Slash),
-            '+' => s.add_token(Plus),
-            '!' => s.add_token(Factorial),
-            '%' => {
-                if s.peek()? == '%' {
-                    s.advance()?;
-                    s.add_token(Modulo);
-                } else {
-                    s.add_token(Percent);
-                }
-            }
-            '-' => {
-                if s.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
-                    s.add_token(Minus);
-                } else if s.peek()? == 'e' {
-                    s.advance()?;
-                    s.add_token(NegE);
-                } else if s.peek()? == 'π' {
-                    s.advance()?;
-                    s.add_token(NegPi);
-                } else if s.peek()?.is_ascii_digit() {
-                    s.digit()?;
-                    if s.peek()? != 'x' {
-                        let literal = get_str_section(eq, s.start, s.current);
+    fn peek(&mut self) -> Option<char> {
+        self.chars.peek().copied()
+    }
 
-                        s.add_token_n(Number, literal.parse().unwrap(), 0.0);
-                    } else {
-                        let coefficient = get_str_section(eq, s.start, s.current);
-                        //consume the x
-                        s.advance()?;
-                        s.take_x(coefficient)?;
-                    }
-                } else if s.peek()? == 'x' {
-                    let coefficient = String::from("-1");
-                    s.advance()?;
-                    s.take_x(coefficient)?;
-                } else if s.peek()? == '(' || s.peek()?.is_alphabetic() || s.peek()? == '-' {
-                    //-(5) or -sqrt(4) or --2
-                    s.add_token_n(Number, -1.0, 0.0);
-                    s.add_token(Star);
-                }
+    fn peek_ahead(&self, n: usize) -> Option<char> {
+        self.eq.chars().nth(self.position + n)
+    }
+
+    fn previous_match(&self, types: &[TokenType]) -> bool {
+        self.previous_token_type
+            .as_ref()
+            .is_some_and(|prev| types.contains(prev))
+    }
+
+    fn make_token(&mut self, token_type: TokenType) -> Token {
+        let token = Token {
+            token_type,
+            numeric_value_1: 0.0,
+            numeric_value_2: 0.0,
+        };
+        self.previous_token_type = Some(token_type);
+        token
+    }
+
+    fn make_token_with_values(&mut self, token_type: TokenType, val1: f32, val2: f32) -> Token {
+        let token = Token {
+            token_type,
+            numeric_value_1: val1,
+            numeric_value_2: val2,
+        };
+        self.previous_token_type = Some(token_type);
+        token
+    }
+
+    fn scan_digit(&mut self) -> Result<String, String> {
+        let mut literal = String::new();
+
+        while let Some(c) = self.peek() {
+            if c.is_ascii_digit() || c == '_' {
+                literal.push(c);
+                self.advance();
+            } else {
+                break;
             }
-            '(' => s.add_token(OpenParen),
-            ')' => s.add_token(CloseParen),
-            '^' => s.add_token(Power),
-            'x' => {
-                let coefficient = String::from("1");
-                s.take_x(coefficient)?;
-            }
-            _ => {
+        }
+
+        if self.peek() == Some('.') && self.peek_ahead(1).is_some_and(|c| c.is_ascii_digit()) {
+            literal.push('.');
+            self.advance();
+
+            while let Some(c) = self.peek() {
                 if c.is_ascii_digit() {
-                    s.digit()?;
-                    if s.peek()? != 'x' {
-                        let literal = get_str_section(eq, s.start, s.current);
-
-                        s.add_token_n(Number, literal.parse().unwrap(), 0.0);
-                    } else {
-                        let coefficient = get_str_section(eq, s.start, s.current);
-                        //consume the x
-                        s.advance()?;
-                        s.take_x(coefficient)?;
-                    }
-                } else if c.is_alphabetic() {
-                    while s.peek()?.is_alphabetic() {
-                        s.advance()?;
-                    }
-                    let name = get_str_section(eq, s.start, s.current);
-
-                    if s.peek()? == '_' {
-                        if name != "log" {
-                            return Err(format!("Invalid input at character {}", s.current));
-                        }
-                        //consume the _
-                        s.advance()?;
-
-                        if s.peek()?.is_ascii_digit() {
-                            s.digit()?;
-                        } else {
-                            return Err(String::from("Invalid use of log"));
-                        }
-                    }
-                    if s.peek()? != '(' {
-                        return Err(format!("Invalid input at character {}", s.start));
-                    }
-
-                    //consume the (
-                    s.advance()?;
-
-                    match name.as_str() {
-                        "sin" => s.add_token(Sin),
-                        "cos" => s.add_token(Cos),
-                        "tan" => s.add_token(Tan),
-                        "asin" => s.add_token(Asin),
-                        "acos" => s.add_token(Acos),
-                        "atan" => s.add_token(Atan),
-                        "max" => s.add_token(Max),
-                        "abs" => s.add_token(Abs),
-                        "sqrt" => s.add_token(Sqrt),
-                        "min" => s.add_token(Min),
-                        "ln" => s.add_token(Ln),
-                        "avg" => s.add_token(Avg),
-                        "med" => s.add_token(Med),
-                        "mode" => s.add_token(Mode),
-                        "ch" => s.add_token(Choice),
-                        "log" => {
-                            let mut literal = get_str_section(eq, s.start, s.current);
-                            literal.pop();
-                            let base = literal.split('_').nth(1).unwrap().parse::<f32>().unwrap();
-                            s.add_token_n(Log, base, 0.0);
-                        }
-                        _ => return Err(format!("Invalid function name {}", name)),
-                    }
+                    literal.push(c);
+                    self.advance();
                 } else {
-                    return Err(format!("Invalid input at character {}", s.current));
+                    break;
                 }
             }
         }
+
+        Ok(literal)
     }
-    s.add_token(End);
-    Ok(s.tokens)
+
+    fn handle_x_token(&mut self, coefficient: f32) -> Result<Token, String> {
+        // Check if we need to wrap in parentheses (after operators with precedence >= 3)
+        // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
+        // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
+        let prev_is_high_prec = self
+            .previous_token_type
+            .as_ref()
+            .is_some_and(|t| matches!(
+                t,
+                TokenType::Power | TokenType::Star | TokenType::Slash |
+                TokenType::Modulo | TokenType::Percent
+            ));
+        let needs_parens = prev_is_high_prec;
+
+        if coefficient != 1.0 {
+            // Queue multiple tokens
+            if needs_parens {
+                self.pending_tokens.push_back(Token {
+                    token_type: TokenType::OpenParen,
+                    numeric_value_1: 0.0,
+                    numeric_value_2: 0.0,
+                });
+            }
+
+            self.pending_tokens.push_back(Token {
+                token_type: TokenType::Number,
+                numeric_value_1: coefficient,
+                numeric_value_2: 0.0,
+            });
+
+            self.pending_tokens.push_back(Token {
+                token_type: TokenType::Star,
+                numeric_value_1: 0.0,
+                numeric_value_2: 0.0,
+            });
+
+            self.pending_tokens.push_back(Token {
+                token_type: TokenType::X,
+                numeric_value_1: 1.0,
+                numeric_value_2: 1.0,
+            });
+
+            if needs_parens {
+                self.pending_tokens.push_back(Token {
+                    token_type: TokenType::CloseParen,
+                    numeric_value_1: 0.0,
+                    numeric_value_2: 0.0,
+                });
+            }
+
+            // Return the first token (we just pushed at least one token above)
+            let first_token = self.pending_tokens.pop_front()
+                .ok_or_else(|| String::from("Internal error: expected token in pending queue"))?;
+            self.previous_token_type = Some(first_token.token_type);
+            Ok(first_token)
+        } else {
+            Ok(self.make_token_with_values(TokenType::X, 1.0, 1.0))
+        }
+    }
+
+    fn scan_token(&mut self) -> Result<Option<Token>, String> {
+        use TokenType::*;
+
+        // Skip whitespace
+        while let Some(c) = self.peek() {
+            if !matches!(c, ' ' | '\r' | '\t') {
+                break;
+            }
+            self.advance();
+        }
+
+        // Check if we're done
+        if self.peek().is_none() {
+            if !self.finished {
+                self.finished = true;
+                return Ok(Some(self.make_token(End)));
+            }
+            return Ok(None);
+        }
+
+        self.start_position = self.position;
+        let c = self.advance()
+            .ok_or_else(|| String::from("Unexpected end of input"))?;
+
+        let token = match c {
+            'y' => self.make_token(Y),
+            '=' => self.make_token(Equal),
+            ',' => self.make_token(Comma),
+            'π' => self.make_token(_Pi),
+            'e' => self.make_token(_E),
+            '*' => self.make_token(Star),
+            '/' => self.make_token(Slash),
+            '+' => self.make_token(Plus),
+            '!' => self.make_token(Factorial),
+            '%' => {
+                if self.peek() == Some('%') {
+                    self.advance();
+                    self.make_token(Modulo)
+                } else {
+                    self.make_token(Percent)
+                }
+            }
+            '-' => {
+                // Check if this is binary minus (subtraction) or unary minus (negation)
+                if self.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
+                    // Previous token was an operand, so this is binary subtraction
+                    self.make_token(Minus)
+                } else {
+                    // Previous token was an operator, '(', or start of input - this is unary negation
+                    self.make_token(UnaryMinus)
+                }
+            }
+            '(' => self.make_token(OpenParen),
+            ')' => self.make_token(CloseParen),
+            '^' => self.make_token(Power),
+            'x' => return Ok(Some(self.handle_x_token(1.0)?)),
+            _ if c.is_ascii_digit() => {
+                // Put the digit back conceptually by starting from start_position
+                self.position = self.start_position;
+                self.chars = self.eq[self.position..].chars().peekable();
+
+                let literal = self.scan_digit()?;
+                if self.peek() != Some('x') {
+                    let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
+                    self.make_token_with_values(Number, val, 0.0)
+                } else {
+                    self.advance(); // consume 'x'
+                    let coef: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
+                    return Ok(Some(self.handle_x_token(coef)?));
+                }
+            }
+            _ if c.is_alphabetic() => {
+                // Scan function name
+                self.position = self.start_position;
+                self.chars = self.eq[self.position..].chars().peekable();
+
+                let mut name = String::new();
+                while let Some(ch) = self.peek() {
+                    if ch.is_alphabetic() {
+                        name.push(ch);
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+
+                // Handle log base
+                if self.peek() == Some('_') {
+                    if name != "log" {
+                        return Err(format!("Invalid input at character {}", self.position));
+                    }
+                    self.advance(); // consume '_'
+
+                    if !self.peek().is_some_and(|c| c.is_ascii_digit()) {
+                        return Err("Invalid use of log".to_string());
+                    }
+
+                    let base_literal = self.scan_digit()?;
+                    let base: f32 = base_literal.parse().map_err(|_| "Invalid log base".to_string())?;
+
+                    if self.peek() != Some('(') {
+                        return Err(format!("Invalid input at character {}", self.start_position));
+                    }
+                    self.advance(); // consume '('
+
+                    return Ok(Some(self.make_token_with_values(Log, base, 0.0)));
+                }
+
+                if self.peek() != Some('(') {
+                    return Err(format!("Invalid input at character {}", self.start_position));
+                }
+                self.advance(); // consume '('
+
+                let token_type = match name.as_str() {
+                    "sin" => Sin,
+                    "cos" => Cos,
+                    "tan" => Tan,
+                    "asin" => Asin,
+                    "acos" => Acos,
+                    "atan" => Atan,
+                    "max" => Max,
+                    "abs" => Abs,
+                    "sqrt" => Sqrt,
+                    "min" => Min,
+                    "ln" => Ln,
+                    "avg" => Avg,
+                    "med" => Med,
+                    "mode" => Mode,
+                    "ch" => Choice,
+                    _ => return Err(format!("Invalid function name {}", name)),
+                };
+
+                self.make_token(token_type)
+            }
+            _ => return Err(format!("Invalid input at character {}", self.position)),
+        };
+
+        Ok(Some(token))
+    }
+}
+
+impl<'a> Iterator for StreamingTokenizer<'a> {
+    type Item = Result<Token, String>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // First check if we have pending tokens from multi-token operations
+        if let Some(token) = self.pending_tokens.pop_front() {
+            self.previous_token_type = Some(token.token_type);
+            return Some(Ok(token));
+        }
+
+        // Otherwise scan the next token
+        match self.scan_token() {
+            Ok(Some(token)) => Some(Ok(token)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
+    }
 }

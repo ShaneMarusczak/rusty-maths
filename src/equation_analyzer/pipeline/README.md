@@ -1,0 +1,246 @@
+# Pipeline Implementation
+
+The equation analyzer pipeline uses a streaming tokenizer with buffered parser for optimal performance.
+
+## Architecture
+
+```
+┌──────────────────┐      ┌─────────┐      ┌───────────┐
+│ StreamTokenizer  │─────▶│ Parser  │─────▶│ Evaluator │─────▶ f32
+│   (Iterator)     │      │         │      │           │
+└──────────────────┘      └─────────┘      └───────────┘
+         │                     │                  │
+    Token (lazy)           Vec<Token>          Result
+    on-demand               (RPN)
+```
+
+## How It Works
+
+### 1. Streaming Tokenization (tokenizer.rs)
+```rust
+pub struct StreamingTokenizer<'a> {
+    chars: Peekable<Chars<'a>>,
+    pending_tokens: VecDeque<Token>,
+    // ... state
+}
+
+impl Iterator for StreamingTokenizer {
+    type Item = Result<Token, String>;
+    fn next(&mut self) -> Option<Self::Item>
+}
+```
+
+**What it does:**
+- Implements the **Iterator trait** - yields tokens one at a time
+- Scans characters **lazily** only when next() is called
+- Uses **VecDeque for pending tokens** when one input produces multiple tokens
+- **Pull-based**: Parser drives tokenizer by calling next()
+
+**Example:**
+```rust
+let tokenizer = StreamingTokenizer::new("2x + 3")?;
+
+// Parser pulls:
+tokenizer.next() → Some(Ok(Number(2)))
+tokenizer.next() → Some(Ok(Star))       // From pending queue
+tokenizer.next() → Some(Ok(X))          // From pending queue
+tokenizer.next() → Some(Ok(Plus))
+tokenizer.next() → Some(Ok(Number(3)))
+tokenizer.next() → Some(Ok(End))
+tokenizer.next() → None
+```
+
+**Pending Token Queue:**
+When tokenizer sees "2x", it needs to emit 3 tokens:
+1. Number(2)
+2. Star (implicit multiplication)
+3. X
+
+```rust
+Process '2':  Scan digit → Number(2)
+Process 'x':  Need Star + X
+             → pending_tokens.push_back(Star)
+             → pending_tokens.push_back(X)
+             → Return Number(2)
+Next call:   → Pop Star from pending queue
+Next call:   → Pop X from pending queue
+```
+
+**Key characteristics:**
+- **Lazy evaluation**: Only scans what's needed
+- **Partial buffer**: VecDeque for multi-token sequences only
+- **Memory efficient**: No full token Vec allocation
+- **UTF-8 aware**: Tracks byte positions for π, e characters
+
+### 2. Parser (parser.rs)
+```rust
+pub fn parse<I>(tokens: I) -> Result<Vec<Token>, String>
+where
+    I: IntoIterator<Item = Result<Token, String>>
+```
+
+**What it does:**
+- Accepts **any iterator** of tokens (not just Vec)
+- Pulls tokens one at a time from iterator
+- Collects output into Vec<Token> (RPN)
+- Uses Dijkstra's Shunting Yard algorithm
+
+**Example:**
+```rust
+let tokenizer = StreamingTokenizer::new("2 + 3 * 4")?;
+let rpn_tokens = parse(tokenizer)?;
+
+// Parser loop:
+for token_result in tokens {              // ← Pulls from tokenizer
+    let token = token_result?;
+    match token.token_type {
+        Number => output.push(token),     // ← Builds Vec
+        Plus | Star => /* shunting yard */
+        End => break
+    }
+}
+```
+
+**Flow:**
+```
+Parser calls next() → Tokenizer scans "2" → Returns Number(2)
+                   → Parser pushes to output Vec
+Parser calls next() → Tokenizer scans "+" → Returns Plus
+                   → Parser pushes to operator stack
+... continues pulling until End token
+```
+
+**Key characteristics:**
+- **Pull-driven**: Parser's for loop drives tokenizer
+- **Accepts Iterator, returns Vec**
+- **No tokenizer blocking**: Don't wait for all tokens upfront
+
+### 3. Evaluation (evaluator.rs)
+```rust
+pub fn evaluate<I>(tokens: I, x: impl Into<Option<f32>>) -> Result<f32, String>
+where
+    I: IntoIterator<Item = Token>
+```
+
+**What it does:**
+- Accepts RPN token iterator
+- Stack-based RPN evaluation
+- Handles variadic functions with frame markers
+
+**Why RPN needs buffering:**
+- Must hold operands on stack until operator arrives
+- "2 3 +" requires storing 2 and 3 before seeing +
+
+## Buffering Strategy
+
+| Stage | Buffer Type | Size | When Allocated |
+|-------|-------------|------|----------------|
+| Tokenizer | `VecDeque<Token>` | 0-3 tokens | Only for multi-token sequences |
+| Tokenizer | State vars | 1 char | Current position tracking |
+| Parser | `Vec<Operand>` | Operators only | Shunting Yard stack |
+| Parser | `Vec<Token>` | Full RPN | Output collection |
+| Evaluator | `Vec<f32>` | Values only | RPN evaluation stack |
+
+## Performance Characteristics
+
+### Strengths:
+- 💾 **Lower memory usage**: No full infix token Vec
+- 🔄 **Better cache locality**: Tokens consumed immediately after creation
+- ⚡ **Early termination**: Parser error stops tokenization immediately
+
+**Example:**
+```rust
+calculate("2 + + 3")  // Syntax error at second +
+// Tokenizer yields tokens until parser hits error, stops immediately
+```
+
+## Code Example
+
+```rust
+use rusty_maths::equation_analyzer::calculator;
+
+let result = calculator::calculate("2 + 3 * 4").unwrap();
+assert_eq!(result, 14.0);
+
+// Internally:
+// 1. StreamingTokenizer yields: Number(2), Plus, Number(3), Star, Number(4), End
+// 2. Parser pulls and converts to RPN Vec: [2, 3, 4, *, +]
+// 3. Evaluator processes RPN Vec → 14.0
+
+// Complex equation with π
+let result = calculator::calculate("sin(π / 2)").unwrap();
+// Tokenizer correctly handles multi-byte UTF-8 character π
+```
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────┐
+│         "2 + 3 * 4"                         │
+└─────────────────┬───────────────────────────┘
+                  │
+                  ▼
+      ┌───────────────────────┐
+      │  StreamingTokenizer   │
+      │  ┌─────────────────┐  │
+      │  │ pending_tokens  │  │ ← VecDeque (0-3 items)
+      │  │ [Star, X]       │  │
+      │  └─────────────────┘  │
+      └───────────┬───────────┘
+                  │ yields Token
+                  │ (one at a time)
+                  ▼
+      ┌───────────────────────┐
+      │    Parser             │
+      │  ┌─────────────────┐  │
+      │  │ operator_stack  │  │ ← Vec<Operand>
+      │  │ [+, *]          │  │
+      │  └─────────────────┘  │
+      │  ┌─────────────────┐  │
+      │  │ output (RPN)    │  │ ← Vec<Token>
+      │  │ [2, 3, 4]       │  │
+      │  └─────────────────┘  │
+      └───────────┬───────────┘
+                  │ Complete RPN Vec
+                  ▼
+      ┌───────────────────────┐
+      │    Evaluator          │
+      │  ┌─────────────────┐  │
+      │  │ value_stack     │  │ ← Vec<f32>
+      │  │ [2, 12]         │  │
+      │  └─────────────────┘  │
+      └───────────┬───────────┘
+                  │
+                  ▼
+                 14.0
+```
+
+## Key Innovations
+
+### Iterator-Based Tokenization
+```rust
+impl Iterator for StreamingTokenizer {
+    fn next(&mut self) -> Option<Token> {
+        self.scan_token()  // ← Scans one, returns immediately
+    }
+}
+```
+
+### Pull-Based Architecture
+Parser controls the flow:
+```rust
+for token in tokenizer {  // ← Parser pulls
+    process(token);        // ← Use immediately
+}  // ← No intermediate Vec
+```
+
+## Files in this Directory
+
+- **tokenizer.rs** - Iterator-based tokenizer (streaming)
+- **parser.rs** - Shunting Yard parser accepting any iterator
+- **evaluator.rs** - RPN evaluator
+- **mod.rs** - Module exports
+
+## Related
+
+- See `calculator.rs` for the public API (calculate, plot)

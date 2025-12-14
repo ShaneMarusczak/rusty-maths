@@ -1,0 +1,5 @@
+Testing: -10 / 2
+Expected: -5
+Tokens should be: -1, *, 10, /, 2
+RPN should be: -1 10 * 2 /
+Eval: (-1 * 10) / 2 = -10 / 2 = -5

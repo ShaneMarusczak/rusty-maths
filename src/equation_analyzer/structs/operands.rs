@@ -14,16 +14,16 @@ pub(crate) enum Assoc {
     Left,
 }
 
-pub(crate) fn get_operator(operator: Token) -> Operand {
+pub(crate) fn get_operator(operator: Token) -> Result<Operand, String> {
     match operator.token_type {
-        TokenType::OpenParen => get_op(operator, 0, Assoc::Right, false, true),
-        TokenType::Factorial => get_op(operator, 5, Assoc::Left, false, false),
+        TokenType::OpenParen => Ok(get_op(operator, 0, Assoc::Right, false, true)),
+        TokenType::Factorial => Ok(get_op(operator, 5, Assoc::Left, false, false)),
 
-        TokenType::Plus | TokenType::Minus => get_op(operator, 2, Assoc::Left, false, false),
+        TokenType::Plus | TokenType::Minus => Ok(get_op(operator, 2, Assoc::Left, false, false)),
         TokenType::Star | TokenType::Slash | TokenType::Percent | TokenType::Modulo => {
-            get_op(operator, 3, Assoc::Left, false, false)
+            Ok(get_op(operator, 3, Assoc::Left, false, false))
         }
-        TokenType::Power => get_op(operator, 4, Assoc::Right, false, false),
+        TokenType::UnaryMinus | TokenType::Power => Ok(get_op(operator, 4, Assoc::Right, false, false)),
         TokenType::Sqrt
         | TokenType::Ln
         | TokenType::Abs
@@ -35,10 +35,8 @@ pub(crate) fn get_operator(operator: Token) -> Operand {
         | TokenType::Asin
         | TokenType::Acos
         | TokenType::Atan
-        | TokenType::Log => get_op(operator, 0, Assoc::Right, true, true),
-        op => {
-            panic!("unknown operator {:?}", op);
-        }
+        | TokenType::Log => Ok(get_op(operator, 0, Assoc::Right, true, true)),
+        op => Err(format!("Unknown operator: {:?}", op)),
     }
 }
 

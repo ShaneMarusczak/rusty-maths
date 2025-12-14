@@ -21,7 +21,7 @@ fn median_even(v: &Vector) -> f64 {
 
 ///Returns the median of a Vector
 pub fn median(v: &Vector) -> f64 {
-    if v.len() % 2 == 0 {
+    if v.len().is_multiple_of(2) {
         median_even(v)
     } else {
         median_odd(v)

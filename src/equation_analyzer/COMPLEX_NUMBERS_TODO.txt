@@ -1,0 +1,178 @@
+================================================================================
+COMPLEX NUMBER SUPPORT - FUTURE ENHANCEMENT
+================================================================================
+
+CURRENT STATUS:
+---------------
+- sqrt(-4) returns NaN
+- All arithmetic operations work only with real numbers (f32)
+- No support for imaginary or complex number display/calculation
+
+LOCATION OF TODO COMMENT:
+-------------------------
+File: src/equation_analyzer/core/evaluator.rs:103
+
+    TokenType::Sqrt => {
+        let temp = stack.pop()?;
+        if temp.is_sign_negative() {
+            //TODO: For now return NaN, I want to return a complex number at some point
+            stack.push(f32::NAN);
+        } else {
+            stack.push(temp.sqrt());
+        }
+    }
+
+
+================================================================================
+DESIGN CONSIDERATIONS
+================================================================================
+
+1. BREAKING API CHANGE
+   --------------------
+   Current: calculate(eq: &str) -> Result<f32, String>
+
+   Problem: Complex numbers require different return type
+
+   Options:
+   a) Add separate calculate_complex() function (non-breaking)
+   b) Change to Result<Complex<f32>, String> (breaking change)
+   c) Return formatted string "2 + 3i" (display-only, limited utility)
+
+
+2. ARCHITECTURAL IMPACT
+   ---------------------
+   Current architecture has three optimized pipelines (vec, hybrid, full) that
+   all share core modules. Adding complex number support requires either:
+
+   a) SEPARATE COMPLEX PIPELINE (Recommended)
+      - Create fourth pipeline: complex_pipeline/
+      - Use num-complex crate: Complex<f32>
+      - Non-breaking, follows existing patterns
+      - Code duplication, but clean separation
+
+   b) GENERIC CORE MODULES
+      - Refactor Token<T> to be generic over numeric types
+      - High complexity, affects all pipelines
+      - Risk of breaking existing optimizations
+
+
+3. SEMANTIC CHANGES
+   ------------------
+   Complex arithmetic differs from real:
+   - Multiplication: (a+bi)*(c+di) = (ac-bd) + (ad+bc)i
+   - Division requires conjugate multiplication
+   - Power uses complex exponentiation
+   - Statistical functions (min, max, mode) become undefined
+   - Trigonometric functions become multi-valued
+
+
+4. PLOTTING CHALLENGES
+   --------------------
+   Current: plot() returns Vec<Point{x: f32, y: f32}>
+
+   Complex results need different visualization:
+   - 2D plots require real y-values
+   - Options: error on complex, plot real part only, or 3D visualization
+
+
+================================================================================
+RECOMMENDED IMPLEMENTATION APPROACH
+================================================================================
+
+IF COMPLEX SUPPORT IS NEEDED:
+
+1. Add dependency to Cargo.toml:
+   [dependencies]
+   num-complex = "0.4"
+
+2. Create new pipeline:
+   src/equation_analyzer/complex_pipeline/
+   ├── mod.rs
+   ├── calculator.rs       (calculate_complex() API)
+   ├── evaluator.rs        (Complex<f32> arithmetic)
+   ├── parser.rs           (re-export core parser)
+   └── tokenizer.rs        (Complex<f32> tokens)
+
+3. Leverage shared core modules where possible:
+   - Use core::parser (works with any token type)
+   - Use core::streaming_parser (works with any token type)
+   - Create new complex-specific evaluator
+   - Create new complex-specific tokenizer
+
+4. Key implementation points:
+   - Parse real numbers as Complex::new(val, 0.0)
+   - sqrt() automatically handles negatives: val.sqrt()
+   - Trig functions: val.sin(), val.cos(), val.tan()
+   - Remove min/max/mode/median (return error)
+   - Format results: "2 + 3i" or "4i" or "5"
+
+5. Testing:
+   - sqrt(-4) = 2i
+   - sqrt(-1) + 2 = 2 + i
+   - Complex arithmetic verification
+   - Error cases for statistical functions
+
+
+================================================================================
+ALTERNATIVE: MINIMAL APPROACH
+================================================================================
+
+If full complex support is overkill, consider:
+
+OPTION: String-based display only
+-----------------------------------
+Add function: calculate_complex_display(eq: &str) -> Result<String, String>
+
+- Returns formatted string "2i" instead of numeric type
+- Good for user-facing display
+- Cannot do math with results
+- Simple to implement
+
+This provides visual feedback for sqrt(-x) without architectural changes.
+
+
+================================================================================
+RECOMMENDATION
+================================================================================
+
+SHORT TERM:
+-----------
+Leave sqrt(-x) returning NaN. Current behavior is mathematically honest:
+NaN indicates "result not defined in real numbers".
+
+LONG TERM:
+----------
+Implement separate complex_pipeline/ if user demand exists.
+- Non-breaking addition
+- Follows established three-pipeline architecture
+- Clean separation of concerns
+- Opt-in for users who need complex arithmetic
+
+Estimated effort: 8-12 hours (implementation + testing + docs)
+
+
+================================================================================
+QUESTIONS TO ANSWER BEFORE IMPLEMENTING
+================================================================================
+
+1. Is there actual user demand for complex number calculations?
+2. What input syntax should be supported? (sqrt(-x) only? or "2+3i"?)
+3. How should results be displayed? (Complex<f32>? String? Both?)
+4. What should plot() do with complex results? (Error? Real part? 3D?)
+5. Is implementation effort justified by use cases?
+
+
+================================================================================
+DEPENDENCIES IF IMPLEMENTED
+================================================================================
+
+Required:
+  num-complex = "0.4"
+
+Optional (for advanced features):
+  - Polar notation support
+  - Complex plotting/visualization
+  - Input parser for "2+3i" syntax
+
+
+================================================================================
