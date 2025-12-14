@@ -21,7 +21,7 @@ The **Fully streaming pipeline** is the most advanced implementation where **eve
 
 ## How It Works
 
-### 1. Streaming Tokenizer (tokenizer.rs)
+### 1. Streaming Tokenizer (core/streaming_tokenizer.rs)
 ```rust
 impl Iterator for StreamingTokenizer<'_> {
     type Item = Result<Token, String>;
@@ -411,11 +411,12 @@ next() → Pop Minus
 
 ## Files in this Directory
 
-- **tokenizer.rs** - StreamingTokenizer (same as hybrid)
 - **parser.rs** - FullyStreamingParser (Iterator → Iterator)
 - **evaluator.rs** - evaluate_fully_streaming (consumes Iterator)
 - **calculator.rs** - Public API (calculate, plot)
 - **mod.rs** - Module exports
+
+**Note:** This pipeline uses `core/streaming_tokenizer.rs` (shared with hybrid_pipeline).
 
 ## Related
 

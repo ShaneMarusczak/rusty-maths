@@ -16,7 +16,7 @@ The **Hybrid streaming pipeline** optimizes the first stage by using an iterator
 
 ## How It Works
 
-### 1. Streaming Tokenization (tokenizer.rs)
+### 1. Streaming Tokenization (core/streaming_tokenizer.rs)
 ```rust
 pub struct StreamingTokenizer<'a> {
     chars: Peekable<Chars<'a>>,
@@ -287,11 +287,12 @@ for token in tokenizer {  // ← Parser pulls
 
 ## Files in this Directory
 
-- **tokenizer.rs** - StreamingTokenizer (Iterator impl)
 - **parser.rs** - Iterator<Token> → Vec<Token> (RPN)
 - **evaluator.rs** - Vec<Token> (RPN) → f32 result
 - **calculator.rs** - Public API (calculate, plot)
 - **mod.rs** - Module exports
+
+**Note:** This pipeline uses `core/streaming_tokenizer.rs` (shared across pipelines).
 
 ## Related
 
