@@ -564,7 +564,7 @@ mod rm_tests {
         let test = "3 + 4 * ( 2 - 1 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 7_f32);
     }
 
@@ -573,7 +573,7 @@ mod rm_tests {
         let test = "3 + 4 * 2 - 1";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 10_f32);
     }
 
@@ -582,7 +582,7 @@ mod rm_tests {
         let test = "y = 3 + 4 * ( 2 - 1 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 7_f32);
     }
 
@@ -591,7 +591,7 @@ mod rm_tests {
         let test = "y = 16^(1/2) + 16 + 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 23_f32);
     }
 
@@ -600,7 +600,7 @@ mod rm_tests {
         let test = "y = 2^2 + 2*2 + 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 11_f32);
     }
 
@@ -609,7 +609,7 @@ mod rm_tests {
         let test = "-2 + 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 1_f32);
     }
 
@@ -618,7 +618,7 @@ mod rm_tests {
         let test = "-e + -π";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, -E + -PI);
     }
 
@@ -627,7 +627,7 @@ mod rm_tests {
         let test = "y = 2 ^ 2^2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 16_f32);
     }
 
@@ -636,7 +636,7 @@ mod rm_tests {
         let test = "y = 2 ^ (3*2)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 64_f32);
     }
 
@@ -645,7 +645,7 @@ mod rm_tests {
         let test = "y = 2 ^ (2*2 + 1 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 32_f32);
     }
 
@@ -654,7 +654,7 @@ mod rm_tests {
         let test = "sin( 3.14159265358979323846)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 0_f32));
     }
 
@@ -663,7 +663,7 @@ mod rm_tests {
         let test = " sin( π )/ 2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 0_f32));
     }
 
@@ -672,7 +672,7 @@ mod rm_tests {
         let test = "sin( π/2 )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -681,7 +681,7 @@ mod rm_tests {
         let test = "cos(π ) / 2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, -0.5f32));
     }
 
@@ -690,7 +690,7 @@ mod rm_tests {
         let test = "tan( π )+ cos( π+π ) + sin( 2 *π )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap().round();
+        let ans = evaluate(&parsed_eq, None).unwrap().round();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -699,7 +699,7 @@ mod rm_tests {
         let test = "sin( -π )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 0_f32));
     }
 
@@ -708,7 +708,7 @@ mod rm_tests {
         let test = "sin( π )";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 0_f32));
     }
 
@@ -717,7 +717,7 @@ mod rm_tests {
         let test = "abs(2 - 3^2)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 7_f32);
     }
 
@@ -726,7 +726,7 @@ mod rm_tests {
         let test = "abs(2 *3 - 3^2)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 3_f32);
     }
 
@@ -735,7 +735,7 @@ mod rm_tests {
         let test = "sqrt(1764)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 42_f32);
     }
 
@@ -744,7 +744,7 @@ mod rm_tests {
         let test = "min(5,8,7,9)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 5_f32);
     }
 
@@ -753,7 +753,7 @@ mod rm_tests {
         let test = "ln(e)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -762,7 +762,7 @@ mod rm_tests {
         let test = "log_10(10)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 1_f32));
     }
 
@@ -771,7 +771,7 @@ mod rm_tests {
         let test = "log_10(10) + log_10(10)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 2_f32));
     }
 
@@ -780,7 +780,7 @@ mod rm_tests {
         let test = "log_10(10) + log_10(10) + log_10(10)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 3_f32));
     }
 
@@ -789,7 +789,7 @@ mod rm_tests {
         let test = "log_10(10) + log_10(5 + 5)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 2_f32));
     }
 
@@ -798,7 +798,7 @@ mod rm_tests {
         let test = "log_7(49)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert!(is_close(ans, 2_f32));
     }
 
@@ -814,7 +814,7 @@ mod rm_tests {
         let test = "3-3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 0_f32);
     }
 
@@ -823,7 +823,7 @@ mod rm_tests {
         let test = "3- 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 0_f32);
     }
 
@@ -832,7 +832,7 @@ mod rm_tests {
         let test = "log_3(3)- 3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, -2_f32);
     }
 
@@ -841,7 +841,7 @@ mod rm_tests {
         let test = "3--3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 6_f32);
     }
 
@@ -850,7 +850,7 @@ mod rm_tests {
         let test = "2^2-3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 1_f32);
     }
 
@@ -859,7 +859,7 @@ mod rm_tests {
         let test = "2^(2-3)";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 0.5);
     }
 
@@ -868,7 +868,7 @@ mod rm_tests {
         let test = "10^10-3";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
         assert_eq!(ans, 9999999997_f32);
     }
 
@@ -1043,7 +1043,7 @@ mod rm_tests {
         let test = "3^2";
         let tokens = get_tokens(test).unwrap();
         let parsed_eq = parse(tokens).unwrap();
-        let ans = evaluate(&parsed_eq).unwrap();
+        let ans = evaluate(&parsed_eq, None).unwrap();
 
         assert!(is_close(ans, 9_f32));
     }

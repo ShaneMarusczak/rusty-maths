@@ -2,8 +2,7 @@ use crate::equation_analyzer::pipeline::evaluator::evaluate;
 use crate::equation_analyzer::pipeline::parser::parse;
 use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
 
-use std::sync::Arc;
-use std::thread;
+use rayon::prelude::*;
 
 /// Calculates the result of a mathematical equation.
 ///
@@ -22,7 +21,7 @@ use std::thread;
 /// assert_eq!(result, 8.0);
 /// ```
 pub fn calculate(eq: &str) -> Result<f32, String> {
-    evaluate(&parse(get_tokens(eq)?)?)
+    evaluate(&parse(get_tokens(eq)?)?, None)
 }
 
 /// Plots a mathematical equation over a range of x values.
@@ -45,44 +44,20 @@ pub fn calculate(eq: &str) -> Result<f32, String> {
 /// assert_eq!(points.len(), 5); // Points at x = -2, -1, 0, 1, 2
 /// ```
 pub fn plot(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<Vec<Point>, String> {
+    let tokens = get_tokens(eq)?;
+    let parsed_eq = parse(tokens)?;
+
     let x_values = get_x_values(x_min, x_max, step_size);
 
-    let mut points = Vec::with_capacity(x_values.len());
+    let points: Result<Vec<Point>, String> = x_values
+        .par_iter()
+        .map(|&x| {
+            let y = evaluate(&parsed_eq, x)?;
+            Ok(Point { x, y })
+        })
+        .collect();
 
-    let preprocessed = preprocess(eq);
-
-    if x_values.len() > 500 {
-        let thread_count = num_cpus::get();
-
-        let chunk_size = (x_values.len() / thread_count) + 1;
-        let mut threads = Vec::with_capacity(thread_count);
-        let x_chunks: Vec<Vec<f32>> = x_values.chunks(chunk_size).map(|s| s.into()).collect();
-
-        let expr_arc = Arc::new(preprocessed);
-
-        for chunk in x_chunks {
-            let expr_t = Arc::clone(&expr_arc);
-            threads.push(thread::spawn(move || -> Result<Vec<Point>, String> {
-                let mut thread_points = Vec::with_capacity(chunk.len());
-                for x in chunk {
-                    let val = expr_t.replace("[x]", &x.to_string());
-                    let y = calculate(&val)?;
-                    thread_points.push(Point { x, y })
-                }
-                Ok(thread_points)
-            }));
-        }
-        for thread in threads {
-            points.append(&mut thread.join().unwrap()?);
-        }
-    } else {
-        for x in x_values {
-            let val = preprocessed.replace("[x]", &x.to_string());
-            let y = calculate(&val)?;
-            points.push(Point { x, y })
-        }
-    }
-    Ok(points)
+    points
 }
 
 fn get_x_values(x_min: f32, x_max: f32, step_size: f32) -> Vec<f32> {
@@ -97,64 +72,6 @@ fn get_x_values(x_min: f32, x_max: f32, step_size: f32) -> Vec<f32> {
     x_values
 }
 
-/// Preprocesses an equation string to handle special cases.
-///
-/// This function:
-/// - Converts implicit multiplication (e.g., "2x" -> "2*[x]")
-/// - Handles power operator right-associativity (e.g., "3^3^3*2" -> "3^(3^(3*2))")
-/// - Wraps variable 'x' in brackets for easy replacement during plotting
-///
-/// # Arguments
-/// * `e` - The equation string to preprocess
-///
-/// # Returns
-/// A preprocessed equation string
-fn preprocess(e: &str) -> String {
-    let mut expr = String::with_capacity(e.len() * 2);
-    let mut paren_count = 0;
-    let mut last_char: Option<char> = None;
-
-    for c in e.chars() {
-        match c {
-            '^' => {
-                // 3^3^3*2 -> 3^(3^(3*2))
-                expr.push_str("^(");
-                paren_count += 1;
-            }
-            'x' if last_char.map_or(false, |last| last.is_alphabetic()) => {
-                // max -> max (x is part of function name)
-                expr.push('x');
-            }
-            'x' if last_char.map_or(false, |last| last.is_ascii_digit()) => {
-                // 2x -> 2*[x] (implicit multiplication)
-                expr.push_str("*[x]");
-            }
-            'x' => {
-                // 2+x -> 2+[x] (wrap variable in brackets)
-                expr.push_str("[x]");
-            }
-            c if c.is_whitespace() => {
-                // Close unmatched parentheses when encountering whitespace
-                for _ in 0..paren_count {
-                    expr.push(')');
-                }
-                paren_count = 0;
-                expr.push(' ');
-            }
-            _ => {
-                expr.push(c);
-            }
-        }
-        last_char = Some(c);
-    }
-
-    // Close any remaining unmatched parentheses
-    for _ in 0..paren_count {
-        expr.push(')');
-    }
-
-    expr
-}
 /// Represents a point in 2D space for plotting equations.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Point {
