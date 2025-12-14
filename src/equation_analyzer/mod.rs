@@ -10,6 +10,7 @@ pub mod full_pipeline;
 
 // Internal modules
 pub(crate) mod structs;
+pub(crate) mod utils;
 mod tests;
 
 // Legacy pipeline module (kept for internal use by tests)

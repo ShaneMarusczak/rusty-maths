@@ -1,5 +1,6 @@
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
 use crate::equation_analyzer::structs::token::{ParamToken, Token, TokenType};
+use crate::equation_analyzer::utils::make_synthetic_token;
 
 /// Parses a vector of tokens into Reverse Polish Notation (RPN) using the Shunting Yard algorithm.
 ///
@@ -32,57 +33,12 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
             } else if token.token_type == TokenType::Comma {
                 continue;
             } else if token.token_type == TokenType::CloseParen {
-                match param_token {
-                    ParamToken::Avg => {
-                        output.push(Token {
-                            token_type: TokenType::EndAvg,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Choice => {
-                        output.push(Token {
-                            token_type: TokenType::EndChoice,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Med => {
-                        output.push(Token {
-                            token_type: TokenType::EndMed,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Min => {
-                        output.push(Token {
-                            token_type: TokenType::EndMin,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Max => {
-                        output.push(Token {
-                            token_type: TokenType::EndMax,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::Mode => {
-                        output.push(Token {
-                            token_type: TokenType::EndMode,
-                            numeric_value_1: 0_f32,
-                            numeric_value_2: 0_f32,
-                        });
-                    }
-                    ParamToken::None => unreachable!(),
-                }
-
+                output.push(make_synthetic_token(param_token.to_end_token_type()));
                 param_token = ParamToken::None;
                 continue;
+            } else {
+                return Err("Params can only be numbers".to_string());
             }
-
-            return Err("Params can only be numbers".to_string());
         }
 
         match token.token_type {
