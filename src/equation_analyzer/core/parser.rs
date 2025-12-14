@@ -33,6 +33,7 @@ where
     let mut output: Vec<Token> = Vec::new();
     let mut paren_depth = 0;
     let mut param_token_stack: Vec<ParamToken> = Vec::new();  // Stack for nested variadic functions
+    let mut param_stack_depth: Vec<usize> = Vec::new();  // Track operator stack depth for each variadic function
     let mut found_end = false;
 
     for token_result in tokens {
@@ -67,21 +68,24 @@ where
                         output.push(op.token);
                     }
 
-                    // Check what kind of paren_opener this is
-                    let last_op = operator_stack.last().ok_or("Mismatched parentheses")?;
+                    // Check if this closes the variadic function by checking stack depth
+                    // We need to check if the paren_opener we found is at the expected depth
+                    let expected_depth = param_stack_depth.last()
+                        .ok_or("Missing param stack depth")?;
 
-                    // If it's our synthetic OpenParen, this closes the variadic function
-                    if last_op.token.token_type == TokenType::OpenParen {
+                    if operator_stack.len() == *expected_depth + 1 {
+                        // This is our synthetic OpenParen - end the variadic function
                         operator_stack.pop();
                         paren_depth -= 1;
 
                         // Emit the End* token
                         output.push(make_synthetic_token(current_param.to_end_token_type()));
-                        param_token_stack.pop();  // Exit this param mode
+                        param_token_stack.pop();
+                        param_stack_depth.pop();
                         continue;
                     }
 
-                    // Otherwise, it's a regular function (abs, sqrt, etc.) - fall through to normal processing
+                    // Otherwise, it's a regular function or parenthesis - fall through to normal processing
                 }
 
                 // All other tokens fall through to normal processing
@@ -105,6 +109,7 @@ where
             TokenType::Avg => {
                 output.push(token);
                 param_token_stack.push(ParamToken::Avg);
+                param_stack_depth.push(operator_stack.len());
                 // Push synthetic OpenParen marker
                 operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
                 paren_depth += 1;
@@ -113,6 +118,7 @@ where
             TokenType::Choice => {
                 output.push(token);
                 param_token_stack.push(ParamToken::Choice);
+                param_stack_depth.push(operator_stack.len());
                 operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
                 paren_depth += 1;
             }
@@ -120,6 +126,7 @@ where
             TokenType::Min => {
                 output.push(token);
                 param_token_stack.push(ParamToken::Min);
+                param_stack_depth.push(operator_stack.len());
                 operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
                 paren_depth += 1;
             }
@@ -127,6 +134,7 @@ where
             TokenType::Max => {
                 output.push(token);
                 param_token_stack.push(ParamToken::Max);
+                param_stack_depth.push(operator_stack.len());
                 operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
                 paren_depth += 1;
             }
@@ -134,6 +142,7 @@ where
             TokenType::Med => {
                 output.push(token);
                 param_token_stack.push(ParamToken::Med);
+                param_stack_depth.push(operator_stack.len());
                 operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
                 paren_depth += 1;
             }
@@ -141,6 +150,7 @@ where
             TokenType::Mode => {
                 output.push(token);
                 param_token_stack.push(ParamToken::Mode);
+                param_stack_depth.push(operator_stack.len());
                 operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
                 paren_depth += 1;
             }
