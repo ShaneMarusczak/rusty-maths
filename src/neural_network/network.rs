@@ -185,7 +185,7 @@ impl Default for Network {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::neural_network::activations::{Linear, ReLU, Sigmoid, Tanh};
+    use crate::neural_network::activations::{Linear, ReLU, Tanh};
     use crate::neural_network::layer::{ActivationLayer, Dense};
 
     #[test]

@@ -332,6 +332,7 @@ fn square(num: f64, i: f64, j: f64) -> f64 {
 /// # Panics
 ///
 /// Panics if `num` is negative or greater than 20 (to prevent overflow)
+#[allow(clippy::panic)]
 pub(crate) fn factorial(num: isize) -> isize {
     if num < 0 {
         panic!("factorial is not defined for negative numbers");
@@ -408,6 +409,7 @@ pub fn get_str_section(str: &str, start: usize, end: usize) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

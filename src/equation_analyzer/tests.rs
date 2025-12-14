@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::approx_constant, clippy::excessive_precision, clippy::manual_range_contains)]
 mod rm_tests {
     use crate::equation_analyzer::utils::Point;
 

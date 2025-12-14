@@ -1,5 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use rusty_maths::equation_analyzer::calculator;
+use std::hint::black_box;
 
 /// Benchmark calculate() with equations of varying complexity
 fn bench_calculate(c: &mut Criterion) {
