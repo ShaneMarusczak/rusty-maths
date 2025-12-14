@@ -5,10 +5,45 @@ use crate::equation_analyzer::pipeline::tokenizer::get_tokens;
 use std::sync::Arc;
 use std::thread;
 
+/// Calculates the result of a mathematical equation.
+///
+/// # Arguments
+/// * `eq` - A string slice containing the equation to calculate
+///
+/// # Returns
+/// * `Ok(f32)` - The numerical result of the calculation
+/// * `Err(String)` - An error message if the equation is invalid or calculation fails
+///
+/// # Examples
+/// ```
+/// use rusty_maths::equation_analyzer::calculator::calculate;
+///
+/// let result = calculate("2 + 2 * 3").unwrap();
+/// assert_eq!(result, 8.0);
+/// ```
 pub fn calculate(eq: &str) -> Result<f32, String> {
     evaluate(&parse(get_tokens(eq)?)?)
 }
 
+/// Plots a mathematical equation over a range of x values.
+///
+/// # Arguments
+/// * `eq` - A string slice containing the equation to plot (must contain variable 'x')
+/// * `x_min` - The minimum x value
+/// * `x_max` - The maximum x value
+/// * `step_size` - The increment between x values
+///
+/// # Returns
+/// * `Ok(Vec<Point>)` - A vector of points representing the plot
+/// * `Err(String)` - An error message if the equation is invalid or plotting fails
+///
+/// # Examples
+/// ```
+/// use rusty_maths::equation_analyzer::calculator::plot;
+///
+/// let points = plot("y = x^2", -2.0, 2.0, 1.0).unwrap();
+/// assert_eq!(points.len(), 5); // Points at x = -2, -1, 0, 1, 2
+/// ```
 pub fn plot(eq: &str, x_min: f32, x_max: f32, step_size: f32) -> Result<Vec<Point>, String> {
     let x_values = get_x_values(x_min, x_max, step_size);
 
@@ -62,9 +97,22 @@ fn get_x_values(x_min: f32, x_max: f32, step_size: f32) -> Vec<f32> {
     x_values
 }
 
+/// Preprocesses an equation string to handle special cases.
+///
+/// This function:
+/// - Converts implicit multiplication (e.g., "2x" -> "2*[x]")
+/// - Handles power operator right-associativity (e.g., "3^3^3*2" -> "3^(3^(3*2))")
+/// - Wraps variable 'x' in brackets for easy replacement during plotting
+///
+/// # Arguments
+/// * `e` - The equation string to preprocess
+///
+/// # Returns
+/// A preprocessed equation string
 fn preprocess(e: &str) -> String {
-    let mut expr = String::new();
+    let mut expr = String::with_capacity(e.len() * 2);
     let mut paren_count = 0;
+    let mut last_char: Option<char> = None;
 
     for c in e.chars() {
         match c {
@@ -73,31 +121,23 @@ fn preprocess(e: &str) -> String {
                 expr.push_str("^(");
                 paren_count += 1;
             }
-            'x' if expr
-                .chars()
-                .last()
-                .map_or(false, |last| last.is_alphabetic()) =>
-            {
-                // max -> max
+            'x' if last_char.map_or(false, |last| last.is_alphabetic()) => {
+                // max -> max (x is part of function name)
                 expr.push('x');
             }
-            'x' if expr
-                .chars()
-                .last()
-                .map_or(false, |last| last.is_ascii_digit()) =>
-            {
-                // 2x -> 2*[x]
-                // 2 x is invalid
-                // no spaces
+            'x' if last_char.map_or(false, |last| last.is_ascii_digit()) => {
+                // 2x -> 2*[x] (implicit multiplication)
                 expr.push_str("*[x]");
             }
             'x' => {
-                // 2+x -> 2+[x]
+                // 2+x -> 2+[x] (wrap variable in brackets)
                 expr.push_str("[x]");
             }
             c if c.is_whitespace() => {
                 // Close unmatched parentheses when encountering whitespace
-                expr.extend(std::iter::repeat(')').take(paren_count));
+                for _ in 0..paren_count {
+                    expr.push(')');
+                }
                 paren_count = 0;
                 expr.push(' ');
             }
@@ -105,20 +145,34 @@ fn preprocess(e: &str) -> String {
                 expr.push(c);
             }
         }
+        last_char = Some(c);
     }
 
     // Close any remaining unmatched parentheses
-    expr.extend(std::iter::repeat(')').take(paren_count));
+    for _ in 0..paren_count {
+        expr.push(')');
+    }
 
     expr
 }
+/// Represents a point in 2D space for plotting equations.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Point {
+    /// The x-coordinate
     pub x: f32,
+    /// The y-coordinate (result of evaluating the equation at x)
     pub y: f32,
 }
 
 impl Point {
+    /// Creates a new Point with the given coordinates.
+    ///
+    /// # Arguments
+    /// * `x` - The x-coordinate
+    /// * `y` - The y-coordinate
+    ///
+    /// # Returns
+    /// A new Point instance
     pub fn new(x: f32, y: f32) -> Point {
         Point { x, y }
     }

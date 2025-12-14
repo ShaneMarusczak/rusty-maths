@@ -1,6 +1,18 @@
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
 use crate::equation_analyzer::structs::token::{ParamToken, Token, TokenType};
 
+/// Parses a vector of tokens into Reverse Polish Notation (RPN) using the Shunting Yard algorithm.
+///
+/// # Arguments
+/// * `tokens` - A vector of tokens in infix notation
+///
+/// # Returns
+/// * `Ok(Vec<Token>)` - The tokens in RPN format
+/// * `Err(String)` - An error message if parsing fails
+///
+/// # Algorithm
+/// Uses Dijkstra's Shunting Yard algorithm to convert infix notation to RPN,
+/// which allows for efficient evaluation without ambiguity.
 pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
     let mut operator_stack: Vec<Operand> = Vec::with_capacity(tokens.len());
 
@@ -132,19 +144,34 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
                     return Err("Invalid closing parenthesis".to_string());
                 }
 
-                while !operator_stack.is_empty() && !operator_stack.last().unwrap().paren_opener {
+                while !operator_stack.is_empty() {
+                    let last = operator_stack
+                        .last()
+                        .ok_or("Missing operator on stack")?;
+                    if last.paren_opener {
+                        break;
+                    }
                     let op = operator_stack.pop().unwrap();
                     output.push(op.token);
                 }
 
-                if operator_stack.last().unwrap().token.token_type == TokenType::OpenParen {
+                let last_op = operator_stack
+                    .last()
+                    .ok_or("Mismatched parentheses")?;
+
+                if last_op.token.token_type == TokenType::OpenParen {
                     operator_stack.pop();
                     continue;
                 }
 
-                if !operator_stack.is_empty() && operator_stack.last().unwrap().is_func {
-                    let func = operator_stack.pop().unwrap();
-                    output.push(func.token);
+                if !operator_stack.is_empty() {
+                    let last = operator_stack
+                        .last()
+                        .ok_or("Missing operator on stack")?;
+                    if last.is_func {
+                        let func = operator_stack.pop().unwrap();
+                        output.push(func.token);
+                    }
                 }
             }
 
@@ -157,12 +184,22 @@ pub(crate) fn parse(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
             | TokenType::Percent
             | TokenType::Factorial => {
                 let o_1 = get_operator(token);
-                while !operator_stack.is_empty()
-                    && !operator_stack.last().unwrap().paren_opener
-                    && (operator_stack.last().unwrap().prec > o_1.prec
-                        || (operator_stack.last().unwrap().prec == o_1.prec
-                            && o_1.assoc == Assoc::Left))
-                {
+                while !operator_stack.is_empty() {
+                    let last = operator_stack
+                        .last()
+                        .ok_or("Missing operator on stack")?;
+
+                    if last.paren_opener {
+                        break;
+                    }
+
+                    let should_pop = last.prec > o_1.prec
+                        || (last.prec == o_1.prec && o_1.assoc == Assoc::Left);
+
+                    if !should_pop {
+                        break;
+                    }
+
                     let o_2_new = operator_stack.pop().unwrap();
                     output.push(o_2_new.token);
                 }

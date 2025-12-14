@@ -2,6 +2,22 @@ use crate::equation_analyzer::structs::token::{Token, TokenType::*};
 use crate::equation_analyzer::structs::tokenizer_state::{Tokenizer, TokenizerState};
 use crate::utilities::get_str_section;
 
+/// Tokenizes a mathematical equation string into a vector of tokens.
+///
+/// # Arguments
+/// * `eq` - The equation string to tokenize
+///
+/// # Returns
+/// * `Ok(Vec<Token>)` - A vector of tokens representing the equation
+/// * `Err(String)` - An error message if tokenization fails
+///
+/// # Supported Operations
+/// - Arithmetic: +, -, *, /, ^, %, %%
+/// - Functions: sin, cos, tan, asin, acos, atan, abs, sqrt, ln, log_N
+/// - Statistical: min, max, avg, med, mode
+/// - Constants: e, π
+/// - Factorial: !
+/// - Parentheses: (, )
 pub(crate) fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
     if eq.is_empty() {
         return Err(String::from("Invalid equation supplied"));
