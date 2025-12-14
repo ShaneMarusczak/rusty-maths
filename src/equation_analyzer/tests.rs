@@ -1727,4 +1727,294 @@ mod rm_tests {
         let test = "1^100 * 1 / 1 + 1 - 1";
         assert_eq!(calculate(test).unwrap(), 1.0);
     }
+
+    // ========== Edge Case Tests ==========
+
+    #[test]
+    fn division_by_zero() {
+        let test = "5 / 0";
+        let result = calculate(test).unwrap();
+        assert!(result.is_infinite());
+    }
+
+    #[test]
+    fn zero_divided_by_zero() {
+        let test = "0 / 0";
+        let result = calculate(test).unwrap();
+        assert!(result.is_nan());
+    }
+
+    #[test]
+    fn very_large_number() {
+        let test = "999999999999.0 * 999999999999.0";
+        let result = calculate(test).unwrap();
+        assert!(result.is_finite() || result.is_infinite());
+    }
+
+    #[test]
+    fn very_small_positive() {
+        let test = "0.0000001 * 0.0000001";
+        let result = calculate(test).unwrap();
+        assert!(result >= 0.0 && result < 0.001);
+    }
+
+    #[test]
+    fn deeply_nested_parens() {
+        let test = "((((((1 + 1))))))";
+        assert_eq!(calculate(test).unwrap(), 2.0);
+    }
+
+    #[test]
+    fn many_negatives() {
+        let test = "------5";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn negative_zero() {
+        let test = "-0";
+        assert_eq!(calculate(test).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn sqrt_of_zero() {
+        let test = "sqrt(0)";
+        assert_eq!(calculate(test).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn log_of_one() {
+        let test = "ln(1)";
+        assert_eq!(calculate(test).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn log_base_10_of_one() {
+        let test = "log_10(1)";
+        assert_eq!(calculate(test).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn zero_to_zero_power() {
+        let test = "0^0";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn zero_to_negative_power() {
+        let test = "0^-1";
+        let result = calculate(test).unwrap();
+        assert!(result.is_infinite());
+    }
+
+    #[test]
+    fn negative_to_fractional_power() {
+        let test = "(-4)^0.5";
+        let result = calculate(test).unwrap();
+        assert!(result.is_nan());
+    }
+
+    #[test]
+    fn lots_of_whitespace() {
+        let test = "   2    +    3    *    4   ";
+        assert_eq!(calculate(test).unwrap(), 14.0);
+    }
+
+    #[test]
+    fn no_whitespace() {
+        let test = "2+3*4-1/2";
+        assert_eq!(calculate(test).unwrap(), 13.5);
+    }
+
+    #[test]
+    fn multiple_decimal_operations() {
+        let test = "1.5 + 2.5 - 0.5 * 0.5";
+        assert_eq!(calculate(test).unwrap(), 3.75);
+    }
+
+    #[test]
+    fn chained_subtractions() {
+        let test = "10 - 5 - 3 - 1";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn chained_divisions() {
+        let test = "100 / 10 / 2";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn operations_on_e() {
+        let test = "e^1 - e + e";
+        assert!(is_close(calculate(test).unwrap(), E));
+    }
+
+    #[test]
+    fn operations_on_pi() {
+        let test = "π * 2 / 2";
+        assert!(is_close(calculate(test).unwrap(), PI));
+    }
+
+    #[test]
+    fn sin_of_zero() {
+        let test = "sin(0)";
+        assert!(is_close(calculate(test).unwrap(), 0.0));
+    }
+
+    #[test]
+    fn cos_of_zero() {
+        let test = "cos(0)";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn tan_of_zero() {
+        let test = "tan(0)";
+        assert!(is_close(calculate(test).unwrap(), 0.0));
+    }
+
+    #[test]
+    fn abs_of_zero() {
+        let test = "abs(0)";
+        assert_eq!(calculate(test).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn ln_of_e() {
+        let test = "ln(e)";
+        assert!(is_close(calculate(test).unwrap(), 1.0));
+    }
+
+    #[test]
+    fn log_base_of_itself() {
+        let test = "log_5(5)";
+        assert!(is_close(calculate(test).unwrap(), 1.0));
+    }
+
+    #[test]
+    fn negative_abs() {
+        let test = "abs(-1000000)";
+        assert_eq!(calculate(test).unwrap(), 1000000.0);
+    }
+
+    #[test]
+    fn double_abs() {
+        let test = "abs(abs(-5))";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn min_of_negatives() {
+        let test = "min(-5, -10, -3)";
+        assert_eq!(calculate(test).unwrap(), -10.0);
+    }
+
+    #[test]
+    fn max_of_negatives() {
+        let test = "max(-5, -10, -3)";
+        assert_eq!(calculate(test).unwrap(), -3.0);
+    }
+
+    #[test]
+    fn avg_of_same_number() {
+        let test = "avg(5, 5, 5, 5)";
+        assert_eq!(calculate(test).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn single_number_expression() {
+        let test = "42";
+        assert_eq!(calculate(test).unwrap(), 42.0);
+    }
+
+    #[test]
+    fn single_constant() {
+        let test = "π";
+        assert!(is_close(calculate(test).unwrap(), PI));
+    }
+
+    #[test]
+    fn just_e() {
+        let test = "e";
+        assert!(is_close(calculate(test).unwrap(), E));
+    }
+
+    #[test]
+    fn parentheses_around_single_number() {
+        let test = "(((42)))";
+        assert_eq!(calculate(test).unwrap(), 42.0);
+    }
+
+    #[test]
+    fn long_chain_addition() {
+        let test = "1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1";
+        assert_eq!(calculate(test).unwrap(), 10.0);
+    }
+
+    #[test]
+    fn alternating_signs() {
+        let test = "10 - 5 + 3 - 2 + 1";
+        assert_eq!(calculate(test).unwrap(), 7.0);
+    }
+
+    #[test]
+    fn power_of_one() {
+        let test = "999^1";
+        assert_eq!(calculate(test).unwrap(), 999.0);
+    }
+
+    #[test]
+    fn one_to_any_power() {
+        let test = "1^999";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn negative_one_to_even_power() {
+        let test = "(-1)^2";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn negative_one_to_odd_power() {
+        let test = "(-1)^3";
+        assert_eq!(calculate(test).unwrap(), -1.0);
+    }
+
+    #[test]
+    fn sqrt_of_one() {
+        let test = "sqrt(1)";
+        assert_eq!(calculate(test).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn modulo_by_one() {
+        let test = "5 %% 1";
+        assert_eq!(calculate(test).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn modulo_zero() {
+        let test = "0 %% 5";
+        assert_eq!(calculate(test).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn nested_mins_and_maxs() {
+        let test = "min(max(1, 2), max(3, 4))";
+        assert_eq!(calculate(test).unwrap(), 2.0);
+    }
+
+    #[test]
+    fn implicit_multiplication_with_parens() {
+        let test = "2(3 + 4)";
+        assert_eq!(calculate(test).unwrap(), 14.0);
+    }
+
+    #[test]
+    fn implicit_multiplication_with_function() {
+        let test = "2sqrt(4)";
+        assert_eq!(calculate(test).unwrap(), 4.0);
+    }
 }
