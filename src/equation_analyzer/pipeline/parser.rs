@@ -32,8 +32,8 @@ where
     let mut operator_stack: Vec<Operand> = Vec::new();
     let mut output: Vec<Token> = Vec::new();
     let mut paren_depth = 0;
-    let mut param_token_stack: Vec<ParamToken> = Vec::new();  // Stack for nested variadic functions
-    let mut param_stack_depth: Vec<usize> = Vec::new();  // Track operator stack depth for each variadic function
+    let mut param_token_stack: Vec<ParamToken> = Vec::new(); // Stack for nested variadic functions
+    let mut param_stack_depth: Vec<usize> = Vec::new(); // Track operator stack depth for each variadic function
     let mut found_end = false;
 
     for token_result in tokens {
@@ -70,7 +70,8 @@ where
 
                     // Check if this closes the variadic function by checking stack depth
                     // We need to check if the paren_opener we found is at the expected depth
-                    let expected_depth = param_stack_depth.last()
+                    let expected_depth = param_stack_depth
+                        .last()
                         .ok_or("Missing param stack depth")?;
 
                     if operator_stack.len() == *expected_depth + 1 {
@@ -181,20 +182,17 @@ where
 
                 // Pop operators until we find the matching opening parenthesis
                 while !operator_stack.is_empty() {
-                    let last = operator_stack
-                        .last()
-                        .ok_or("Missing operator on stack")?;
+                    let last = operator_stack.last().ok_or("Missing operator on stack")?;
                     if last.paren_opener {
                         break;
                     }
-                    let op = operator_stack.pop()
-                        .ok_or_else(|| String::from("Internal error: operator stack became empty"))?;
+                    let op = operator_stack.pop().ok_or_else(|| {
+                        String::from("Internal error: operator stack became empty")
+                    })?;
                     output.push(op.token);
                 }
 
-                let last_op = operator_stack
-                    .last()
-                    .ok_or("Mismatched parentheses")?;
+                let last_op = operator_stack.last().ok_or("Mismatched parentheses")?;
 
                 // Remove the opening parenthesis
                 if last_op.token.token_type == TokenType::OpenParen {
@@ -204,12 +202,11 @@ where
 
                 // If there's a function waiting, add it to output
                 if !operator_stack.is_empty() {
-                    let last = operator_stack
-                        .last()
-                        .ok_or("Missing operator on stack")?;
+                    let last = operator_stack.last().ok_or("Missing operator on stack")?;
                     if last.is_func {
-                        let func = operator_stack.pop()
-                            .ok_or_else(|| String::from("Internal error: operator stack became empty"))?;
+                        let func = operator_stack.pop().ok_or_else(|| {
+                            String::from("Internal error: operator stack became empty")
+                        })?;
                         output.push(func.token);
                     }
                 }
@@ -229,24 +226,23 @@ where
 
                 // Pop higher precedence operators from stack
                 while !operator_stack.is_empty() {
-                    let last = operator_stack
-                        .last()
-                        .ok_or("Missing operator on stack")?;
+                    let last = operator_stack.last().ok_or("Missing operator on stack")?;
 
                     if last.paren_opener {
                         break;
                     }
 
                     // Precedence and associativity rules
-                    let should_pop = last.prec > o_1.prec
-                        || (last.prec == o_1.prec && o_1.assoc == Assoc::Left);
+                    let should_pop =
+                        last.prec > o_1.prec || (last.prec == o_1.prec && o_1.assoc == Assoc::Left);
 
                     if !should_pop {
                         break;
                     }
 
-                    let o_2_new = operator_stack.pop()
-                        .ok_or_else(|| String::from("Internal error: operator stack became empty"))?;
+                    let o_2_new = operator_stack.pop().ok_or_else(|| {
+                        String::from("Internal error: operator stack became empty")
+                    })?;
                     output.push(o_2_new.token);
                 }
 

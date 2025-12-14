@@ -372,7 +372,10 @@ mod rm_tests {
             get_token(Power),
             get_token_n(Number, 16.0, 0.0),
         ];
-        assert_eq!(parse(test.into_iter().map(Ok)).unwrap_err(), "No end token found");
+        assert_eq!(
+            parse(test.into_iter().map(Ok)).unwrap_err(),
+            "No end token found"
+        );
     }
 
     #[test]
@@ -384,7 +387,10 @@ mod rm_tests {
             get_token_n(Number, 1.0, 1.0),
             get_token(End),
         ];
-        assert_eq!(parse(test.into_iter().map(Ok)).unwrap_err(), "Invalid function");
+        assert_eq!(
+            parse(test.into_iter().map(Ok)).unwrap_err(),
+            "Invalid function"
+        );
     }
 
     #[test]
@@ -396,7 +402,10 @@ mod rm_tests {
             get_token_n(Number, 1.0, 1.0),
             get_token(End),
         ];
-        assert_eq!(parse(test.into_iter().map(Ok)).unwrap_err(), "Invalid opening parenthesis");
+        assert_eq!(
+            parse(test.into_iter().map(Ok)).unwrap_err(),
+            "Invalid opening parenthesis"
+        );
     }
 
     #[test]
@@ -407,7 +416,10 @@ mod rm_tests {
             get_token_n(Number, 1.0, 1.0),
             get_token(End),
         ];
-        assert_eq!(parse(test.into_iter().map(Ok)).unwrap_err(), "Invalid closing parenthesis");
+        assert_eq!(
+            parse(test.into_iter().map(Ok)).unwrap_err(),
+            "Invalid closing parenthesis"
+        );
     }
 
     #[test]
@@ -1196,7 +1208,10 @@ mod rm_tests {
         // Uniform distribution: all values appear once, no mode exists
         let test = "mode(1, 2, 3, 4, 5)";
         let actual_result = calculator::calculate(test).unwrap();
-        assert!(actual_result.is_nan(), "Uniform distribution should return NaN");
+        assert!(
+            actual_result.is_nan(),
+            "Uniform distribution should return NaN"
+        );
     }
 
     #[test]
@@ -1257,7 +1272,10 @@ mod rm_tests {
         // Variadic functions NOW ACCEPT full expressions with frame-based evaluation!
         let result = calculator::calculate("avg(1+1, 2)");
         // avg(2, 2) = 2.0
-        assert!(result.is_ok(), "Arithmetic inside variadic params should work");
+        assert!(
+            result.is_ok(),
+            "Arithmetic inside variadic params should work"
+        );
         assert!(is_close(result.unwrap(), 2.0));
     }
 
@@ -1933,7 +1951,12 @@ mod rm_tests {
         let test = "sqrt(0.01)";
         let result = calculator::calculate(test).unwrap();
         let expected = 0.1;
-        assert!((result - expected).abs() < 0.001, "sqrt(0.01) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "sqrt(0.01) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -1941,7 +1964,12 @@ mod rm_tests {
         let test = "sqrt(0.0001)";
         let result = calculator::calculate(test).unwrap();
         let expected = 0.01;
-        assert!((result - expected).abs() < 0.001, "sqrt(0.0001) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "sqrt(0.0001) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -1949,7 +1977,12 @@ mod rm_tests {
         let test = "sqrt(0.000001)";
         let result = calculator::calculate(test).unwrap();
         let expected = 0.001;
-        assert!((result - expected).abs() < 0.001, "sqrt(0.000001) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "sqrt(0.000001) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -1957,7 +1990,12 @@ mod rm_tests {
         let test = "sqrt(0.00000001)";
         let result = calculator::calculate(test).unwrap();
         let expected = 0.0001;
-        assert!((result - expected).abs() < 0.001, "sqrt(0.00000001) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "sqrt(0.00000001) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -1965,7 +2003,12 @@ mod rm_tests {
         let test = "sqrt(0.25)";
         let result = calculator::calculate(test).unwrap();
         let expected = 0.5;
-        assert!((result - expected).abs() < 0.001, "sqrt(0.25) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "sqrt(0.25) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -1973,7 +2016,12 @@ mod rm_tests {
         let test = "sqrt(2)";
         let result = calculator::calculate(test).unwrap();
         let expected = 1.41421356;
-        assert!((result - expected).abs() < 0.001, "sqrt(2) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "sqrt(2) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -1999,7 +2047,12 @@ mod rm_tests {
         let test = "sqrt(50)";
         let result = calculator::calculate(test).unwrap();
         let expected = 7.071067812;
-        assert!((result - expected).abs() < 0.001, "sqrt(50) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "sqrt(50) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -2013,7 +2066,12 @@ mod rm_tests {
         let test = "sqrt(123)";
         let result = calculator::calculate(test).unwrap();
         let expected = 11.09053651;
-        assert!((result - expected).abs() < 0.01, "sqrt(123) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.01,
+            "sqrt(123) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -2033,7 +2091,12 @@ mod rm_tests {
         let test = "sqrt(999999)";
         let result = calculator::calculate(test).unwrap();
         let expected = 999.9995;
-        assert!((result - expected).abs() < 0.1, "sqrt(999999) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.1,
+            "sqrt(999999) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -2047,7 +2110,12 @@ mod rm_tests {
         let test = "sqrt(10000000000)";
         let result = calculator::calculate(test).unwrap();
         let expected = 100000.0;
-        assert!((result - expected).abs() < 1.0, "sqrt(1e10) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 1.0,
+            "sqrt(1e10) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -2055,7 +2123,12 @@ mod rm_tests {
         let test = "sqrt(1000000000000000000)";
         let result = calculator::calculate(test).unwrap();
         let expected = 1000000000.0;
-        assert!((result - expected).abs() < 1000.0, "sqrt(1e18) = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() < 1000.0,
+            "sqrt(1e18) = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -2097,7 +2170,12 @@ mod rm_tests {
         let test = "20!";
         let result = calculator::calculate(test).unwrap();
         let expected = 2432902008176640000.0;
-        assert!((result - expected).abs() / expected < 0.01, "20! = {}, expected ~{}", result, expected);
+        assert!(
+            (result - expected).abs() / expected < 0.01,
+            "20! = {}, expected ~{}",
+            result,
+            expected
+        );
     }
 
     // ========== Operator Precedence & Associativity ==========
@@ -2139,21 +2217,33 @@ mod rm_tests {
     fn cos_of_pi_over_2() {
         let test = "cos(π/2)";
         let result = calculator::calculate(test).unwrap();
-        assert!(result.abs() < 0.0001, "cos(π/2) should be ≈0, got {}", result);
+        assert!(
+            result.abs() < 0.0001,
+            "cos(π/2) should be ≈0, got {}",
+            result
+        );
     }
 
     #[test]
     fn tan_of_pi_over_2() {
         let test = "tan(π/2)";
         let result = calculator::calculate(test).unwrap();
-        assert!(result.abs() > 1000.0 || result.is_infinite(), "tan(π/2) should be very large or infinite, got {}", result);
+        assert!(
+            result.abs() > 1000.0 || result.is_infinite(),
+            "tan(π/2) should be very large or infinite, got {}",
+            result
+        );
     }
 
     #[test]
     fn tan_of_pi_over_4() {
         let test = "tan(π/4)";
         let result = calculator::calculate(test).unwrap();
-        assert!((result - 1.0).abs() < 0.001, "tan(π/4) should be 1, got {}", result);
+        assert!(
+            (result - 1.0).abs() < 0.001,
+            "tan(π/4) should be 1, got {}",
+            result
+        );
     }
 
     // ========== Logarithm Edge Cases ==========
@@ -2174,7 +2264,11 @@ mod rm_tests {
     fn ln_of_e_constant() {
         let test = "ln(e)";
         let result = calculator::calculate(test).unwrap();
-        assert!((result - 1.0).abs() < 0.0001, "ln(e) should be 1, got {}", result);
+        assert!(
+            (result - 1.0).abs() < 0.0001,
+            "ln(e) should be 1, got {}",
+            result
+        );
     }
 
     #[test]
@@ -2217,14 +2311,20 @@ mod rm_tests {
     fn ends_with_operator() {
         let test = "5 +";
         let result = calculator::calculate(test);
-        assert!(result.is_err(), "Expression ending with operator should error");
+        assert!(
+            result.is_err(),
+            "Expression ending with operator should error"
+        );
     }
 
     #[test]
     fn starts_with_operator() {
         let test = "+ 5";
         let result = calculator::calculate(test);
-        assert!(result.is_err(), "Expression starting with operator should error");
+        assert!(
+            result.is_err(),
+            "Expression starting with operator should error"
+        );
     }
 
     #[test]
@@ -2245,7 +2345,10 @@ mod rm_tests {
     fn operator_with_empty_parens() {
         let test = "5 + ()";
         let result = calculator::calculate(test);
-        assert!(result.is_err(), "Operator with empty parentheses should error");
+        assert!(
+            result.is_err(),
+            "Operator with empty parentheses should error"
+        );
     }
 
     // ========== Constants ==========
@@ -2255,7 +2358,12 @@ mod rm_tests {
         let test = "e * π";
         let result = calculator::calculate(test).unwrap();
         let expected = std::f32::consts::E * std::f32::consts::PI;
-        assert!((result - expected).abs() < 0.001, "e * π = {}, expected {}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "e * π = {}, expected {}",
+            result,
+            expected
+        );
     }
 
     #[test]
@@ -2275,7 +2383,12 @@ mod rm_tests {
         let test = "π^2";
         let result = calculator::calculate(test).unwrap();
         let expected = std::f32::consts::PI * std::f32::consts::PI;
-        assert!((result - expected).abs() < 0.001, "π² = {}, expected {}", result, expected);
+        assert!(
+            (result - expected).abs() < 0.001,
+            "π² = {}, expected {}",
+            result,
+            expected
+        );
     }
 
     // ========== DEEP NESTING TESTS ==========
@@ -2568,12 +2681,18 @@ mod rm_tests {
         // max(-min(1, 2), -min(3, 4))
         // = max(-1, -3)
         // = -1
-        assert_eq!(calculator::calculate("max(-min(1, 2), -min(3, 4))").unwrap(), -1.0);
+        assert_eq!(
+            calculator::calculate("max(-min(1, 2), -min(3, 4))").unwrap(),
+            -1.0
+        );
 
         // min(-max(1, 2), -max(3, 4))
         // = min(-2, -4)
         // = -4
-        assert_eq!(calculator::calculate("min(-max(1, 2), -max(3, 4))").unwrap(), -4.0);
+        assert_eq!(
+            calculator::calculate("min(-max(1, 2), -max(3, 4))").unwrap(),
+            -4.0
+        );
     }
 
     #[test]
@@ -2742,7 +2861,10 @@ mod rm_tests {
         // = 1 + 64 * 4 - 1
         // = 1 + 256 - 1
         // = 256
-        assert_eq!(calculator::calculate("1 + 2^3! * 4 - 5 / (2 + 3)").unwrap(), 256.0);
+        assert_eq!(
+            calculator::calculate("1 + 2^3! * 4 - 5 / (2 + 3)").unwrap(),
+            256.0
+        );
     }
 
     #[test]
@@ -2781,7 +2903,10 @@ mod rm_tests {
     #[test]
     fn stress_nested_abs_chains() {
         // abs(abs(abs(abs(abs(-42)))))
-        assert_eq!(calculator::calculate("abs(abs(abs(abs(abs(-42)))))").unwrap(), 42.0);
+        assert_eq!(
+            calculator::calculate("abs(abs(abs(abs(abs(-42)))))").unwrap(),
+            42.0
+        );
     }
 
     #[test]
@@ -2816,7 +2941,10 @@ mod rm_tests {
         // = max(8, 9, avg(16, 16))
         // = max(8, 9, 16)
         // = 16
-        assert_eq!(calculator::calculate("max(2^3, 3^2, avg(4^2, 2^4))").unwrap(), 16.0);
+        assert_eq!(
+            calculator::calculate("max(2^3, 3^2, avg(4^2, 2^4))").unwrap(),
+            16.0
+        );
     }
 
     #[test]
@@ -2825,7 +2953,10 @@ mod rm_tests {
         // = min(120, avg(24, 6), max(2, 1))
         // = min(120, 15, 2)
         // = 2
-        assert_eq!(calculator::calculate("min(5!, avg(4!, 3!), max(2!, 1!))").unwrap(), 2.0);
+        assert_eq!(
+            calculator::calculate("min(5!, avg(4!, 3!), max(2!, 1!))").unwrap(),
+            2.0
+        );
     }
 
     #[test]
@@ -2879,13 +3010,19 @@ mod rm_tests {
     #[test]
     fn stress_multiple_x_terms_complex() {
         // 5x + 3x - 2x + x + 10 where x = 0 = 10
-        assert_eq!(calculator::calculate("5x + 3x - 2x + x + 10").unwrap(), 10.0);
+        assert_eq!(
+            calculator::calculate("5x + 3x - 2x + x + 10").unwrap(),
+            10.0
+        );
     }
 
     #[test]
     fn stress_x_in_variadic() {
         // avg(x + 1, 2x + 2, 3x + 3) where x = 0 = avg(1, 2, 3) = 2
-        assert_eq!(calculator::calculate("avg(x + 1, 2x + 2, 3x + 3)").unwrap(), 2.0);
+        assert_eq!(
+            calculator::calculate("avg(x + 1, 2x + 2, 3x + 3)").unwrap(),
+            2.0
+        );
     }
 
     #[test]
@@ -3043,7 +3180,10 @@ mod rm_tests {
     #[test]
     fn stress_median_large_set() {
         // med(1,2,3,4,5,6,7,8,9,10,11) = 6
-        assert_eq!(calculator::calculate("med(1,2,3,4,5,6,7,8,9,10,11)").unwrap(), 6.0);
+        assert_eq!(
+            calculator::calculate("med(1,2,3,4,5,6,7,8,9,10,11)").unwrap(),
+            6.0
+        );
     }
 
     #[test]
@@ -3064,5 +3204,4 @@ mod rm_tests {
         // ch(10, 5) = 252
         assert_eq!(calculator::calculate("ch(10, 5)").unwrap(), 252.0);
     }
-
 }

@@ -111,7 +111,9 @@ where
                     *seen.entry(bits).or_insert(0) += 1;
                 }
 
-                let max_count = *seen.values().max()
+                let max_count = *seen
+                    .values()
+                    .max()
                     .ok_or_else(|| String::from("mode requires at least one parameter"))?;
 
                 let result = if max_count == 1 {
@@ -132,16 +134,27 @@ where
                 let frame = frames.pop().ok_or("Unexpected EndChoice token")?;
                 let params: Vec<f32> = stack.split_off(frame.stack_position);
                 if params.len() != 2 {
-                    return Err(format!("choice requires exactly 2 parameters, got {}", params.len()));
+                    return Err(format!(
+                        "choice requires exactly 2 parameters, got {}",
+                        params.len()
+                    ));
                 }
 
                 // Validate integers
                 for (i, &param) in params.iter().enumerate() {
                     if param % 1.0 != 0.0 {
-                        return Err(format!("Parameter {} must be an integer, got {}", i + 1, param));
+                        return Err(format!(
+                            "Parameter {} must be an integer, got {}",
+                            i + 1,
+                            param
+                        ));
                     }
                     if param < 0.0 {
-                        return Err(format!("Parameter {} must be non-negative, got {}", i + 1, param));
+                        return Err(format!(
+                            "Parameter {} must be non-negative, got {}",
+                            i + 1,
+                            param
+                        ));
                     }
                 }
 
@@ -159,39 +172,57 @@ where
             TokenType::_Pi => stack.push(PI),
             TokenType::_E => stack.push(E),
             TokenType::UnaryMinus => {
-                let temp = stack.pop().ok_or("Insufficient operands for unary minus operator")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for unary minus operator")?;
                 stack.push(-temp);
             }
             TokenType::Sin => {
-                let temp = stack.pop().ok_or("Insufficient operands for sin function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for sin function")?;
                 stack.push(temp.sin());
             }
             TokenType::Cos => {
-                let temp = stack.pop().ok_or("Insufficient operands for cos function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for cos function")?;
                 stack.push(temp.cos());
             }
             TokenType::Tan => {
-                let temp = stack.pop().ok_or("Insufficient operands for tan function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for tan function")?;
                 stack.push(temp.tan());
             }
             TokenType::Asin => {
-                let temp = stack.pop().ok_or("Insufficient operands for asin function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for asin function")?;
                 stack.push(temp.asin());
             }
             TokenType::Acos => {
-                let temp = stack.pop().ok_or("Insufficient operands for acos function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for acos function")?;
                 stack.push(temp.acos());
             }
             TokenType::Atan => {
-                let temp = stack.pop().ok_or("Insufficient operands for atan function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for atan function")?;
                 stack.push(temp.atan());
             }
             TokenType::Abs => {
-                let temp = stack.pop().ok_or("Insufficient operands for abs function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for abs function")?;
                 stack.push(abs_f32(temp));
             }
             TokenType::Sqrt => {
-                let temp = stack.pop().ok_or("Insufficient operands for sqrt function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for sqrt function")?;
                 if temp.is_sign_negative() {
                     //TODO: For now return NaN, I want to return a complex number at some point
                     return Ok(f32::NAN);
@@ -203,7 +234,9 @@ where
                 stack.push(temp.ln());
             }
             TokenType::Factorial => {
-                let temp = stack.pop().ok_or("Insufficient operands for factorial operator")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for factorial operator")?;
                 if temp < 0.0 {
                     return Err("Factorial is only defined for non-negative integers".to_string());
                 }
@@ -213,7 +246,9 @@ where
                 stack.push(crate::utilities::factorial(temp as isize) as f32);
             }
             TokenType::Log => {
-                let temp = stack.pop().ok_or("Insufficient operands for log function")?;
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for log function")?;
                 stack.push(temp.log(token.numeric_value_1));
             }
             TokenType::X => stack.push(token.numeric_value_1 * x.powf(token.numeric_value_2)),

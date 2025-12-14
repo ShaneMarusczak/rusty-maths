@@ -18,5 +18,5 @@ pub mod calculator;
 // Internal modules (not part of public API)
 pub(crate) mod pipeline;
 pub(crate) mod structs;
-pub(crate) mod utils;
 mod tests;
+pub(crate) mod utils;

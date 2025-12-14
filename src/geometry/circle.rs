@@ -4,10 +4,47 @@ use crate::geometry::traits::{
 };
 use std::f32::consts::PI;
 
-///A struct representing a circle
+/// A struct representing a circle
 pub struct Circle {
+    /// The center point of the circle as (x, y) coordinates
     pub center: (f32, f32),
+    /// The radius of the circle
     pub radius: f32,
+}
+
+impl Circle {
+    /// Creates a new Circle with the given radius, centered at the origin (0.0, 0.0)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rusty_maths::geometry::circle::Circle;
+    ///
+    /// let circle = Circle::new(5.0);
+    /// assert_eq!(circle.radius, 5.0);
+    /// assert_eq!(circle.center, (0.0, 0.0));
+    /// ```
+    pub fn new(radius: f32) -> Self {
+        Circle {
+            center: (0.0, 0.0),
+            radius,
+        }
+    }
+
+    /// Creates a new Circle with the given radius and center point
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rusty_maths::geometry::circle::Circle;
+    ///
+    /// let circle = Circle::with_center(5.0, (10.0, 20.0));
+    /// assert_eq!(circle.radius, 5.0);
+    /// assert_eq!(circle.center, (10.0, 20.0));
+    /// ```
+    pub fn with_center(radius: f32, center: (f32, f32)) -> Self {
+        Circle { center, radius }
+    }
 }
 
 impl Diameter for Circle {

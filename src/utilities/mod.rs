@@ -2,25 +2,134 @@ use crate::linear_algebra::Vector;
 use rand::distributions::Uniform;
 use rand::Rng;
 
+/// Calculates the accuracy of a classification model
+///
+/// Accuracy = (TP + TN) / (TP + FP + FN + TN)
+///
+/// # Arguments
+///
+/// * `t_p` - True positives
+/// * `f_p` - False positives
+/// * `f_n` - False negatives
+/// * `t_n` - True negatives
+///
+/// # Returns
+///
+/// The accuracy as a value between 0.0 and 1.0, or 0.0 if total is zero
+///
+/// # Examples
+///
+/// ```
+/// use rusty_maths::utilities::accuracy;
+///
+/// let acc = accuracy(70, 4930, 13930, 981070);
+/// assert_eq!(acc, 0.98114);
+/// ```
 pub fn accuracy(t_p: isize, f_p: isize, f_n: isize, t_n: isize) -> f64 {
     let correct = t_p + t_n;
     let total = t_p + f_p + f_n + t_n;
+    if total == 0 {
+        return 0.0;
+    }
     correct as f64 / total as f64
 }
 
+/// Calculates the precision of a classification model
+///
+/// Precision = TP / (TP + FP)
+///
+/// Measures the proportion of positive predictions that were correct
+///
+/// # Arguments
+///
+/// * `t_p` - True positives
+/// * `f_p` - False positives
+///
+/// # Returns
+///
+/// The precision as a value between 0.0 and 1.0, or 0.0 if denominator is zero
+///
+/// # Examples
+///
+/// ```
+/// use rusty_maths::utilities::precision;
+///
+/// let p = precision(70, 4930);
+/// assert_eq!(p, 0.014);
+/// ```
 pub fn precision(t_p: isize, f_p: isize) -> f64 {
-    t_p as f64 / (t_p as f64 + f_p as f64)
+    let denominator = t_p + f_p;
+    if denominator == 0 {
+        return 0.0;
+    }
+    t_p as f64 / denominator as f64
 }
 
+/// Calculates the recall (sensitivity) of a classification model
+///
+/// Recall = TP / (TP + FN)
+///
+/// Measures the proportion of actual positives that were correctly identified
+///
+/// # Arguments
+///
+/// * `t_p` - True positives
+/// * `f_n` - False negatives
+///
+/// # Returns
+///
+/// The recall as a value between 0.0 and 1.0, or 0.0 if denominator is zero
+///
+/// # Examples
+///
+/// ```
+/// use rusty_maths::utilities::recall;
+///
+/// let r = recall(70, 13930);
+/// assert_eq!(r, 0.005);
+/// ```
 pub fn recall(t_p: isize, f_n: isize) -> f64 {
-    t_p as f64 / (t_p as f64 + f_n as f64)
+    let denominator = t_p + f_n;
+    if denominator == 0 {
+        return 0.0;
+    }
+    t_p as f64 / denominator as f64
 }
 
-pub fn f1_score(t_p: isize, f_p: isize) -> f64 {
+/// Calculates the F1 score of a classification model
+///
+/// F1 = 2 * (Precision * Recall) / (Precision + Recall)
+///
+/// The F1 score is the harmonic mean of precision and recall
+///
+/// # Arguments
+///
+/// * `t_p` - True positives
+/// * `f_p` - False positives
+/// * `f_n` - False negatives
+///
+/// # Returns
+///
+/// The F1 score as a value between 0.0 and 1.0, or 0.0 if denominator is zero
+///
+/// # Examples
+///
+/// ```
+/// use rusty_maths::utilities::f1_score;
+///
+/// let f1 = f1_score(100, 0, 0);
+/// assert_eq!(f1, 1.0);
+/// ```
+pub fn f1_score(t_p: isize, f_p: isize, f_n: isize) -> f64 {
     let p = precision(t_p, f_p);
-    let r = precision(t_p, f_p);
+    let r = recall(t_p, f_n);
+    let denominator = p + r;
 
-    2_f64 * p * r / (p + r)
+    if denominator == 0.0 {
+        return 0.0;
+    }
+
+    2_f64 * p * r / denominator
 }
 
 pub fn train_test_split<X: Clone, Y: Clone>(
@@ -56,18 +165,7 @@ pub fn train_test_split<X: Clone, Y: Clone>(
 ///Returns a sorted copy of a Vector
 pub fn sort_vec_cop(v: &Vector) -> Vector {
     let mut v_c = v.to_vec();
-    let mut slow_p: usize = 0;
-    let mut fast_p: usize = 1;
-    while slow_p < v_c.len() {
-        while fast_p < v_c.len() {
-            if v_c[fast_p] < v_c[slow_p] {
-                v_c.swap(slow_p, fast_p);
-            }
-            fast_p += 1;
-        }
-        slow_p += 1;
-        fast_p = slow_p + 1;
-    }
+    v_c.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     v_c
 }
 
@@ -104,7 +202,7 @@ pub fn shuffle_vector<T: Clone>(v: &[T]) -> Vec<T> {
 ///assert_eq!(abs(101.41), 101.41);
 /// ```
 pub fn abs(num: f64) -> f64 {
-    if num < 0 as f64 {
+    if num < 0.0 {
         return -num;
     }
     num
@@ -119,7 +217,7 @@ pub fn abs(num: f64) -> f64 {
 ///assert_eq!(abs_f32(101.41), 101.41);
 /// ```
 pub fn abs_f32(num: f32) -> f32 {
-    if num < 0 as f32 {
+    if num < 0.0 {
         return -num;
     }
     num
@@ -229,7 +327,18 @@ fn square(num: f64, i: f64, j: f64) -> f64 {
     }
 }
 
+/// Computes the factorial of a number
+///
+/// # Panics
+///
+/// Panics if `num` is negative or greater than 20 (to prevent overflow)
 pub(crate) fn factorial(num: isize) -> isize {
+    if num < 0 {
+        panic!("factorial is not defined for negative numbers");
+    }
+    if num > 20 {
+        panic!("factorial overflow: maximum supported value is 20");
+    }
     let mut ans = 1;
     for i in 1..=num {
         ans *= i;
@@ -401,5 +510,66 @@ mod tests {
     #[test]
     fn recall_test() {
         assert_eq!(recall(70, 13930), 0.005);
+    }
+
+    #[test]
+    fn f1_score_test() {
+        // Normal case
+        // precision(70, 4930) = 70 / 5000 = 0.014
+        // recall(70, 13930) = 70 / 14000 = 0.005
+        // f1 = 2 * (0.014 * 0.005) / (0.014 + 0.005) ≈ 0.00737
+        let f1 = f1_score(70, 4930, 13930);
+        assert!(f1 > 0.007 && f1 < 0.008);
+
+        // Perfect precision and recall
+        assert_eq!(f1_score(100, 0, 0), 1.0);
+
+        // Edge case: all zeros should return 0
+        assert_eq!(f1_score(0, 0, 0), 0.0);
+    }
+
+    #[test]
+    fn precision_edge_cases_test() {
+        // Division by zero case
+        assert_eq!(precision(0, 0), 0.0);
+
+        // Perfect precision
+        assert_eq!(precision(100, 0), 1.0);
+
+        // No true positives
+        assert_eq!(precision(0, 100), 0.0);
+    }
+
+    #[test]
+    fn recall_edge_cases_test() {
+        // Division by zero case
+        assert_eq!(recall(0, 0), 0.0);
+
+        // Perfect recall
+        assert_eq!(recall(100, 0), 1.0);
+
+        // No true positives
+        assert_eq!(recall(0, 100), 0.0);
+    }
+
+    #[test]
+    fn accuracy_edge_cases_test() {
+        // Division by zero case
+        assert_eq!(accuracy(0, 0, 0, 0), 0.0);
+
+        // Perfect accuracy
+        assert_eq!(accuracy(100, 0, 0, 100), 1.0);
+
+        // Zero accuracy
+        assert_eq!(accuracy(0, 100, 100, 0), 0.0);
+    }
+
+    #[test]
+    fn get_str_section_test() {
+        let s = "hello world";
+        assert_eq!(get_str_section(s, 0, 5), "hello");
+        assert_eq!(get_str_section(s, 6, 11), "world");
+        assert_eq!(get_str_section(s, 0, 0), "");
+        assert_eq!(get_str_section(s, 3, 7), "lo w");
     }
 }

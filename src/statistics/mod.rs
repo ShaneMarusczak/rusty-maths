@@ -63,7 +63,7 @@ pub fn interquartile_range(v: &Vector) -> f64 {
 
 pub fn covariance(v: &Vector, w: &Vector) -> f64 {
     assert_eq!(v.len(), w.len(), "vectors must be the same length");
-    de_mean(v);
+    assert!(v.len() >= 2, "covariance requires at least two elements");
     dot_product(&de_mean(v), &de_mean(w)) / (v.len() - 1) as f64
 }
 

@@ -106,14 +106,16 @@ impl<'a> StreamingTokenizer<'a> {
         // Check if we need to wrap in parentheses (after operators with precedence >= 3)
         // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
         // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
-        let prev_is_high_prec = self
-            .previous_token_type
-            .as_ref()
-            .is_some_and(|t| matches!(
+        let prev_is_high_prec = self.previous_token_type.as_ref().is_some_and(|t| {
+            matches!(
                 t,
-                TokenType::Power | TokenType::Star | TokenType::Slash |
-                TokenType::Modulo | TokenType::Percent
-            ));
+                TokenType::Power
+                    | TokenType::Star
+                    | TokenType::Slash
+                    | TokenType::Modulo
+                    | TokenType::Percent
+            )
+        });
         let needs_parens = prev_is_high_prec;
 
         if coefficient != 1.0 {
@@ -153,7 +155,9 @@ impl<'a> StreamingTokenizer<'a> {
             }
 
             // Return the first token (we just pushed at least one token above)
-            let first_token = self.pending_tokens.pop_front()
+            let first_token = self
+                .pending_tokens
+                .pop_front()
                 .ok_or_else(|| String::from("Internal error: expected token in pending queue"))?;
             self.previous_token_type = Some(first_token.token_type);
             Ok(first_token)
@@ -183,7 +187,8 @@ impl<'a> StreamingTokenizer<'a> {
         }
 
         self.start_position = self.position;
-        let c = self.advance()
+        let c = self
+            .advance()
             .ok_or_else(|| String::from("Unexpected end of input"))?;
 
         let token = match c {
@@ -225,11 +230,15 @@ impl<'a> StreamingTokenizer<'a> {
 
                 let literal = self.scan_digit()?;
                 if self.peek() != Some('x') {
-                    let val: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
+                    let val: f32 = literal
+                        .parse()
+                        .map_err(|_| format!("Invalid number: {}", literal))?;
                     self.make_token_with_values(Number, val, 0.0)
                 } else {
                     self.advance(); // consume 'x'
-                    let coef: f32 = literal.parse().map_err(|_| format!("Invalid number: {}", literal))?;
+                    let coef: f32 = literal
+                        .parse()
+                        .map_err(|_| format!("Invalid number: {}", literal))?;
                     return Ok(Some(self.handle_x_token(coef)?));
                 }
             }
@@ -260,10 +269,15 @@ impl<'a> StreamingTokenizer<'a> {
                     }
 
                     let base_literal = self.scan_digit()?;
-                    let base: f32 = base_literal.parse().map_err(|_| "Invalid log base".to_string())?;
+                    let base: f32 = base_literal
+                        .parse()
+                        .map_err(|_| "Invalid log base".to_string())?;
 
                     if self.peek() != Some('(') {
-                        return Err(format!("Invalid input at character {}", self.start_position));
+                        return Err(format!(
+                            "Invalid input at character {}",
+                            self.start_position
+                        ));
                     }
                     self.advance(); // consume '('
 
@@ -271,7 +285,10 @@ impl<'a> StreamingTokenizer<'a> {
                 }
 
                 if self.peek() != Some('(') {
-                    return Err(format!("Invalid input at character {}", self.start_position));
+                    return Err(format!(
+                        "Invalid input at character {}",
+                        self.start_position
+                    ));
                 }
                 self.advance(); // consume '('
 

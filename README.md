@@ -177,7 +177,7 @@ Run the comprehensive test suite:
 cargo test
 ```
 
-**350 tests** covering:
+**405 tests** covering:
 - Equation analyzer tests (parsing, evaluation, plotting)
 - Statistics, linear algebra, geometry, and gradient descent
 - Edge cases and error handling
@@ -187,7 +187,7 @@ cargo test
 The codebase emphasizes:
 - **Clean Architecture**: Single, optimized pipeline implementation
 - **Zero-Cost Abstractions**: Generic implementations with zero runtime overhead
-- **Comprehensive Testing**: 350 tests covering all functionality
+- **Comprehensive Testing**: 405 tests covering all functionality
 - **Performance**: Benchmarked and optimized with criterion
 - **Documentation**: Extensive docs for all public APIs and internal architecture
 
