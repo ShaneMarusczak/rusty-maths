@@ -11,6 +11,18 @@ struct FunctionFrame {
     stack_position: usize,
 }
 
+/// Pops the current function frame and splits off its parameters from the stack.
+fn pop_frame(
+    frames: &mut Vec<FunctionFrame>,
+    stack: &mut Vec<f32>,
+    name: &str,
+) -> Result<Vec<f32>, String> {
+    let frame = frames
+        .pop()
+        .ok_or_else(|| format!("Unexpected End{} token", name))?;
+    Ok(stack.split_off(frame.stack_position))
+}
+
 /// Generic RPN evaluator that works with any iterator of tokens.
 ///
 /// This is the core evaluation logic shared by all pipeline implementations.
@@ -55,35 +67,28 @@ where
             }
             // End tokens - collect params and compute
             TokenType::EndMin => {
-                let frame = frames.pop().ok_or("Unexpected EndMin token")?;
-                let params: Vec<f32> = stack.split_off(frame.stack_position);
+                let params = pop_frame(&mut frames, &mut stack, "Min")?;
                 if params.is_empty() {
                     return Err("min requires at least one parameter".to_string());
                 }
-                let result = params.iter().copied().fold(f32::MAX, f32::min);
-                stack.push(result);
+                stack.push(params.iter().copied().fold(f32::MAX, f32::min));
             }
             TokenType::EndMax => {
-                let frame = frames.pop().ok_or("Unexpected EndMax token")?;
-                let params: Vec<f32> = stack.split_off(frame.stack_position);
+                let params = pop_frame(&mut frames, &mut stack, "Max")?;
                 if params.is_empty() {
                     return Err("max requires at least one parameter".to_string());
                 }
-                let result = params.iter().copied().fold(f32::MIN, f32::max);
-                stack.push(result);
+                stack.push(params.iter().copied().fold(f32::MIN, f32::max));
             }
             TokenType::EndAvg => {
-                let frame = frames.pop().ok_or("Unexpected EndAvg token")?;
-                let params: Vec<f32> = stack.split_off(frame.stack_position);
+                let params = pop_frame(&mut frames, &mut stack, "Avg")?;
                 if params.is_empty() {
                     return Err("avg requires at least one parameter".to_string());
                 }
-                let result = params.iter().sum::<f32>() / params.len() as f32;
-                stack.push(result);
+                stack.push(params.iter().sum::<f32>() / params.len() as f32);
             }
             TokenType::EndMed => {
-                let frame = frames.pop().ok_or("Unexpected EndMed token")?;
-                let mut params: Vec<f32> = stack.split_off(frame.stack_position);
+                let mut params = pop_frame(&mut frames, &mut stack, "Med")?;
                 if params.is_empty() {
                     return Err("median requires at least one parameter".to_string());
                 }
@@ -98,8 +103,7 @@ where
                 stack.push(result);
             }
             TokenType::EndMode => {
-                let frame = frames.pop().ok_or("Unexpected EndMode token")?;
-                let params: Vec<f32> = stack.split_off(frame.stack_position);
+                let params = pop_frame(&mut frames, &mut stack, "Mode")?;
                 if params.is_empty() {
                     return Err("mode requires at least one parameter".to_string());
                 }
@@ -131,8 +135,7 @@ where
                 stack.push(result);
             }
             TokenType::EndChoice => {
-                let frame = frames.pop().ok_or("Unexpected EndChoice token")?;
-                let params: Vec<f32> = stack.split_off(frame.stack_position);
+                let params = pop_frame(&mut frames, &mut stack, "Choice")?;
                 if params.len() != 2 {
                     return Err(format!(
                         "choice requires exactly 2 parameters, got {}",
@@ -237,10 +240,7 @@ where
                 let temp = stack
                     .pop()
                     .ok_or("Insufficient operands for factorial operator")?;
-                if temp < 0.0 {
-                    return Err("Factorial is only defined for non-negative integers".to_string());
-                }
-                if temp % 1.0 != 0.0 {
+                if temp < 0.0 || temp % 1.0 != 0.0 {
                     return Err("Factorial is only defined for non-negative integers".to_string());
                 }
                 stack.push(crate::utilities::factorial(temp as isize) as f32);

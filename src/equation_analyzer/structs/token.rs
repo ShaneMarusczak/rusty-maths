@@ -86,28 +86,20 @@ impl TokenType {
                 | TokenType::Choice
         )
     }
-}
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub(crate) enum ParamToken {
-    Avg,
-    Min,
-    Max,
-    Med,
-    Mode,
-    Choice,
-}
-
-impl ParamToken {
-    /// Returns the corresponding End* TokenType for this parameter token
+    /// Returns the corresponding End* TokenType for this variadic function token type
     pub fn to_end_token_type(self) -> TokenType {
         match self {
-            ParamToken::Avg => TokenType::EndAvg,
-            ParamToken::Min => TokenType::EndMin,
-            ParamToken::Max => TokenType::EndMax,
-            ParamToken::Mode => TokenType::EndMode,
-            ParamToken::Med => TokenType::EndMed,
-            ParamToken::Choice => TokenType::EndChoice,
+            TokenType::Avg => TokenType::EndAvg,
+            TokenType::Min => TokenType::EndMin,
+            TokenType::Max => TokenType::EndMax,
+            TokenType::Mode => TokenType::EndMode,
+            TokenType::Med => TokenType::EndMed,
+            TokenType::Choice => TokenType::EndChoice,
+            _ => unreachable!(
+                "to_end_token_type called on non-variadic token type: {:?}",
+                self
+            ),
         }
     }
 }

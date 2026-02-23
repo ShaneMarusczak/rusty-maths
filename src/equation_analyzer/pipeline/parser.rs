@@ -1,6 +1,13 @@
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
-use crate::equation_analyzer::structs::token::{ParamToken, Token, TokenType};
+use crate::equation_analyzer::structs::token::{Token, TokenType};
 use crate::equation_analyzer::utils::make_synthetic_token;
+
+/// Represents a parser frame for variadic functions.
+/// Tracks the function type and where its operators begin on the stack.
+struct ParserFrame {
+    token_type: TokenType,
+    operator_stack_position: usize,
+}
 
 /// Generic Shunting Yard parser that works with any iterator of tokens.
 ///
@@ -32,8 +39,7 @@ where
     let mut operator_stack: Vec<Operand> = Vec::new();
     let mut output: Vec<Token> = Vec::new();
     let mut paren_depth = 0;
-    let mut param_token_stack: Vec<ParamToken> = Vec::new(); // Stack for nested variadic functions
-    let mut param_stack_depth: Vec<usize> = Vec::new(); // Track operator stack depth for each variadic function
+    let mut frames: Vec<ParserFrame> = Vec::new();
     let mut found_end = false;
 
     for token_result in tokens {
@@ -41,7 +47,7 @@ where
 
         // Handle variadic function parameter collection
         // With frame-based evaluation, we now allow full expressions in parameters
-        if let Some(&current_param) = param_token_stack.last() {
+        if let Some(frame) = frames.last() {
             match token.token_type {
                 // Comma: pop all pending operators (they belong to current parameter expression)
                 TokenType::Comma => {
@@ -68,21 +74,12 @@ where
                         output.push(op.token);
                     }
 
-                    // Check if this closes the variadic function by checking stack depth
-                    // We need to check if the paren_opener we found is at the expected depth
-                    let expected_depth = param_stack_depth
-                        .last()
-                        .ok_or("Missing param stack depth")?;
-
-                    if operator_stack.len() == *expected_depth + 1 {
-                        // This is our synthetic OpenParen - end the variadic function
+                    // Check if we've drained back to the frame boundary
+                    if operator_stack.len() == frame.operator_stack_position + 1 {
                         operator_stack.pop();
                         paren_depth -= 1;
-
-                        // Emit the End* token
-                        output.push(make_synthetic_token(current_param.to_end_token_type()));
-                        param_token_stack.pop();
-                        param_stack_depth.pop();
+                        output.push(make_synthetic_token(frame.token_type.to_end_token_type()));
+                        frames.pop();
                         continue;
                     }
 
@@ -104,54 +101,14 @@ where
             }
 
             // Variadic functions - start parameter collection
-            // Note: The tokenizer consumes the OpenParen, so we need to push a marker
-            // to the operator stack to prevent operators from before the function
-            // being included in the function's parameters
-            TokenType::Avg => {
+            // The tokenizer consumes the OpenParen, so we push a synthetic marker
+            // to the operator stack to fence off preceding operators
+            _ if token.token_type.is_variadic_function() => {
                 output.push(token);
-                param_token_stack.push(ParamToken::Avg);
-                param_stack_depth.push(operator_stack.len());
-                // Push synthetic OpenParen marker
-                operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
-                paren_depth += 1;
-            }
-
-            TokenType::Choice => {
-                output.push(token);
-                param_token_stack.push(ParamToken::Choice);
-                param_stack_depth.push(operator_stack.len());
-                operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
-                paren_depth += 1;
-            }
-
-            TokenType::Min => {
-                output.push(token);
-                param_token_stack.push(ParamToken::Min);
-                param_stack_depth.push(operator_stack.len());
-                operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
-                paren_depth += 1;
-            }
-
-            TokenType::Max => {
-                output.push(token);
-                param_token_stack.push(ParamToken::Max);
-                param_stack_depth.push(operator_stack.len());
-                operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
-                paren_depth += 1;
-            }
-
-            TokenType::Med => {
-                output.push(token);
-                param_token_stack.push(ParamToken::Med);
-                param_stack_depth.push(operator_stack.len());
-                operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
-                paren_depth += 1;
-            }
-
-            TokenType::Mode => {
-                output.push(token);
-                param_token_stack.push(ParamToken::Mode);
-                param_stack_depth.push(operator_stack.len());
+                frames.push(ParserFrame {
+                    token_type: token.token_type,
+                    operator_stack_position: operator_stack.len(),
+                });
                 operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
                 paren_depth += 1;
             }

@@ -54,13 +54,7 @@ impl<'a> StreamingTokenizer<'a> {
     }
 
     fn make_token(&mut self, token_type: TokenType) -> Token {
-        let token = Token {
-            token_type,
-            numeric_value_1: 0.0,
-            numeric_value_2: 0.0,
-        };
-        self.previous_token_type = Some(token_type);
-        token
+        self.make_token_with_values(token_type, 0.0, 0.0)
     }
 
     fn make_token_with_values(&mut self, token_type: TokenType, val1: f32, val2: f32) -> Token {
@@ -106,7 +100,7 @@ impl<'a> StreamingTokenizer<'a> {
         // Check if we need to wrap in parentheses (after operators with precedence >= 3)
         // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
         // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
-        let prev_is_high_prec = self.previous_token_type.as_ref().is_some_and(|t| {
+        let needs_parens = self.previous_token_type.as_ref().is_some_and(|t| {
             matches!(
                 t,
                 TokenType::Power
@@ -116,7 +110,6 @@ impl<'a> StreamingTokenizer<'a> {
                     | TokenType::Percent
             )
         });
-        let needs_parens = prev_is_high_prec;
 
         if coefficient != 1.0 {
             // Queue multiple tokens
