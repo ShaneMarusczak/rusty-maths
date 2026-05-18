@@ -17,7 +17,7 @@ mod rm_tests {
     use crate::equation_analyzer::pipeline::tokenizer::StreamingTokenizer;
     use crate::equation_analyzer::structs::token::TokenType::{
         CloseParen, End, Equal, Ln, Log, Minus, Number, OpenParen, Plus, Power, Sin, Slash, Star,
-        UnaryMinus, Y, _E,
+        UnaryMinus, _E, Y,
     };
     use crate::equation_analyzer::structs::token::{Token, TokenType};
     use crate::utilities::abs_f32;
