@@ -212,6 +212,13 @@ impl<'a> StreamingTokenizer<'a> {
                     self.make_token(UnaryMinus)
                 }
             }
+            '|' => {
+                // Accept either `|` or `|>` as the pipe operator.
+                if self.peek() == Some('>') {
+                    self.advance();
+                }
+                self.make_token(Pipe)
+            }
             '(' => self.make_token(OpenParen),
             ')' => self.make_token(CloseParen),
             '^' => self.make_token(Power),
@@ -242,12 +249,50 @@ impl<'a> StreamingTokenizer<'a> {
 
                 let mut name = String::new();
                 while let Some(ch) = self.peek() {
-                    if ch.is_alphabetic() {
+                    if ch.is_alphabetic() || (!name.is_empty() && ch.is_ascii_digit()) {
                         name.push(ch);
                         self.advance();
                     } else {
                         break;
                     }
+                }
+
+                // Pipe target: name must be a unary function, no parens follow.
+                if matches!(self.previous_token_type, Some(Pipe)) {
+                    let token_type = match name.as_str() {
+                        "sin" => Sin,
+                        "cos" => Cos,
+                        "tan" => Tan,
+                        "asin" | "arcsin" => Asin,
+                        "acos" | "arccos" => Acos,
+                        "atan" | "arctan" => Atan,
+                        "sinh" => Sinh,
+                        "cosh" => Cosh,
+                        "tanh" => Tanh,
+                        "sec" => Sec,
+                        "csc" => Csc,
+                        "cot" => Cot,
+                        "deg" => Deg,
+                        "rad" => Rad,
+                        "abs" => Abs,
+                        "sqrt" => Sqrt,
+                        "ln" => Ln,
+                        _ => {
+                            return Err(format!(
+                                "'{}' cannot be used after '|>'; only unary functions are allowed",
+                                name
+                            ));
+                        }
+                    };
+
+                    if self.peek() == Some('(') {
+                        return Err(format!(
+                            "Function '{}' after '|>' must not be called with parentheses; the piped value is its argument",
+                            name
+                        ));
+                    }
+
+                    return Ok(Some(self.make_token(token_type)));
                 }
 
                 // Handle log base
@@ -289,9 +334,18 @@ impl<'a> StreamingTokenizer<'a> {
                     "sin" => Sin,
                     "cos" => Cos,
                     "tan" => Tan,
-                    "asin" => Asin,
-                    "acos" => Acos,
-                    "atan" => Atan,
+                    "asin" | "arcsin" => Asin,
+                    "acos" | "arccos" => Acos,
+                    "atan" | "arctan" => Atan,
+                    "atan2" => Atan2,
+                    "sinh" => Sinh,
+                    "cosh" => Cosh,
+                    "tanh" => Tanh,
+                    "sec" => Sec,
+                    "csc" => Csc,
+                    "cot" => Cot,
+                    "deg" => Deg,
+                    "rad" => Rad,
                     "max" => Max,
                     "abs" => Abs,
                     "sqrt" => Sqrt,
