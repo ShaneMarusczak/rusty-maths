@@ -41,9 +41,44 @@ where
     let mut paren_depth = 0;
     let mut frames: Vec<ParserFrame> = Vec::new();
     let mut found_end = false;
+    let mut expect_piped_function = false;
 
     for token_result in tokens {
         let token = token_result?;
+
+        // After a Pipe, the next token must be a unary function token.
+        // Emit it directly to the output queue (it's already in postfix position).
+        if expect_piped_function {
+            match token.token_type {
+                TokenType::Sin
+                | TokenType::Cos
+                | TokenType::Tan
+                | TokenType::Asin
+                | TokenType::Acos
+                | TokenType::Atan
+                | TokenType::Sinh
+                | TokenType::Cosh
+                | TokenType::Tanh
+                | TokenType::Sec
+                | TokenType::Csc
+                | TokenType::Cot
+                | TokenType::Deg
+                | TokenType::Rad
+                | TokenType::Abs
+                | TokenType::Sqrt
+                | TokenType::Ln => {
+                    output.push(token);
+                    expect_piped_function = false;
+                    continue;
+                }
+                _ => {
+                    return Err(format!(
+                        "Expected a unary function after '|>', got {:?}",
+                        token.token_type
+                    ));
+                }
+            }
+        }
 
         // Handle variadic function parameter collection
         // With frame-based evaluation, we now allow full expressions in parameters
@@ -120,6 +155,14 @@ where
             | TokenType::Asin
             | TokenType::Acos
             | TokenType::Atan
+            | TokenType::Sinh
+            | TokenType::Cosh
+            | TokenType::Tanh
+            | TokenType::Sec
+            | TokenType::Csc
+            | TokenType::Cot
+            | TokenType::Deg
+            | TokenType::Rad
             | TokenType::Abs
             | TokenType::Sqrt
             | TokenType::Ln
@@ -206,6 +249,21 @@ where
                 operator_stack.push(o_1);
             }
 
+            // Pipe operator: flush pending operators (down to current paren depth)
+            // and arm `expect_piped_function` so the next token is emitted directly.
+            TokenType::Pipe => {
+                while let Some(last) = operator_stack.last() {
+                    if last.paren_opener {
+                        break;
+                    }
+                    let op = operator_stack.pop().ok_or_else(|| {
+                        String::from("Internal error: operator stack became empty")
+                    })?;
+                    output.push(op.token);
+                }
+                expect_piped_function = true;
+            }
+
             // Operands go directly to output
             TokenType::Number | TokenType::X => output.push(token),
 
@@ -234,6 +292,10 @@ where
 
     if !found_end {
         return Err("No end token found".to_string());
+    }
+
+    if expect_piped_function {
+        return Err("Dangling '|>': expected a unary function on the right side".to_string());
     }
 
     Ok(output)

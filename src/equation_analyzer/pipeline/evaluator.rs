@@ -134,6 +134,16 @@ where
                 };
                 stack.push(result);
             }
+            TokenType::EndAtan2 => {
+                let params = pop_frame(&mut frames, &mut stack, "Atan2")?;
+                if params.len() != 2 {
+                    return Err(format!(
+                        "atan2 requires exactly 2 parameters (y, x), got {}",
+                        params.len()
+                    ));
+                }
+                stack.push(params[0].atan2(params[1]));
+            }
             TokenType::EndChoice => {
                 let params = pop_frame(&mut frames, &mut stack, "Choice")?;
                 if params.len() != 2 {
@@ -215,6 +225,54 @@ where
                     .pop()
                     .ok_or("Insufficient operands for atan function")?;
                 stack.push(temp.atan());
+            }
+            TokenType::Sinh => {
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for sinh function")?;
+                stack.push(temp.sinh());
+            }
+            TokenType::Cosh => {
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for cosh function")?;
+                stack.push(temp.cosh());
+            }
+            TokenType::Tanh => {
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for tanh function")?;
+                stack.push(temp.tanh());
+            }
+            TokenType::Sec => {
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for sec function")?;
+                stack.push(1.0 / temp.cos());
+            }
+            TokenType::Csc => {
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for csc function")?;
+                stack.push(1.0 / temp.sin());
+            }
+            TokenType::Cot => {
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for cot function")?;
+                stack.push(1.0 / temp.tan());
+            }
+            TokenType::Deg => {
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for deg function")?;
+                stack.push(temp * 180.0 / PI);
+            }
+            TokenType::Rad => {
+                let temp = stack
+                    .pop()
+                    .ok_or("Insufficient operands for rad function")?;
+                stack.push(temp * PI / 180.0);
             }
             TokenType::Abs => {
                 let temp = stack

@@ -37,6 +37,14 @@ pub(crate) fn get_operator(operator: Token) -> Result<Operand, String> {
         | TokenType::Asin
         | TokenType::Acos
         | TokenType::Atan
+        | TokenType::Sinh
+        | TokenType::Cosh
+        | TokenType::Tanh
+        | TokenType::Sec
+        | TokenType::Csc
+        | TokenType::Cot
+        | TokenType::Deg
+        | TokenType::Rad
         | TokenType::Log => Ok(get_op(operator, 0, Assoc::Right, true, true)),
         op => Err(format!("Unknown operator: {:?}", op)),
     }

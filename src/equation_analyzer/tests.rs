@@ -3210,4 +3210,300 @@ mod rm_tests {
         // ch(10, 5) = 252
         assert_eq!(calculator::calculate("ch(10, 5)").unwrap(), 252.0);
     }
+
+    fn approx(x1: f32, x2: f32) -> bool {
+        abs_f32(x1 - x2) < 1e-4
+    }
+
+    #[test]
+    fn arctan_alias_test() {
+        let a = calculator::calculate("arctan(1)").unwrap();
+        let b = calculator::calculate("atan(1)").unwrap();
+        assert!(is_close(a, b));
+    }
+
+    #[test]
+    fn arcsin_alias_test() {
+        let a = calculator::calculate("arcsin(1)").unwrap();
+        let b = calculator::calculate("asin(1)").unwrap();
+        assert!(is_close(a, b));
+    }
+
+    #[test]
+    fn arccos_alias_test() {
+        let a = calculator::calculate("arccos(0)").unwrap();
+        let b = calculator::calculate("acos(0)").unwrap();
+        assert!(is_close(a, b));
+    }
+
+    #[test]
+    fn deg_test() {
+        let ans = calculator::calculate("deg(π)").unwrap();
+        assert!(approx(ans, 180.0));
+    }
+
+    #[test]
+    fn rad_test() {
+        let ans = calculator::calculate("rad(180)").unwrap();
+        assert!(approx(ans, PI));
+    }
+
+    #[test]
+    fn deg_atan_test() {
+        let ans = calculator::calculate("deg(atan(-3/4))").unwrap();
+        assert!(approx(ans, -36.8699));
+    }
+
+    #[test]
+    fn atan2_test_q1() {
+        let ans = calculator::calculate("atan2(1, 1)").unwrap();
+        assert!(approx(ans, PI / 4.0));
+    }
+
+    #[test]
+    fn atan2_test_q2() {
+        // (y=4, x=-3) is in quadrant II
+        let ans = calculator::calculate("atan2(4, -3)").unwrap();
+        assert!(approx(ans, (4f32).atan2(-3.0)));
+    }
+
+    #[test]
+    fn atan2_deg_test() {
+        let ans = calculator::calculate("deg(atan2(4, -3))").unwrap();
+        assert!(approx(ans, (4f32).atan2(-3.0) * 180.0 / PI));
+    }
+
+    #[test]
+    fn atan2_wrong_arity_one() {
+        let err = calculator::calculate("atan2(1)").unwrap_err();
+        assert!(err.contains("atan2"));
+    }
+
+    #[test]
+    fn atan2_wrong_arity_three() {
+        let err = calculator::calculate("atan2(1, 2, 3)").unwrap_err();
+        assert!(err.contains("atan2"));
+    }
+
+    #[test]
+    fn sinh_test() {
+        let ans = calculator::calculate("sinh(1)").unwrap();
+        assert!(approx(ans, (1f32).sinh()));
+    }
+
+    #[test]
+    fn cosh_test() {
+        let ans = calculator::calculate("cosh(0)").unwrap();
+        assert!(approx(ans, 1.0));
+    }
+
+    #[test]
+    fn tanh_test() {
+        let ans = calculator::calculate("tanh(0)").unwrap();
+        assert!(approx(ans, 0.0));
+    }
+
+    #[test]
+    fn sec_test() {
+        let ans = calculator::calculate("sec(0)").unwrap();
+        assert!(approx(ans, 1.0));
+    }
+
+    #[test]
+    fn csc_test() {
+        let ans = calculator::calculate("csc(π/2)").unwrap();
+        assert!(approx(ans, 1.0));
+    }
+
+    #[test]
+    fn cot_test() {
+        let ans = calculator::calculate("cot(π/4)").unwrap();
+        assert!(approx(ans, 1.0));
+    }
+
+    // ===== Pipe operator |> =====
+
+    #[test]
+    fn pipe_basic_sqrt() {
+        let ans = calculator::calculate("9 |> sqrt").unwrap();
+        assert!(approx(ans, 3.0));
+    }
+
+    #[test]
+    fn pipe_atan_deg() {
+        let ans = calculator::calculate("atan(-3/4) |> deg").unwrap();
+        assert!(approx(ans, -36.8699));
+    }
+
+    #[test]
+    fn pipe_atan2_deg() {
+        let ans = calculator::calculate("atan2(4, -3) |> deg").unwrap();
+        assert!(approx(ans, (4f32).atan2(-3.0) * 180.0 / PI));
+    }
+
+    #[test]
+    fn pipe_chain_two() {
+        // rad(90) = π/2, sin(π/2) = 1
+        let ans = calculator::calculate("90 |> rad |> sin").unwrap();
+        assert!(approx(ans, 1.0));
+    }
+
+    #[test]
+    fn pipe_chain_three() {
+        // sqrt(4)=2, sin(2)≈0.909, abs unchanged
+        let ans = calculator::calculate("4 |> sqrt |> sin |> abs").unwrap();
+        assert!(approx(ans, (2f32).sin().abs()));
+    }
+
+    #[test]
+    fn pipe_precedence_with_plus() {
+        // pipe binds looser than +: (1 + 4) |> sqrt
+        let ans = calculator::calculate("1 + 4 |> sqrt").unwrap();
+        assert!(approx(ans, (5f32).sqrt()));
+    }
+
+    #[test]
+    fn pipe_precedence_with_mul() {
+        // pipe binds looser than *: (2 * 3) |> sqrt
+        let ans = calculator::calculate("2 * 3 |> sqrt").unwrap();
+        assert!(approx(ans, (6f32).sqrt()));
+    }
+
+    #[test]
+    fn pipe_in_parens() {
+        let ans = calculator::calculate("(1 + 3) |> sqrt").unwrap();
+        assert!(approx(ans, 2.0));
+    }
+
+    #[test]
+    fn pipe_inside_function_arg() {
+        // sin(sqrt(4)) = sin(2)
+        let ans = calculator::calculate("sin(4 |> sqrt)").unwrap();
+        assert!(approx(ans, (2f32).sin()));
+    }
+
+    #[test]
+    fn pipe_inside_variadic_arg() {
+        // avg(1, sqrt(9), 5) = avg(1, 3, 5) = 3
+        let ans = calculator::calculate("avg(1, 9 |> sqrt, 5)").unwrap();
+        assert!(approx(ans, 3.0));
+    }
+
+    #[test]
+    fn pipe_then_arithmetic() {
+        // pipe applies before subsequent +: sqrt(9) + 1
+        let ans = calculator::calculate("9 |> sqrt + 1").unwrap();
+        assert!(approx(ans, 4.0));
+    }
+
+    #[test]
+    fn pipe_arithmetic_then_pipe() {
+        // 4 |> sqrt = 2, 2 + 1 = 3, |> abs = 3
+        let ans = calculator::calculate("4 |> sqrt + 1 |> abs").unwrap();
+        assert!(approx(ans, 3.0));
+    }
+
+    #[test]
+    fn pipe_negative_input() {
+        let ans = calculator::calculate("-π |> sin").unwrap();
+        assert!(approx(ans, 0.0));
+    }
+
+    #[test]
+    fn pipe_arctan_alias() {
+        let ans = calculator::calculate("1 |> arctan").unwrap();
+        assert!(approx(ans, PI / 4.0));
+    }
+
+    #[test]
+    fn pipe_arcsin_alias() {
+        let ans = calculator::calculate("1 |> arcsin").unwrap();
+        assert!(approx(ans, PI / 2.0));
+    }
+
+    #[test]
+    fn pipe_with_constant() {
+        let ans = calculator::calculate("π |> cos").unwrap();
+        assert!(approx(ans, -1.0));
+    }
+
+    #[test]
+    fn pipe_with_x_variable() {
+        // y = x |> abs at x = -7 should be 7
+        let tokens = get_tokens("x |> abs").unwrap();
+        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let ans = evaluate(parsed_eq.iter().copied(), -7.0).unwrap();
+        assert!(approx(ans, 7.0));
+    }
+
+    // ----- Error cases -----
+
+    #[test]
+    fn pipe_rhs_number_errors() {
+        let err = calculator::calculate("5 |> 6").unwrap_err();
+        assert!(err.contains("|>"));
+    }
+
+    #[test]
+    fn pipe_rhs_variadic_errors() {
+        let err = calculator::calculate("5 |> avg").unwrap_err();
+        assert!(err.contains("avg") && err.contains("|>"));
+    }
+
+    #[test]
+    fn pipe_rhs_log_errors() {
+        // log isn't a piped unary function (needs base)
+        let err = calculator::calculate("5 |> log").unwrap_err();
+        assert!(err.contains("log"));
+    }
+
+    #[test]
+    fn pipe_rhs_with_parens_errors() {
+        let err = calculator::calculate("5 |> sin(2)").unwrap_err();
+        assert!(err.contains("parentheses"));
+    }
+
+    #[test]
+    fn pipe_rhs_unknown_name_errors() {
+        let err = calculator::calculate("5 |> foo").unwrap_err();
+        assert!(err.contains("foo"));
+    }
+
+    #[test]
+    fn pipe_dangling_errors() {
+        let err = calculator::calculate("5 |>").unwrap_err();
+        assert!(err.contains("|>") || err.contains("Dangling"));
+    }
+
+    #[test]
+    fn pipe_back_to_back_errors() {
+        let err = calculator::calculate("5 |> |> sin").unwrap_err();
+        assert!(err.contains("|>") || err.contains("unary"));
+    }
+
+    #[test]
+    fn pipe_single_bar_basic() {
+        // Unix-style `|` is equivalent to `|>`
+        let ans = calculator::calculate("9 | sqrt").unwrap();
+        assert!(approx(ans, 3.0));
+    }
+
+    #[test]
+    fn pipe_single_bar_chain() {
+        let ans = calculator::calculate("90 | rad | sin").unwrap();
+        assert!(approx(ans, 1.0));
+    }
+
+    #[test]
+    fn pipe_single_bar_and_long_form_interop() {
+        // Mixing |> and | in the same expression should both work
+        let ans = calculator::calculate("4 |> sqrt | abs").unwrap();
+        assert!(approx(ans, 2.0));
+    }
+
+    #[test]
+    fn pipe_single_bar_rhs_non_function_errors() {
+        let err = calculator::calculate("5 | 6").unwrap_err();
+        assert!(err.contains("|>") || err.contains("unary"));
+    }
 }
