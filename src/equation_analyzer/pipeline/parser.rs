@@ -1,12 +1,39 @@
+use crate::equation_analyzer::catalog::{Symbol, SymbolKind};
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
 use crate::equation_analyzer::structs::token::{Token, TokenType};
 use crate::equation_analyzer::utils::make_synthetic_token;
 
-/// Represents a parser frame for variadic functions.
-/// Tracks the function type and where its operators begin on the stack.
+/// Represents a parser frame for a comma-separated function call.
+/// Tracks the backing catalog Symbol so we can emit the matching EndCall.
 struct ParserFrame {
-    token_type: TokenType,
+    symbol: &'static Symbol,
     operator_stack_position: usize,
+}
+
+fn make_end_call(symbol: &'static Symbol) -> Token {
+    Token {
+        token_type: TokenType::EndCall,
+        numeric_value_1: 0.0,
+        numeric_value_2: 0.0,
+        symbol: Some(symbol),
+    }
+}
+
+/// Does this Call token dispatch through a frame (comma-separated args)?
+/// True for Variadic (min/no-max) and for exactly-2-arg Variadic (atan2, ch).
+fn is_framed_call(token: &Token) -> bool {
+    matches!(
+        token.symbol.map(|s| &s.kind),
+        Some(SymbolKind::Variadic { .. })
+    )
+}
+
+/// Is this a Call token whose sole arg comes off the value stack (no frame)?
+fn is_unary_call(token: &Token) -> bool {
+    matches!(
+        token.symbol.map(|s| &s.kind),
+        Some(SymbolKind::Unary(_)) | Some(SymbolKind::UnaryChecked(_))
+    )
 }
 
 /// Generic Shunting Yard parser that works with any iterator of tokens.
@@ -46,38 +73,18 @@ where
     for token_result in tokens {
         let token = token_result?;
 
-        // After a Pipe, the next token must be a unary function token.
-        // Emit it directly to the output queue (it's already in postfix position).
+        // After a Pipe, the next token must be a unary Call. Emit it directly
+        // to the output queue (it's already in postfix position).
         if expect_piped_function {
-            match token.token_type {
-                TokenType::Sin
-                | TokenType::Cos
-                | TokenType::Tan
-                | TokenType::Asin
-                | TokenType::Acos
-                | TokenType::Atan
-                | TokenType::Sinh
-                | TokenType::Cosh
-                | TokenType::Tanh
-                | TokenType::Sec
-                | TokenType::Csc
-                | TokenType::Cot
-                | TokenType::Deg
-                | TokenType::Rad
-                | TokenType::Abs
-                | TokenType::Sqrt
-                | TokenType::Ln => {
-                    output.push(token);
-                    expect_piped_function = false;
-                    continue;
-                }
-                _ => {
-                    return Err(format!(
-                        "Expected a unary function after '|>', got {:?}",
-                        token.token_type
-                    ));
-                }
+            if token.token_type == TokenType::Call && is_unary_call(&token) {
+                output.push(token);
+                expect_piped_function = false;
+                continue;
             }
+            return Err(format!(
+                "Expected a unary function after '|>', got {:?}",
+                token.token_type
+            ));
         }
 
         // Handle variadic function parameter collection
@@ -113,7 +120,7 @@ where
                     if operator_stack.len() == frame.operator_stack_position + 1 {
                         operator_stack.pop();
                         paren_depth -= 1;
-                        output.push(make_synthetic_token(frame.token_type.to_end_token_type()));
+                        output.push(make_end_call(frame.symbol));
                         frames.pop();
                         continue;
                     }
@@ -131,43 +138,29 @@ where
             TokenType::Y | TokenType::Equal | TokenType::Comma => continue,
 
             // Constants go directly to output
-            TokenType::_Pi | TokenType::_E => {
+            TokenType::Constant => {
                 output.push(token);
             }
 
-            // Variadic functions - start parameter collection
-            // The tokenizer consumes the OpenParen, so we push a synthetic marker
-            // to the operator stack to fence off preceding operators
-            _ if token.token_type.is_variadic_function() => {
+            // Framed calls (variadic + comma-separated 2-arg like atan2/ch):
+            // start parameter collection. The tokenizer already consumed the
+            // OpenParen; we push a synthetic marker to fence off preceding
+            // operators until the matching CloseParen.
+            _ if token.token_type == TokenType::Call && is_framed_call(&token) => {
+                let sym = token
+                    .symbol
+                    .ok_or("Internal: Call token missing symbol")?;
                 output.push(token);
                 frames.push(ParserFrame {
-                    token_type: token.token_type,
+                    symbol: sym,
                     operator_stack_position: operator_stack.len(),
                 });
                 operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
                 paren_depth += 1;
             }
 
-            // Functions and opening parenthesis go on operator stack
-            TokenType::Sin
-            | TokenType::Cos
-            | TokenType::Tan
-            | TokenType::Asin
-            | TokenType::Acos
-            | TokenType::Atan
-            | TokenType::Sinh
-            | TokenType::Cosh
-            | TokenType::Tanh
-            | TokenType::Sec
-            | TokenType::Csc
-            | TokenType::Cot
-            | TokenType::Deg
-            | TokenType::Rad
-            | TokenType::Abs
-            | TokenType::Sqrt
-            | TokenType::Ln
-            | TokenType::Log
-            | TokenType::OpenParen => {
+            // Unary Call, log_N, and opening parenthesis go on operator stack.
+            TokenType::Call | TokenType::Log | TokenType::OpenParen => {
                 paren_depth += 1;
                 operator_stack.push(get_operator(token)?);
             }

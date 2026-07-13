@@ -26,26 +26,7 @@ pub(crate) fn get_operator(operator: Token) -> Result<Operand, String> {
         TokenType::UnaryMinus | TokenType::Power => {
             Ok(get_op(operator, 4, Assoc::Right, false, false))
         }
-        TokenType::Sqrt
-        | TokenType::Ln
-        | TokenType::Abs
-        | TokenType::Max
-        | TokenType::Min
-        | TokenType::Sin
-        | TokenType::Cos
-        | TokenType::Tan
-        | TokenType::Asin
-        | TokenType::Acos
-        | TokenType::Atan
-        | TokenType::Sinh
-        | TokenType::Cosh
-        | TokenType::Tanh
-        | TokenType::Sec
-        | TokenType::Csc
-        | TokenType::Cot
-        | TokenType::Deg
-        | TokenType::Rad
-        | TokenType::Log => Ok(get_op(operator, 0, Assoc::Right, true, true)),
+        TokenType::Call | TokenType::Log => Ok(get_op(operator, 0, Assoc::Right, true, true)),
         op => Err(format!("Unknown operator: {:?}", op)),
     }
 }

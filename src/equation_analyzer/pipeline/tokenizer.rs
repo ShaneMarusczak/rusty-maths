@@ -1,3 +1,4 @@
+use crate::equation_analyzer::catalog::{self, Symbol, SymbolKind};
 use crate::equation_analyzer::structs::token::{Token, TokenType};
 use std::collections::VecDeque;
 use std::iter::Peekable;
@@ -62,9 +63,20 @@ impl<'a> StreamingTokenizer<'a> {
             token_type,
             numeric_value_1: val1,
             numeric_value_2: val2,
+            symbol: None,
         };
         self.previous_token_type = Some(token_type);
         token
+    }
+
+    fn make_token_with_symbol(&mut self, token_type: TokenType, symbol: &'static Symbol) -> Token {
+        self.previous_token_type = Some(token_type);
+        Token {
+            token_type,
+            numeric_value_1: 0.0,
+            numeric_value_2: 0.0,
+            symbol: Some(symbol),
+        }
     }
 
     fn scan_digit(&mut self) -> Result<String, String> {
@@ -118,6 +130,7 @@ impl<'a> StreamingTokenizer<'a> {
                     token_type: TokenType::OpenParen,
                     numeric_value_1: 0.0,
                     numeric_value_2: 0.0,
+                    symbol: None,
                 });
             }
 
@@ -125,18 +138,21 @@ impl<'a> StreamingTokenizer<'a> {
                 token_type: TokenType::Number,
                 numeric_value_1: coefficient,
                 numeric_value_2: 0.0,
+                symbol: None,
             });
 
             self.pending_tokens.push_back(Token {
                 token_type: TokenType::Star,
                 numeric_value_1: 0.0,
                 numeric_value_2: 0.0,
+                symbol: None,
             });
 
             self.pending_tokens.push_back(Token {
                 token_type: TokenType::X,
                 numeric_value_1: 1.0,
                 numeric_value_2: 1.0,
+                symbol: None,
             });
 
             if needs_parens {
@@ -144,6 +160,7 @@ impl<'a> StreamingTokenizer<'a> {
                     token_type: TokenType::CloseParen,
                     numeric_value_1: 0.0,
                     numeric_value_2: 0.0,
+                    symbol: None,
                 });
             }
 
@@ -188,8 +205,16 @@ impl<'a> StreamingTokenizer<'a> {
             'y' => self.make_token(Y),
             '=' => self.make_token(Equal),
             ',' => self.make_token(Comma),
-            'π' => self.make_token(_Pi),
-            'e' => self.make_token(_E),
+            'π' => {
+                let sym = catalog::find("π")
+                    .ok_or_else(|| String::from("Internal: catalog missing π"))?;
+                self.make_token_with_symbol(TokenType::Constant, sym)
+            }
+            'e' => {
+                let sym = catalog::find("e")
+                    .ok_or_else(|| String::from("Internal: catalog missing e"))?;
+                self.make_token_with_symbol(TokenType::Constant, sym)
+            }
             '*' => self.make_token(Star),
             '/' => self.make_token(Slash),
             '+' => self.make_token(Plus),
@@ -204,7 +229,7 @@ impl<'a> StreamingTokenizer<'a> {
             }
             '-' => {
                 // Check if this is binary minus (subtraction) or unary minus (negation)
-                if self.previous_match(&[_E, _Pi, Number, CloseParen, X, Factorial]) {
+                if self.previous_match(&[Constant, Number, CloseParen, X, Factorial]) {
                     // Previous token was an operand, so this is binary subtraction
                     self.make_token(Minus)
                 } else {
@@ -259,31 +284,12 @@ impl<'a> StreamingTokenizer<'a> {
 
                 // Pipe target: name must be a unary function, no parens follow.
                 if matches!(self.previous_token_type, Some(Pipe)) {
-                    let token_type = match name.as_str() {
-                        "sin" => Sin,
-                        "cos" => Cos,
-                        "tan" => Tan,
-                        "asin" | "arcsin" => Asin,
-                        "acos" | "arccos" => Acos,
-                        "atan" | "arctan" => Atan,
-                        "sinh" => Sinh,
-                        "cosh" => Cosh,
-                        "tanh" => Tanh,
-                        "sec" => Sec,
-                        "csc" => Csc,
-                        "cot" => Cot,
-                        "deg" => Deg,
-                        "rad" => Rad,
-                        "abs" => Abs,
-                        "sqrt" => Sqrt,
-                        "ln" => Ln,
-                        _ => {
-                            return Err(format!(
-                                "'{}' cannot be used after '|>'; only unary functions are allowed",
-                                name
-                            ));
-                        }
-                    };
+                    let sym = catalog::find(&name).filter(|s| {
+                        matches!(s.kind, SymbolKind::Unary(_) | SymbolKind::UnaryChecked(_))
+                    }).ok_or_else(|| format!(
+                        "'{}' cannot be used after '|>'; only unary functions are allowed",
+                        name
+                    ))?;
 
                     if self.peek() == Some('(') {
                         return Err(format!(
@@ -292,7 +298,7 @@ impl<'a> StreamingTokenizer<'a> {
                         ));
                     }
 
-                    return Ok(Some(self.make_token(token_type)));
+                    return Ok(Some(self.make_token_with_symbol(TokenType::Call, sym)));
                 }
 
                 // Handle log base
@@ -330,35 +336,14 @@ impl<'a> StreamingTokenizer<'a> {
                 }
                 self.advance(); // consume '('
 
-                let token_type = match name.as_str() {
-                    "sin" => Sin,
-                    "cos" => Cos,
-                    "tan" => Tan,
-                    "asin" | "arcsin" => Asin,
-                    "acos" | "arccos" => Acos,
-                    "atan" | "arctan" => Atan,
-                    "atan2" => Atan2,
-                    "sinh" => Sinh,
-                    "cosh" => Cosh,
-                    "tanh" => Tanh,
-                    "sec" => Sec,
-                    "csc" => Csc,
-                    "cot" => Cot,
-                    "deg" => Deg,
-                    "rad" => Rad,
-                    "max" => Max,
-                    "abs" => Abs,
-                    "sqrt" => Sqrt,
-                    "min" => Min,
-                    "ln" => Ln,
-                    "avg" => Avg,
-                    "med" => Med,
-                    "mode" => Mode,
-                    "ch" => Choice,
-                    _ => return Err(format!("Invalid function name {}", name)),
-                };
+                let sym = catalog::find(&name)
+                    .filter(|s| matches!(
+                        s.kind,
+                        SymbolKind::Unary(_) | SymbolKind::UnaryChecked(_) | SymbolKind::Variadic { .. }
+                    ))
+                    .ok_or_else(|| format!("Invalid function name {}", name))?;
 
-                self.make_token(token_type)
+                self.make_token_with_symbol(TokenType::Call, sym)
             }
             _ => return Err(format!("Invalid input at character {}", self.position)),
         };

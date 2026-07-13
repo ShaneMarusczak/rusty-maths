@@ -67,6 +67,7 @@ pub fn make_synthetic_token(
         token_type,
         numeric_value_1: 0_f32,
         numeric_value_2: 0_f32,
+        symbol: None,
     }
 }
 

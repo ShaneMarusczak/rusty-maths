@@ -1,9 +1,5 @@
-use crate::{
-    equation_analyzer::structs::token::{Token, TokenType},
-    utilities::{abs_f32, factorial, square_root_f32},
-};
-use std::collections::HashMap;
-use std::f32::consts::{E, PI};
+use crate::equation_analyzer::catalog::SymbolKind;
+use crate::equation_analyzer::structs::token::{Token, TokenType};
 
 /// Represents a function call frame for variadic functions
 struct FunctionFrame {
@@ -59,240 +55,96 @@ where
         token_count += 1;
 
         match token.token_type {
-            // Variadic functions - push a frame marker
-            _ if token.token_type.is_variadic_function() => {
-                frames.push(FunctionFrame {
-                    stack_position: stack.len(),
-                });
-            }
-            // End tokens - collect params and compute
-            TokenType::EndMin => {
-                let params = pop_frame(&mut frames, &mut stack, "Min")?;
-                if params.is_empty() {
-                    return Err("min requires at least one parameter".to_string());
-                }
-                stack.push(params.iter().copied().fold(f32::MAX, f32::min));
-            }
-            TokenType::EndMax => {
-                let params = pop_frame(&mut frames, &mut stack, "Max")?;
-                if params.is_empty() {
-                    return Err("max requires at least one parameter".to_string());
-                }
-                stack.push(params.iter().copied().fold(f32::MIN, f32::max));
-            }
-            TokenType::EndAvg => {
-                let params = pop_frame(&mut frames, &mut stack, "Avg")?;
-                if params.is_empty() {
-                    return Err("avg requires at least one parameter".to_string());
-                }
-                stack.push(params.iter().sum::<f32>() / params.len() as f32);
-            }
-            TokenType::EndMed => {
-                let mut params = pop_frame(&mut frames, &mut stack, "Med")?;
-                if params.is_empty() {
-                    return Err("median requires at least one parameter".to_string());
-                }
-                params.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                let len = params.len();
-                let result = if len.is_multiple_of(2) {
-                    let mid = len / 2;
-                    (params[mid - 1] + params[mid]) / 2.0
-                } else {
-                    params[len / 2]
-                };
-                stack.push(result);
-            }
-            TokenType::EndMode => {
-                let params = pop_frame(&mut frames, &mut stack, "Mode")?;
-                if params.is_empty() {
-                    return Err("mode requires at least one parameter".to_string());
-                }
-
-                // Build frequency map
-                let mut seen: HashMap<u32, usize> = HashMap::new();
-                for param in params.iter() {
-                    let bits = param.to_bits();
-                    *seen.entry(bits).or_insert(0) += 1;
-                }
-
-                let max_count = *seen
-                    .values()
-                    .max()
-                    .ok_or_else(|| String::from("mode requires at least one parameter"))?;
-
-                let result = if max_count == 1 {
-                    // Uniform distribution
-                    f32::NAN
-                } else {
-                    // Collect all modes and return average
-                    let modes: Vec<f32> = seen
-                        .iter()
-                        .filter(|(_, &count)| count == max_count)
-                        .map(|(&bits, _)| f32::from_bits(bits))
-                        .collect();
-                    modes.iter().sum::<f32>() / modes.len() as f32
-                };
-                stack.push(result);
-            }
-            TokenType::EndAtan2 => {
-                let params = pop_frame(&mut frames, &mut stack, "Atan2")?;
-                if params.len() != 2 {
-                    return Err(format!(
-                        "atan2 requires exactly 2 parameters (y, x), got {}",
-                        params.len()
-                    ));
-                }
-                stack.push(params[0].atan2(params[1]));
-            }
-            TokenType::EndChoice => {
-                let params = pop_frame(&mut frames, &mut stack, "Choice")?;
-                if params.len() != 2 {
-                    return Err(format!(
-                        "choice requires exactly 2 parameters, got {}",
-                        params.len()
-                    ));
-                }
-
-                // Validate integers
-                for (i, &param) in params.iter().enumerate() {
-                    if param % 1.0 != 0.0 {
-                        return Err(format!(
-                            "Parameter {} must be an integer, got {}",
-                            i + 1,
-                            param
-                        ));
+            // Call: dispatches through the backing Symbol. Unary/UnaryChecked
+            // pop one arg and push the result; Variadic starts a frame
+            // (parameters get collected until the matching EndCall).
+            TokenType::Call => {
+                let sym = token
+                    .symbol
+                    .ok_or("Internal: Call token missing symbol")?;
+                match sym.kind {
+                    SymbolKind::Unary(f) => {
+                        let v = stack.pop().ok_or_else(|| {
+                            format!("Insufficient operands for {} function", sym.name)
+                        })?;
+                        stack.push(f(v));
                     }
-                    if param < 0.0 {
+                    SymbolKind::UnaryChecked(f) => {
+                        let v = stack.pop().ok_or_else(|| {
+                            format!("Insufficient operands for {} function", sym.name)
+                        })?;
+                        stack.push(f(v)?);
+                    }
+                    SymbolKind::Variadic { .. } => {
+                        frames.push(FunctionFrame {
+                            stack_position: stack.len(),
+                        });
+                    }
+                    _ => {
                         return Err(format!(
-                            "Parameter {} must be non-negative, got {}",
-                            i + 1,
-                            param
+                            "Non-callable symbol '{}' at Call token",
+                            sym.name
                         ));
                     }
                 }
-
-                let n = params[0] as isize;
-                let k = params[1] as isize;
-
-                let result = if k > n {
-                    0.0
+            }
+            // EndCall: pop the frame, arity-check, dispatch the variadic.
+            TokenType::EndCall => {
+                let sym = token
+                    .symbol
+                    .ok_or("Internal: EndCall token missing symbol")?;
+                let params = pop_frame(&mut frames, &mut stack, sym.name)?;
+                match sym.kind {
+                    SymbolKind::Variadic {
+                        min_args,
+                        max_args,
+                        run,
+                    } => {
+                        let n = params.len();
+                        if (n as u32) < min_args as u32 {
+                            return Err(format!(
+                                "{} requires at least {} parameter(s), got {}",
+                                sym.name, min_args, n
+                            ));
+                        }
+                        if let Some(max) = max_args {
+                            if (n as u32) > max as u32 {
+                                return Err(format!(
+                                    "{} accepts at most {} parameter(s), got {}",
+                                    sym.name, max, n
+                                ));
+                            }
+                        }
+                        stack.push(run(&params)?);
+                    }
+                    _ => {
+                        return Err(format!(
+                            "EndCall for non-variadic symbol '{}'",
+                            sym.name
+                        ));
+                    }
+                }
+            }
+            // Named constants (π, e, ...): value comes from the Symbol.
+            TokenType::Constant => {
+                let sym = token
+                    .symbol
+                    .ok_or("Internal: Constant token missing symbol")?;
+                if let SymbolKind::Constant(v) = sym.kind {
+                    stack.push(v);
                 } else {
-                    (factorial(n) / (factorial(k) * factorial(n - k))) as f32
-                };
-                stack.push(result);
+                    return Err(format!(
+                        "Constant token for non-constant symbol '{}'",
+                        sym.name
+                    ));
+                }
             }
             TokenType::Number => stack.push(token.numeric_value_1),
-            TokenType::_Pi => stack.push(PI),
-            TokenType::_E => stack.push(E),
             TokenType::UnaryMinus => {
                 let temp = stack
                     .pop()
                     .ok_or("Insufficient operands for unary minus operator")?;
                 stack.push(-temp);
-            }
-            TokenType::Sin => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for sin function")?;
-                stack.push(temp.sin());
-            }
-            TokenType::Cos => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for cos function")?;
-                stack.push(temp.cos());
-            }
-            TokenType::Tan => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for tan function")?;
-                stack.push(temp.tan());
-            }
-            TokenType::Asin => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for asin function")?;
-                stack.push(temp.asin());
-            }
-            TokenType::Acos => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for acos function")?;
-                stack.push(temp.acos());
-            }
-            TokenType::Atan => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for atan function")?;
-                stack.push(temp.atan());
-            }
-            TokenType::Sinh => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for sinh function")?;
-                stack.push(temp.sinh());
-            }
-            TokenType::Cosh => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for cosh function")?;
-                stack.push(temp.cosh());
-            }
-            TokenType::Tanh => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for tanh function")?;
-                stack.push(temp.tanh());
-            }
-            TokenType::Sec => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for sec function")?;
-                stack.push(1.0 / temp.cos());
-            }
-            TokenType::Csc => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for csc function")?;
-                stack.push(1.0 / temp.sin());
-            }
-            TokenType::Cot => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for cot function")?;
-                stack.push(1.0 / temp.tan());
-            }
-            TokenType::Deg => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for deg function")?;
-                stack.push(temp * 180.0 / PI);
-            }
-            TokenType::Rad => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for rad function")?;
-                stack.push(temp * PI / 180.0);
-            }
-            TokenType::Abs => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for abs function")?;
-                stack.push(abs_f32(temp));
-            }
-            TokenType::Sqrt => {
-                let temp = stack
-                    .pop()
-                    .ok_or("Insufficient operands for sqrt function")?;
-                if temp.is_sign_negative() {
-                    //TODO: For now return NaN, I want to return a complex number at some point
-                    return Ok(f32::NAN);
-                }
-                stack.push(square_root_f32(temp));
-            }
-            TokenType::Ln => {
-                let temp = stack.pop().ok_or("Insufficient operands for ln function")?;
-                stack.push(temp.ln());
             }
             TokenType::Factorial => {
                 let temp = stack
