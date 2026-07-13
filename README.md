@@ -22,11 +22,23 @@ let points = calculator::plot("x^2 - 2x + 1", -5.0, 5.0, 0.1).unwrap();
 ```
 
 **Supported Operations:**
-- Arithmetic: `+`, `-`, `*`, `/`, `^`, `%`, `%%` (modulo)
-- Functions: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `abs`, `sqrt`, `ln`, `log_N`
-- Statistical: `min`, `max`, `avg`, `med` (median), `mode`, `ch` (choice)
-- Constants: `e`, `π`
-- Variables: `x` with coefficient support (`2x`, `-3x^2`)
+
+Every symbol the analyzer understands lives in one authoritative registry,
+`equation_analyzer::catalog`. Iterate `catalog::all()` for the complete
+list with categories, one-line summaries, and examples, or look up an
+individual entry with `catalog::find("sin")`. The rm-repl companion
+exposes this at runtime via `:fns` (list all) or `:fns <name>` (show one).
+
+At a glance (see the catalog for the authoritative list):
+- Arithmetic operators: `+`, `-`, `*`, `/`, `^`, `%` (percent-of),
+  `%%` (modulo), `!` (factorial), `|>` (pipe)
+- Trig / inverse trig / hyperbolic: sin, cos, tan, sec, csc, cot, asin
+  (arcsin), acos (arccos), atan (arctan), atan2, sinh, cosh, tanh
+- Angle conversion: deg (rad → °), rad (° → rad)
+- Logarithms: ln, log_N
+- Statistical: min, max, avg, med, mode, ch
+- Constants: π (pi), e
+- Variable: x, with coefficient support (`2x`, `-3x^2`)
 
 ### 📊 Statistics & Analysis
 
