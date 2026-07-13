@@ -1,8 +1,18 @@
 //! Runtime catalog of every symbol the equation analyzer understands:
-//! constants, unary/binary/variadic functions, operators, log-with-base, and
-//! the variable `x`. One source of truth — the tokenizer resolves names
-//! through it, the evaluator dispatches through it, and downstream tools
-//! (like rm-repl's `:fns`) discover the surface area through it.
+//! constants, unary/variadic functions, operators, log-with-base, and the
+//! variable `x`. One source of truth — the tokenizer resolves names through
+//! it, the evaluator dispatches through it, and downstream tools (like
+//! rm-repl's `:fns`) discover the surface area through it.
+//!
+//! # Naming constraint
+//!
+//! The tokenizer matches `x`, `y`, `π`, and `e` at the **character level**,
+//! before identifier scanning. An entry whose name starts with one of those
+//! characters (`exp`, `xor`, …) would mis-tokenize: the leading character is
+//! consumed as its single-char meaning and the rest of the name is scanned
+//! separately (`exp(1)` would lex as `e`, `x`, `p(1)`). Pick a different
+//! name, or teach the tokenizer to scan a full identifier before falling
+//! back to single-char matches.
 
 use crate::utilities::{abs_f32, factorial, square_root_f32};
 use std::collections::HashMap;
@@ -39,8 +49,8 @@ pub enum Category {
 
 /// The behavior slot of a `Symbol`.
 ///
-/// Function-pointer variants (`Unary`, `UnaryChecked`, `Binary`, `Variadic`)
-/// carry the actual math. Purely descriptive variants (`LogBase`, `Operator`,
+/// Function-pointer variants (`Unary`, `UnaryChecked`, `Variadic`) carry the
+/// actual math. Purely descriptive variants (`LogBase`, `Operator`,
 /// `Variable`) are documentation for tokens whose behavior lives in the
 /// tokenizer/evaluator by necessity (special syntax or single-glyph parsing).
 #[derive(Debug, Clone, Copy)]
@@ -64,6 +74,20 @@ pub enum SymbolKind {
     },
     /// The variable `x`.
     Variable,
+}
+
+impl SymbolKind {
+    /// Takes exactly one argument, popped straight off the value stack —
+    /// the shape required after `|>` and for non-framed calls.
+    pub fn is_unary(&self) -> bool {
+        matches!(self, SymbolKind::Unary(_) | SymbolKind::UnaryChecked(_))
+    }
+
+    /// Takes comma-separated arguments collected via a call frame
+    /// (includes fixed-arity comma functions like `atan2` and `ch`).
+    pub fn is_variadic(&self) -> bool {
+        matches!(self, SymbolKind::Variadic { .. })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

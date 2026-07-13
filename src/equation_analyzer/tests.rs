@@ -1340,7 +1340,7 @@ mod rm_tests {
     #[test]
     fn choice_test_error() {
         let test = "ch(20,9, 0)";
-        let expected_result = "ch accepts at most 2 parameter(s), got 3";
+        let expected_result = "ch accepts at most 2 parameters, got 3";
         let actual_result = calculator::calculate(test).unwrap_err();
         assert_eq!(expected_result, actual_result);
     }
@@ -3565,29 +3565,21 @@ mod rm_tests {
     #[test]
     fn insufficient_operand_error_names_the_function() {
         // The evaluator collapses per-function arms into one generic
-        // Call dispatch. This test guards against a regression where
-        // the error message loses the function's name — the message
-        // must still say "sin" for sin, "sqrt" for sqrt, etc.
-        for name in ["sin", "cos", "tan", "sqrt", "ln", "abs", "sec"] {
-            let bogus = format!("({name}(1)) + {name}");
-            // Build an expression that's guaranteed to error at the
-            // named function while lexing/parsing succeeds enough to
-            // reach dispatch. Simpler path: call the function with no
-            // argument via a hand-crafted RPN — but that's more brittle
-            // than just relying on the tokenizer to reject bare `{name}`
-            // (which it does with "Invalid input at character N"), so
-            // instead we test with a legitimate call that yields an
-            // insufficient-operand condition by handing an empty stack.
-            //
-            // The most direct way: use `evaluate` on RPN tokens that
-            // put a Call before any operand. But that reaches into
-            // internals — simpler is to trust that the arm exists and
-            // check via a broken variadic call whose error also names
-            // the function.
-            let _ = bogus; // silence unused
+        // dispatch; the error messages must still carry the symbol's
+        // name rather than degrading to a generic "function" string.
+
+        // Unary underflow: drive `evaluate` directly with a Call token
+        // and an empty value stack.
+        for name in ["sin", "sqrt", "ln", "abs"] {
+            let rpn = vec![get_call_token(name)];
+            let err = evaluate(rpn, None).unwrap_err();
+            assert!(
+                err.contains(name),
+                "unary underflow error should name '{name}', got: {err}"
+            );
         }
 
-        // Concrete surface test: variadic underflow names the function.
+        // Variadic underflow names the function.
         let err = calculator::calculate("min()").unwrap_err();
         assert!(
             err.contains("min"),
@@ -3606,5 +3598,91 @@ mod rm_tests {
             err.contains("atan2"),
             "arity error should name 'atan2', got: {err}"
         );
+    }
+
+    #[test]
+    fn pi_alias_evaluates() {
+        // `pi` is a catalog alias for π; the tokenizer must accept it as a
+        // bare constant, not demand a `(` like it does for function names.
+        assert!(is_close(calculator::calculate("pi").unwrap(), PI));
+        assert!(is_close(calculator::calculate("2 * pi").unwrap(), 2.0 * PI));
+        // Binary-minus disambiguation must treat a named constant as an
+        // operand (subtraction), not as the start of a negation.
+        assert!(is_close(calculator::calculate("pi - 1").unwrap(), PI - 1.0));
+    }
+
+    // ---------------------------------------------------------------
+    // Catalog ↔ tokenizer consistency guards. The catalog is the
+    // advertised surface (rm-repl's :fns prints it); these tests make
+    // it impossible for an entry to exist that the pipeline can't
+    // actually parse and evaluate.
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn every_catalog_symbol_is_reachable_through_the_tokenizer() {
+        use crate::equation_analyzer::catalog::SymbolKind;
+
+        for sym in catalog::all() {
+            let labels = std::iter::once(sym.name).chain(sym.aliases.iter().copied());
+            for label in labels {
+                let expr = match sym.kind {
+                    SymbolKind::Constant(_) | SymbolKind::Variable => label.to_string(),
+                    SymbolKind::Unary(_) | SymbolKind::UnaryChecked(_) => format!("{label}(1)"),
+                    SymbolKind::Variadic { min_args, .. } => {
+                        let args = vec!["1"; min_args.max(1) as usize].join(", ");
+                        format!("{label}({args})")
+                    }
+                    SymbolKind::LogBase => format!("{label}_2(8)"),
+                    // Operator glyphs aren't identifiers; their syntax is
+                    // exercised by catalog_examples_are_true_equalities.
+                    SymbolKind::Operator { .. } => continue,
+                };
+                let result = calculator::calculate(&expr);
+                assert!(
+                    result.is_ok(),
+                    "catalog entry '{}' (via label '{label}') failed to evaluate '{expr}': {:?}",
+                    sym.name,
+                    result
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn catalog_examples_are_true_equalities() {
+        use crate::equation_analyzer::catalog::SymbolKind;
+
+        for sym in catalog::all() {
+            // "y = x^2" is illustrative syntax, not an equality to check.
+            if matches!(sym.kind, SymbolKind::Variable) {
+                continue;
+            }
+            if let Some((lhs, rhs)) = sym.example.split_once(" = ") {
+                let l = calculator::calculate(lhs).unwrap_or_else(|e| {
+                    panic!("example LHS '{lhs}' of '{}' failed: {e}", sym.name)
+                });
+                let r = calculator::calculate(rhs).unwrap_or_else(|e| {
+                    panic!("example RHS '{rhs}' of '{}' failed: {e}", sym.name)
+                });
+                let tol = 1e-4 * r.abs().max(1.0);
+                assert!(
+                    (l - r).abs() <= tol,
+                    "example '{}' of '{}' is not true: {l} != {r}",
+                    sym.example,
+                    sym.name
+                );
+            } else if !sym.example.contains('≈') {
+                // Examples that aren't equalities and aren't approximations
+                // (e.g. "π/2 |> sin") must still evaluate cleanly.
+                let result = calculator::calculate(sym.example);
+                assert!(
+                    result.is_ok(),
+                    "example '{}' of '{}' failed to evaluate: {:?}",
+                    sym.example,
+                    sym.name,
+                    result
+                );
+            }
+        }
     }
 }

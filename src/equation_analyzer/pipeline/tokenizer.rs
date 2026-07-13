@@ -284,12 +284,12 @@ impl<'a> StreamingTokenizer<'a> {
 
                 // Pipe target: name must be a unary function, no parens follow.
                 if matches!(self.previous_token_type, Some(Pipe)) {
-                    let sym = catalog::find(&name).filter(|s| {
-                        matches!(s.kind, SymbolKind::Unary(_) | SymbolKind::UnaryChecked(_))
-                    }).ok_or_else(|| format!(
-                        "'{}' cannot be used after '|>'; only unary functions are allowed",
-                        name
-                    ))?;
+                    let sym = catalog::find(&name)
+                        .filter(|s| s.kind.is_unary())
+                        .ok_or_else(|| format!(
+                            "'{}' cannot be used after '|>'; only unary functions are allowed",
+                            name
+                        ))?;
 
                     if self.peek() == Some('(') {
                         return Err(format!(
@@ -328,6 +328,15 @@ impl<'a> StreamingTokenizer<'a> {
                     return Ok(Some(self.make_token_with_values(Log, base, 0.0)));
                 }
 
+                // Bare constant written out by name (e.g. `pi` for π). The
+                // single-char constants (π, e) are matched earlier at the
+                // character level; this path covers multi-char aliases.
+                if let Some(sym) = catalog::find(&name)
+                    .filter(|s| matches!(s.kind, SymbolKind::Constant(_)))
+                {
+                    return Ok(Some(self.make_token_with_symbol(TokenType::Constant, sym)));
+                }
+
                 if self.peek() != Some('(') {
                     return Err(format!(
                         "Invalid input at character {}",
@@ -337,10 +346,7 @@ impl<'a> StreamingTokenizer<'a> {
                 self.advance(); // consume '('
 
                 let sym = catalog::find(&name)
-                    .filter(|s| matches!(
-                        s.kind,
-                        SymbolKind::Unary(_) | SymbolKind::UnaryChecked(_) | SymbolKind::Variadic { .. }
-                    ))
+                    .filter(|s| s.kind.is_unary() || s.kind.is_variadic())
                     .ok_or_else(|| format!("Invalid function name {}", name))?;
 
                 self.make_token_with_symbol(TokenType::Call, sym)

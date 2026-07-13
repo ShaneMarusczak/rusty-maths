@@ -1,17 +1,15 @@
 use super::token::{Token, TokenType};
 
+// One Assoc for the whole crate — the catalog owns the definition, the
+// parser keeps importing it from here.
+pub(crate) use crate::equation_analyzer::catalog::Assoc;
+
 pub(crate) struct Operand {
     pub(crate) prec: usize,
     pub(crate) assoc: Assoc,
     pub(crate) is_func: bool,
     pub(crate) paren_opener: bool,
     pub(crate) token: Token,
-}
-
-#[derive(Debug, PartialEq)]
-pub(crate) enum Assoc {
-    Right,
-    Left,
 }
 
 pub(crate) fn get_operator(operator: Token) -> Result<Operand, String> {

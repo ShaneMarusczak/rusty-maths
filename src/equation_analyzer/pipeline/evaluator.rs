@@ -15,8 +15,16 @@ fn pop_frame(
 ) -> Result<Vec<f32>, String> {
     let frame = frames
         .pop()
-        .ok_or_else(|| format!("Unexpected End{} token", name))?;
+        .ok_or_else(|| format!("Unexpected end of {name} call"))?;
     Ok(stack.split_off(frame.stack_position))
+}
+
+fn plural(n: u8) -> &'static str {
+    if n == 1 {
+        "parameter"
+    } else {
+        "parameters"
+    }
 }
 
 /// Generic RPN evaluator that works with any iterator of tokens.
@@ -37,10 +45,11 @@ fn pop_frame(
 /// 2. Uses frame markers to handle variadic functions (avg, min, max, etc.)
 /// 3. Processes each token:
 ///    - Numbers/Constants: Push to stack
-///    - Unary operators: Pop, apply, push
+///    - Unary Calls and operators: Pop, apply (via the backing Symbol), push
 ///    - Binary operators: Pop twice, apply, push
-///    - Variadic functions: Mark stack position with frame
-///    - End* tokens: Collect params since frame position, compute, push result
+///    - Variadic Calls: Mark stack position with a frame
+///    - EndCall: Collect params since the frame position, arity-check,
+///      dispatch through the Symbol, push result
 /// 4. Returns final stack value (should be exactly 1 value)
 pub(crate) fn evaluate<I>(tokens: I, x: impl Into<Option<f32>>) -> Result<f32, String>
 where
@@ -103,15 +112,21 @@ where
                         let n = params.len();
                         if (n as u32) < min_args as u32 {
                             return Err(format!(
-                                "{} requires at least {} parameter(s), got {}",
-                                sym.name, min_args, n
+                                "{} requires at least {} {}, got {}",
+                                sym.name,
+                                min_args,
+                                plural(min_args),
+                                n
                             ));
                         }
                         if let Some(max) = max_args {
                             if (n as u32) > max as u32 {
                                 return Err(format!(
-                                    "{} accepts at most {} parameter(s), got {}",
-                                    sym.name, max, n
+                                    "{} accepts at most {} {}, got {}",
+                                    sym.name,
+                                    max,
+                                    plural(max),
+                                    n
                                 ));
                             }
                         }

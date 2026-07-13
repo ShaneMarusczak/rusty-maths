@@ -1,7 +1,6 @@
-use crate::equation_analyzer::catalog::{Symbol, SymbolKind};
+use crate::equation_analyzer::catalog::Symbol;
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
 use crate::equation_analyzer::structs::token::{Token, TokenType};
-use crate::equation_analyzer::utils::make_synthetic_token;
 
 /// Represents a parser frame for a comma-separated function call.
 /// Tracks the backing catalog Symbol so we can emit the matching EndCall.
@@ -9,6 +8,10 @@ struct ParserFrame {
     symbol: &'static Symbol,
     operator_stack_position: usize,
 }
+
+// The two synthetic tokens this parser fabricates (they never come from the
+// tokenizer): the EndCall marker that closes a framed call in the RPN output,
+// and the `(` sentinel pushed to fence off a framed call's operators.
 
 fn make_end_call(symbol: &'static Symbol) -> Token {
     Token {
@@ -19,21 +22,23 @@ fn make_end_call(symbol: &'static Symbol) -> Token {
     }
 }
 
+fn open_paren_marker() -> Token {
+    Token {
+        token_type: TokenType::OpenParen,
+        numeric_value_1: 0.0,
+        numeric_value_2: 0.0,
+        symbol: None,
+    }
+}
+
 /// Does this Call token dispatch through a frame (comma-separated args)?
-/// True for Variadic (min/no-max) and for exactly-2-arg Variadic (atan2, ch).
 fn is_framed_call(token: &Token) -> bool {
-    matches!(
-        token.symbol.map(|s| &s.kind),
-        Some(SymbolKind::Variadic { .. })
-    )
+    token.symbol.is_some_and(|s| s.kind.is_variadic())
 }
 
 /// Is this a Call token whose sole arg comes off the value stack (no frame)?
 fn is_unary_call(token: &Token) -> bool {
-    matches!(
-        token.symbol.map(|s| &s.kind),
-        Some(SymbolKind::Unary(_)) | Some(SymbolKind::UnaryChecked(_))
-    )
+    token.symbol.is_some_and(|s| s.kind.is_unary())
 }
 
 /// Generic Shunting Yard parser that works with any iterator of tokens.
@@ -155,7 +160,7 @@ where
                     symbol: sym,
                     operator_stack_position: operator_stack.len(),
                 });
-                operator_stack.push(get_operator(make_synthetic_token(TokenType::OpenParen))?);
+                operator_stack.push(get_operator(open_paren_marker())?);
                 paren_depth += 1;
             }
 
