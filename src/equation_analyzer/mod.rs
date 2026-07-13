@@ -14,6 +14,7 @@
 /// ```
 // Public API
 pub mod calculator;
+pub mod catalog;
 
 // Internal modules (not part of public API)
 pub(crate) mod pipeline;
