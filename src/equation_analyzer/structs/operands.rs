@@ -15,10 +15,13 @@ pub(crate) struct Operand {
 pub(crate) fn get_operator(operator: Token) -> Result<Operand, String> {
     match operator.token_type {
         TokenType::OpenParen => Ok(get_op(operator, 0, Assoc::Right, false, true)),
-        TokenType::Factorial => Ok(get_op(operator, 5, Assoc::Left, false, false)),
+        // Postfix operators bind tightest: 2^50% is 2^(0.5), -3! is -(6).
+        TokenType::Factorial | TokenType::Percent => {
+            Ok(get_op(operator, 5, Assoc::Left, false, false))
+        }
 
         TokenType::Plus | TokenType::Minus => Ok(get_op(operator, 2, Assoc::Left, false, false)),
-        TokenType::Star | TokenType::Slash | TokenType::Percent | TokenType::Modulo => {
+        TokenType::Star | TokenType::Slash | TokenType::Modulo => {
             Ok(get_op(operator, 3, Assoc::Left, false, false))
         }
         TokenType::UnaryMinus | TokenType::Power => {

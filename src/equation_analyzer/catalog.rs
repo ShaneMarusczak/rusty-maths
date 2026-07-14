@@ -236,8 +236,8 @@ pub const CATALOG: &[Symbol] = &[
     sym!(op "*", [], Arithmetic, "multiplication", "2 * 3 = 6", glyph: "*", prec: 3, Left, Binary),
     sym!(op "/", [], Arithmetic, "division", "6 / 2 = 3", glyph: "/", prec: 3, Left, Binary),
     sym!(op "^", [], Arithmetic, "exponentiation", "2 ^ 3 = 8", glyph: "^", prec: 4, Right, Binary),
-    sym!(op "%", [], Arithmetic, "percent-of: lhs * (rhs / 100) — surprising! 10 % 50 = 5", "10 % 50 = 5", glyph: "%", prec: 3, Left, Binary),
-    sym!(op "%%", [], Arithmetic, "modulo (remainder)", "10 %% 3 = 1", glyph: "%%", prec: 3, Left, Binary),
+    sym!(op "%", [], Arithmetic, "percent (postfix): x% = x/100; after + or -, b% is a percentage of the left side", "100 - 20% = 80", glyph: "%", prec: 5, Left, Postfix),
+    sym!(op "mod", ["%%"], Arithmetic, "modulo (remainder)", "17 mod 5 = 2", glyph: "mod", prec: 3, Left, Binary),
     sym!(op "!", [], Arithmetic, "factorial (postfix)", "5! = 120", glyph: "!", prec: 5, Left, Postfix),
     sym!(op "|>", ["|"], Piping, "pipe: pass LHS as sole argument to a unary function on the RHS", "π/2 |> sin", glyph: "|>", prec: 1, Left, Pipe),
 
@@ -412,10 +412,11 @@ mod tests {
         expect("-", 2);
         expect("*", 3);
         expect("/", 3);
-        expect("%", 3);
-        expect("%%", 3);
+        expect("mod", 3);
+        expect("%%", 3); // alias of mod
         expect("^", 4);
         expect("!", 5);
+        expect("%", 5); // postfix, binds like factorial
     }
 }
 

@@ -30,8 +30,10 @@ individual entry with `catalog::find("sin")`. The rm-repl companion
 exposes this at runtime via `:fns` (list all) or `:fns <name>` (show one).
 
 At a glance (see the catalog for the authoritative list):
-- Arithmetic operators: `+`, `-`, `*`, `/`, `^`, `%` (percent-of),
-  `%%` (modulo), `!` (factorial), `|>` (pipe)
+- Arithmetic operators: `+`, `-`, `*`, `/`, `^`, `%` (postfix percent —
+  `50%` = 0.5; after `+`/`-`, it's a percentage of the left operand, so
+  `100 - 20%` = 80), `mod` (also `%%`) for remainder, `!` factorial,
+  `|>` pipe
 - Trig / inverse trig / hyperbolic: sin, cos, tan, sec, csc, cot, asin
   (arcsin), acos (arccos), atan (arctan), atan2, sinh, cosh, tanh
 - Angle conversion: deg (rad → °), rad (° → rad)

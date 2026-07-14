@@ -229,7 +229,8 @@ impl<'a> StreamingTokenizer<'a> {
             }
             '-' => {
                 // Check if this is binary minus (subtraction) or unary minus (negation)
-                if self.previous_match(&[Constant, Number, CloseParen, X, Factorial]) {
+                // Percent is in the operand list because it's postfix: `50% - 3`.
+                if self.previous_match(&[Constant, Number, CloseParen, X, Factorial, Percent]) {
                     // Previous token was an operand, so this is binary subtraction
                     self.make_token(Minus)
                 } else {
@@ -335,6 +336,23 @@ impl<'a> StreamingTokenizer<'a> {
                     .filter(|s| matches!(s.kind, SymbolKind::Constant(_)))
                 {
                     return Ok(Some(self.make_token_with_symbol(TokenType::Constant, sym)));
+                }
+
+                // Word operators (`17 mod 5`). The catalog documents them;
+                // each one maps to its structural TokenType here.
+                if catalog::find(&name)
+                    .is_some_and(|s| matches!(s.kind, SymbolKind::Operator { .. }))
+                {
+                    let token_type = match name.as_str() {
+                        "mod" => Modulo,
+                        _ => {
+                            return Err(format!(
+                                "Operator '{}' cannot be written as a word here",
+                                name
+                            ));
+                        }
+                    };
+                    return Ok(Some(self.make_token(token_type)));
                 }
 
                 if self.peek() != Some('(') {

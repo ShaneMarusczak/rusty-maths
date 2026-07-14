@@ -947,10 +947,32 @@ mod rm_tests {
     }
 
     #[test]
-    fn percent_test() {
-        let test = "10 % 30";
-        let ans = calculator::calculate(test).unwrap();
-        assert_eq!(ans, 3_f32);
+    fn percent_postfix_literal() {
+        // Bare `x%` divides by 100.
+        assert_eq!(calculator::calculate("50%").unwrap(), 0.5);
+        assert_eq!(calculator::calculate("2 * 25%").unwrap(), 0.5);
+    }
+
+    #[test]
+    fn percent_relative_to_left_after_plus_minus() {
+        // After + or -, `b%` is a percentage of the left operand
+        // (handheld-calculator semantics), not a literal 0.b subtraction.
+        assert_eq!(calculator::calculate("100 - 20%").unwrap(), 80.0);
+        assert_eq!(calculator::calculate("200 + 10%").unwrap(), 220.0);
+    }
+
+    #[test]
+    fn percent_compounds_across_successive_plus_minus() {
+        // 100 - 20% = 80, then 80 - 10% = 72.
+        assert!((calculator::calculate("100 - 20% - 10%").unwrap() - 72.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn percent_is_one_shot_star_strips_the_tag() {
+        // `20% * 2` produces 0.4 plain, so `100 - 20% * 2` is 100 - 0.4 = 99.6.
+        // The percent tag is consumed by the first operator that touches it;
+        // only + and - re-scale it against a left operand.
+        assert!((calculator::calculate("100 - 20% * 2").unwrap() - 99.6).abs() < 1e-4);
     }
 
     #[test]
@@ -2884,8 +2906,9 @@ mod rm_tests {
 
     #[test]
     fn stress_percent_division_same_level() {
-        // 50 % 20 / 2 should be (50 % 20) / 2 = 10 / 2 = 5
-        assert_eq!(calculator::calculate("50 % 20 / 2").unwrap(), 5.0);
+        // 50% / 2 should be (50%) / 2 = 0.5 / 2 = 0.25.
+        // Postfix `%` binds tighter than `/`.
+        assert_eq!(calculator::calculate("50% / 2").unwrap(), 0.25);
     }
 
     #[test]
