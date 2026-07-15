@@ -1,5 +1,7 @@
 use crate::equation_analyzer::catalog::SymbolKind;
-use crate::equation_analyzer::structs::token::{Token, TokenType};
+use crate::equation_analyzer::errors::EquationError;
+use crate::equation_analyzer::structs::token::{SpannedToken, Token};
+use crate::utilities::factorial;
 
 /// Represents a function call frame for variadic functions
 struct FunctionFrame {
@@ -26,22 +28,6 @@ fn plain(num: f32) -> StackVal {
     }
 }
 
-/// Pops the current function frame and splits off its parameters from the stack.
-fn pop_frame(
-    frames: &mut Vec<FunctionFrame>,
-    stack: &mut Vec<StackVal>,
-    name: &str,
-) -> Result<Vec<f32>, String> {
-    let frame = frames
-        .pop()
-        .ok_or_else(|| format!("Unexpected end of {name} call"))?;
-    Ok(stack
-        .split_off(frame.stack_position)
-        .iter()
-        .map(|v| v.num)
-        .collect())
-}
-
 fn plural(n: u8) -> &'static str {
     if n == 1 {
         "parameter"
@@ -56,12 +42,13 @@ fn plural(n: u8) -> &'static str {
 /// It evaluates mathematical expressions in Reverse Polish Notation using a stack-based algorithm.
 ///
 /// # Arguments
-/// * `tokens` - An iterator of tokens in RPN format
+/// * `tokens` - An iterator of spanned tokens in RPN format
 /// * `x` - Optional value of the variable x (defaults to 0.0 if None)
 ///
 /// # Returns
 /// * `Ok(f32)` - The result of the evaluation
-/// * `Err(String)` - An error message if evaluation fails
+/// * `Err(EquationError)` - An error; runtime failures point at the token
+///   (or, for framed calls, the whole call) that caused them
 ///
 /// # Algorithm
 /// 1. Maintains a value stack for intermediate results
@@ -74,194 +61,230 @@ fn plural(n: u8) -> &'static str {
 ///    - EndCall: Collect params since the frame position, arity-check,
 ///      dispatch through the Symbol, push result
 /// 4. Returns final stack value (should be exactly 1 value)
-pub(crate) fn evaluate<I>(tokens: I, x: impl Into<Option<f32>>) -> Result<f32, String>
+pub(crate) fn evaluate<I>(tokens: I, x: impl Into<Option<f32>>) -> Result<f32, EquationError>
 where
-    I: IntoIterator<Item = Token>,
+    I: IntoIterator<Item = SpannedToken>,
 {
     let x = x.into().unwrap_or(0.0);
     let mut stack: Vec<StackVal> = Vec::new();
     let mut frames: Vec<FunctionFrame> = Vec::new();
     let mut token_count = 0;
 
-    for token in tokens {
+    for spanned in tokens {
         token_count += 1;
+        let token = spanned.token;
+        // Attach the current token's span to an error message.
+        let fail = |message: String| EquationError::spanned(message, spanned.span);
 
-        match token.token_type {
-            // Call: dispatches through the backing Symbol. Unary/UnaryChecked
-            // pop one arg and push the result; Variadic starts a frame
-            // (parameters get collected until the matching EndCall).
-            TokenType::Call => {
-                let sym = token
-                    .symbol
-                    .ok_or("Internal: Call token missing symbol")?;
-                match sym.kind {
-                    SymbolKind::Unary(f) => {
-                        let v = stack.pop().ok_or_else(|| {
-                            format!("Insufficient operands for {} function", sym.name)
-                        })?;
-                        stack.push(plain(f(v.num)));
-                    }
-                    SymbolKind::UnaryChecked(f) => {
-                        let v = stack.pop().ok_or_else(|| {
-                            format!("Insufficient operands for {} function", sym.name)
-                        })?;
-                        stack.push(plain(f(v.num)?));
-                    }
-                    SymbolKind::Variadic { .. } => {
-                        frames.push(FunctionFrame {
-                            stack_position: stack.len(),
-                        });
-                    }
-                    _ => {
-                        return Err(format!(
-                            "Non-callable symbol '{}' at Call token",
-                            sym.name
-                        ));
-                    }
+        match token {
+            // Call: a pipe target (`x |> sin`) — the sole argument is
+            // already on the stack. Parenthesized calls never produce this;
+            // they arrive as CallStart…EndCall frames.
+            Token::Call(sym) => match sym.kind {
+                SymbolKind::Unary(f) => {
+                    let v = stack.pop().ok_or_else(|| {
+                        fail(format!("Insufficient operands for {} function", sym.name))
+                    })?;
+                    stack.push(plain(f(v.num)));
                 }
+                SymbolKind::UnaryChecked(f) => {
+                    let v = stack.pop().ok_or_else(|| {
+                        fail(format!("Insufficient operands for {} function", sym.name))
+                    })?;
+                    stack.push(plain(f(v.num).map_err(fail)?));
+                }
+                _ => {
+                    return Err(fail(format!(
+                        "Non-callable symbol '{}' at Call token",
+                        sym.name
+                    )));
+                }
+            },
+            // CallStart: a parenthesized call opens a frame; its arguments
+            // collect on the stack until the matching EndCall.
+            Token::CallStart(_) => {
+                frames.push(FunctionFrame {
+                    stack_position: stack.len(),
+                });
             }
-            // EndCall: pop the frame, arity-check, dispatch the variadic.
-            TokenType::EndCall => {
-                let sym = token
-                    .symbol
-                    .ok_or("Internal: EndCall token missing symbol")?;
-                let params = pop_frame(&mut frames, &mut stack, sym.name)?;
-                match sym.kind {
+            // EndCall: close the frame, enforce the catalog's arity, and
+            // dispatch. Its span covers the whole call (`ch(25, 2)`), so
+            // every error here underlines the full call site.
+            Token::EndCall(sym) => {
+                let frame = frames
+                    .pop()
+                    .ok_or_else(|| fail(format!("Unexpected end of {} call", sym.name)))?;
+                let n = stack.len().saturating_sub(frame.stack_position);
+
+                let (min_args, max_args) = match sym.kind {
+                    SymbolKind::Unary(_) | SymbolKind::UnaryChecked(_) => (1, Some(1)),
                     SymbolKind::Variadic {
-                        min_args,
-                        max_args,
-                        run,
-                    } => {
-                        let n = params.len();
-                        if (n as u32) < min_args as u32 {
-                            return Err(format!(
-                                "{} requires at least {} {}, got {}",
-                                sym.name,
-                                min_args,
-                                plural(min_args),
-                                n
-                            ));
-                        }
-                        if let Some(max) = max_args {
-                            if (n as u32) > max as u32 {
-                                return Err(format!(
-                                    "{} accepts at most {} {}, got {}",
-                                    sym.name,
-                                    max,
-                                    plural(max),
-                                    n
-                                ));
-                            }
-                        }
-                        stack.push(plain(run(&params)?));
-                    }
+                        min_args, max_args, ..
+                    } => (min_args, max_args),
                     _ => {
-                        return Err(format!(
-                            "EndCall for non-variadic symbol '{}'",
+                        return Err(fail(format!(
+                            "EndCall for non-callable symbol '{}'",
                             sym.name
-                        ));
+                        )));
+                    }
+                };
+
+                if (n as u32) < min_args as u32 {
+                    return Err(fail(format!(
+                        "{} requires at least {} {}, got {}",
+                        sym.name,
+                        min_args,
+                        plural(min_args),
+                        n
+                    )));
+                }
+                if let Some(max) = max_args {
+                    if (n as u32) > max as u32 {
+                        return Err(fail(format!(
+                            "{} accepts at most {} {}, got {}",
+                            sym.name,
+                            max,
+                            plural(max),
+                            n
+                        )));
                     }
                 }
+
+                let result = match sym.kind {
+                    // Arity is exactly 1 here, so dispatch straight off the
+                    // stack top — no argument buffer needed.
+                    SymbolKind::Unary(f) => stack.pop().map(|v| f(v.num)),
+                    SymbolKind::UnaryChecked(f) => match stack.pop() {
+                        Some(v) => Some(f(v.num).map_err(fail)?),
+                        None => None,
+                    },
+                    SymbolKind::Variadic { run, .. } => {
+                        let params: Vec<f32> = stack
+                            .split_off(frame.stack_position)
+                            .iter()
+                            .map(|v| v.num)
+                            .collect();
+                        Some(run(&params).map_err(fail)?)
+                    }
+                    // Excluded by the arity match above.
+                    _ => None,
+                };
+                let result = result
+                    .ok_or_else(|| fail(format!("Insufficient operands for {}", sym.name)))?;
+                stack.push(plain(result));
             }
             // Named constants (π, e, ...): value comes from the Symbol.
-            TokenType::Constant => {
-                let sym = token
-                    .symbol
-                    .ok_or("Internal: Constant token missing symbol")?;
+            Token::Constant(sym) => {
                 if let SymbolKind::Constant(v) = sym.kind {
                     stack.push(plain(v));
                 } else {
-                    return Err(format!(
+                    return Err(fail(format!(
                         "Constant token for non-constant symbol '{}'",
                         sym.name
-                    ));
+                    )));
                 }
             }
-            TokenType::Number => stack.push(plain(token.numeric_value_1)),
-            TokenType::UnaryMinus => {
+            Token::Number(n) => stack.push(plain(n)),
+            Token::X => stack.push(plain(x)),
+            Token::UnaryMinus => {
                 let temp = stack
                     .pop()
-                    .ok_or("Insufficient operands for unary minus operator")?;
+                    .ok_or_else(|| fail("Insufficient operands for unary minus operator".into()))?;
                 stack.push(plain(-temp.num));
             }
-            TokenType::Factorial => {
+            Token::Factorial => {
                 let temp = stack
                     .pop()
-                    .ok_or("Insufficient operands for factorial operator")?
+                    .ok_or_else(|| fail("Insufficient operands for factorial operator".into()))?
                     .num;
                 if temp < 0.0 || temp % 1.0 != 0.0 {
-                    return Err("Factorial is only defined for non-negative integers".to_string());
+                    return Err(fail(
+                        "Factorial is only defined for non-negative integers".into(),
+                    ));
                 }
-                stack.push(plain(crate::utilities::factorial(temp as isize) as f32));
+                stack.push(plain(factorial(temp as isize).map_err(fail)? as f32));
             }
             // Postfix `%`: divide by 100 and tag the result so a following
             // `+`/`-` can scale it against the left operand (handheld
             // calculator semantics: 100 - 20% = 80, 200 + 10% = 220).
             // Every other operator consumes the tag and produces a plain
             // value — `%` is one-shot, not sticky.
-            TokenType::Percent => {
+            Token::Percent => {
                 let temp = stack
                     .pop()
-                    .ok_or("Insufficient operands for percent operator")?;
+                    .ok_or_else(|| fail("Insufficient operands for percent operator".into()))?;
                 stack.push(StackVal {
                     num: temp.num / 100.0,
                     is_percent: true,
                 });
             }
-            TokenType::Log => {
+            Token::Log { base } => {
                 let temp = stack
                     .pop()
-                    .ok_or("Insufficient operands for log function")?
+                    .ok_or_else(|| fail("Insufficient operands for log function".into()))?
                     .num;
-                stack.push(plain(temp.log(token.numeric_value_1)));
+                stack.push(plain(temp.log(base)));
             }
-            TokenType::X => stack.push(plain(
-                token.numeric_value_1 * x.powf(token.numeric_value_2),
-            )),
-            _ => {
-                if let (Some(rhs), Some(lhs)) = (stack.pop(), stack.pop()) {
-                    let result = match token.token_type {
-                        TokenType::Plus => {
-                            if rhs.is_percent {
-                                lhs.num + lhs.num * rhs.num
-                            } else {
-                                lhs.num + rhs.num
-                            }
+            // Binary operators: pop rhs then lhs, apply, push.
+            Token::Plus
+            | Token::Minus
+            | Token::Star
+            | Token::Slash
+            | Token::Modulo
+            | Token::Power => {
+                let (Some(rhs), Some(lhs)) = (stack.pop(), stack.pop()) else {
+                    return Err(fail("Invalid expression".into()));
+                };
+                let result = match token {
+                    Token::Plus => {
+                        if rhs.is_percent {
+                            lhs.num + lhs.num * rhs.num
+                        } else {
+                            lhs.num + rhs.num
                         }
-                        TokenType::Minus => {
-                            if rhs.is_percent {
-                                lhs.num - lhs.num * rhs.num
-                            } else {
-                                lhs.num - rhs.num
-                            }
+                    }
+                    Token::Minus => {
+                        if rhs.is_percent {
+                            lhs.num - lhs.num * rhs.num
+                        } else {
+                            lhs.num - rhs.num
                         }
-                        TokenType::Star => lhs.num * rhs.num,
-                        TokenType::Slash => lhs.num / rhs.num,
-                        TokenType::Modulo => lhs.num % rhs.num,
-                        TokenType::Power => lhs.num.powf(rhs.num),
-                        _ => return Err(format!("Unknown token: {:?}", token)),
-                    };
-                    stack.push(plain(result));
-                } else {
-                    return Err("Invalid expression".to_string());
-                }
+                    }
+                    Token::Star => lhs.num * rhs.num,
+                    Token::Slash => lhs.num / rhs.num,
+                    Token::Modulo => lhs.num % rhs.num,
+                    Token::Power => lhs.num.powf(rhs.num),
+                    // Unreachable: constrained by the outer match arm.
+                    _ => return Err(fail(format!("Unknown token: {:?}", token))),
+                };
+                stack.push(plain(result));
+            }
+            // Structural tokens have no business in an RPN stream.
+            Token::Y
+            | Token::Equal
+            | Token::Comma
+            | Token::OpenParen
+            | Token::CloseParen
+            | Token::Pipe
+            | Token::End => {
+                return Err(fail(format!("Unexpected token in evaluation: {:?}", token)));
             }
         }
     }
 
     if token_count == 0 {
-        return Err(String::from("Invalid equation supplied"));
+        return Err(EquationError::new("Invalid equation supplied"));
     }
 
     if stack.len() != 1 {
-        return Err(format!(
+        return Err(EquationError::new(format!(
             "Invalid evaluation: expected 1 result, found {} items in stack",
             stack.len()
-        ));
+        )));
     }
 
     stack
         .pop()
         .map(|v| v.num)
-        .ok_or_else(|| "Evaluation stack is empty".to_string())
+        .ok_or_else(|| EquationError::new("Evaluation stack is empty"))
 }

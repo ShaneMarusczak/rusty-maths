@@ -15,6 +15,29 @@
 // Public API
 pub mod calculator;
 pub mod catalog;
+pub mod errors;
+
+/// The pipeline's error type and its character-span companion, re-exported
+/// for convenience.
+///
+/// ```
+/// use rusty_maths::equation_analyzer::{calculator, EquationError};
+///
+/// let err: EquationError = calculator::calculate("2 + foo(3)").unwrap_err();
+/// assert!(err.span.is_some());
+/// ```
+pub use errors::{EquationError, Span};
+
+/// The plot-point type returned by [`calculator::plot`], re-exported so
+/// downstream crates can name it.
+///
+/// ```
+/// use rusty_maths::equation_analyzer::Point;
+///
+/// let p = Point::new(2.0, 4.0);
+/// assert_eq!((p.x, p.y), (2.0, 4.0));
+/// ```
+pub use utils::Point;
 
 // Internal modules (not part of public API)
 pub(crate) mod pipeline;

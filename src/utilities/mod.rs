@@ -329,22 +329,19 @@ fn square(num: f64, i: f64, j: f64) -> f64 {
 
 /// Computes the factorial of a number
 ///
-/// # Panics
-///
-/// Panics if `num` is negative or greater than 20 (to prevent overflow)
-#[allow(clippy::panic)]
-pub(crate) fn factorial(num: isize) -> isize {
+/// Errors if `num` is negative or greater than 20 (21! overflows isize).
+pub(crate) fn factorial(num: isize) -> Result<isize, String> {
     if num < 0 {
-        panic!("factorial is not defined for negative numbers");
+        return Err(String::from(
+            "factorial is not defined for negative numbers",
+        ));
     }
     if num > 20 {
-        panic!("factorial overflow: maximum supported value is 20");
+        return Err(format!(
+            "factorial of {num} is too large (maximum supported value is 20)"
+        ));
     }
-    let mut ans = 1;
-    for i in 1..=num {
-        ans *= i;
-    }
-    ans
+    Ok((1..=num).product())
 }
 
 //TODO: Move these to quadratic_analysis.rs

@@ -13,15 +13,16 @@ mod rm_tests {
     use crate::equation_analyzer::calculator;
 
     // Internal testing utilities
+    use crate::equation_analyzer::catalog;
+    use crate::equation_analyzer::errors::{EquationError, Span};
     use crate::equation_analyzer::pipeline::evaluator::evaluate;
     use crate::equation_analyzer::pipeline::parser::parse;
     use crate::equation_analyzer::pipeline::tokenizer::StreamingTokenizer;
-    use crate::equation_analyzer::catalog;
-    use crate::equation_analyzer::structs::token::TokenType::{
-        Call, CloseParen, Constant, End, Equal, Log, Minus, Number, OpenParen, Plus, Power, Slash,
-        Star, UnaryMinus, Y,
+    use crate::equation_analyzer::structs::token::Token::{
+        CloseParen, End, Equal, Log, Minus, Number, OpenParen, Plus, Power, Slash, Star,
+        UnaryMinus, Y,
     };
-    use crate::equation_analyzer::structs::token::{Token, TokenType};
+    use crate::equation_analyzer::structs::token::{SpannedToken, Token};
     use crate::utilities::abs_f32;
     use std::f32::consts::{E, PI};
 
@@ -29,11 +30,37 @@ mod rm_tests {
         abs_f32(x1 - x2) < f32::EPSILON
     }
 
-    // Helper function to get tokens from an equation
+    // Helper function to get tokens from an equation. Strips spans and
+    // stringifies errors so token-stream tests stay about token identity.
     fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
-        let tokenizer = StreamingTokenizer::new(eq)?;
-        let tokens: Result<Vec<Token>, String> = tokenizer.collect();
+        let tokenizer = StreamingTokenizer::new(eq).map_err(|e| e.to_string())?;
+        tokenizer
+            .map(|r| r.map(|st| st.token).map_err(|e| e.to_string()))
+            .collect()
+    }
+
+    /// Wrap plain test tokens in throwaway spans for feeding the parser.
+    fn spanned(tokens: Vec<Token>) -> impl Iterator<Item = Result<SpannedToken, EquationError>> {
         tokens
+            .into_iter()
+            .map(|t| Ok(SpannedToken::new(t, Span::new(0, 0))))
+    }
+
+    /// Wrap plain test tokens in throwaway spans as an RPN input for the
+    /// evaluator.
+    fn spanned_rpn(tokens: Vec<Token>) -> Vec<SpannedToken> {
+        tokens
+            .into_iter()
+            .map(|t| SpannedToken::new(t, Span::new(0, 0)))
+            .collect()
+    }
+
+    /// Parse plain test tokens, returning plain tokens (spans stripped,
+    /// errors stringified) so RPN-comparison tests stay about token identity.
+    fn parse_to_tokens(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
+        parse(spanned(tokens))
+            .map(|v| v.iter().map(|st| st.token).collect())
+            .map_err(|e| e.to_string())
     }
 
     #[test]
@@ -271,90 +298,58 @@ mod rm_tests {
         }
     }
 
-    fn get_token_n(t_t: TokenType, numeric_value_1: f32, numeric_value_2: f32) -> Token {
-        Token {
-            token_type: t_t,
-            numeric_value_1,
-            numeric_value_2,
-            symbol: None,
-        }
-    }
-
-    fn get_token(t_t: TokenType) -> Token {
-        get_token_n(t_t, 0.0, 0.0)
-    }
-
     /// Build a `Call` token backed by the given catalog symbol name.
     /// Panics if the name isn't in the catalog — safe for test data.
     fn get_call_token(name: &'static str) -> Token {
-        let sym = catalog::find(name)
-            .unwrap_or_else(|| panic!("catalog has no entry for '{name}'"));
-        Token {
-            token_type: Call,
-            numeric_value_1: 0.0,
-            numeric_value_2: 0.0,
-            symbol: Some(sym),
-        }
+        let sym =
+            catalog::find(name).unwrap_or_else(|| panic!("catalog has no entry for '{name}'"));
+        Token::Call(sym)
     }
 
     /// Build a `Constant` token backed by the given catalog symbol name.
     fn get_constant_token(name: &'static str) -> Token {
-        let sym = catalog::find(name)
-            .unwrap_or_else(|| panic!("catalog has no entry for '{name}'"));
-        Token {
-            token_type: Constant,
-            numeric_value_1: 0.0,
-            numeric_value_2: 0.0,
-            symbol: Some(sym),
-        }
+        let sym =
+            catalog::find(name).unwrap_or_else(|| panic!("catalog has no entry for '{name}'"));
+        Token::Constant(sym)
     }
 
     #[test]
     fn parse_test_1() {
         //y = 3 + 4 * ( 2 - 1 )
         let test = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Plus),
-            get_token_n(Number, 4.0, 0.0),
-            get_token(Star),
-            get_token(OpenParen),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Minus),
-            get_token_n(Number, 1.0, 0.0),
-            get_token(CloseParen),
-            get_token(End),
+            Y,
+            Equal,
+            Number(3.0),
+            Plus,
+            Number(4.0),
+            Star,
+            OpenParen,
+            Number(2.0),
+            Minus,
+            Number(1.0),
+            CloseParen,
+            End,
         ];
         let ans = vec![
-            get_token_n(Number, 3.0, 0.0),
-            get_token_n(Number, 4.0, 0.0),
-            get_token_n(Number, 2.0, 0.0),
-            get_token_n(Number, 1.0, 0.0),
-            get_token(Minus),
-            get_token(Star),
-            get_token(Plus),
+            Number(3.0),
+            Number(4.0),
+            Number(2.0),
+            Number(1.0),
+            Minus,
+            Star,
+            Plus,
         ];
 
-        assert_eq!(parse(test.into_iter().map(Ok)).unwrap(), ans);
+        assert_eq!(parse_to_tokens(test).unwrap(), ans);
     }
 
     #[test]
     fn parse_test_2() {
         //2 ^ 3;
-        let test = vec![
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Power),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(End),
-        ];
+        let test = vec![Number(2.0), Power, Number(3.0), End];
         assert_eq!(
-            parse(test.into_iter().map(Ok)).unwrap(),
-            vec![
-                get_token_n(Number, 2.0, 0.0),
-                get_token_n(Number, 3.0, 0.0),
-                get_token(Power)
-            ]
+            parse_to_tokens(test).unwrap(),
+            vec![Number(2.0), Number(3.0), Power]
         );
     }
 
@@ -362,97 +357,75 @@ mod rm_tests {
     fn parse_test_3() {
         //3 + 4 * 2 / ( 1 - 5 ) ^ 2 ^ 3;
         let test = vec![
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Plus),
-            get_token_n(Number, 4.0, 0.0),
-            get_token(Star),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Slash),
-            get_token(OpenParen),
-            get_token_n(Number, 1.0, 0.0),
-            get_token(Minus),
-            get_token_n(Number, 5.0, 0.0),
-            get_token(CloseParen),
-            get_token(Power),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Power),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(End),
+            Number(3.0),
+            Plus,
+            Number(4.0),
+            Star,
+            Number(2.0),
+            Slash,
+            OpenParen,
+            Number(1.0),
+            Minus,
+            Number(5.0),
+            CloseParen,
+            Power,
+            Number(2.0),
+            Power,
+            Number(3.0),
+            End,
         ];
         let ans = vec![
-            get_token_n(Number, 3.0, 0.0),
-            get_token_n(Number, 4.0, 0.0),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Star),
-            get_token_n(Number, 1.0, 0.0),
-            get_token_n(Number, 5.0, 0.0),
-            get_token(Minus),
-            get_token_n(Number, 2.0, 0.0),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Power),
-            get_token(Power),
-            get_token(Slash),
-            get_token(Plus),
+            Number(3.0),
+            Number(4.0),
+            Number(2.0),
+            Star,
+            Number(1.0),
+            Number(5.0),
+            Minus,
+            Number(2.0),
+            Number(3.0),
+            Power,
+            Power,
+            Slash,
+            Plus,
         ];
 
-        assert_eq!(parse(test.into_iter().map(Ok)).unwrap(), ans);
+        assert_eq!(parse_to_tokens(test).unwrap(), ans);
     }
 
     #[test]
     fn parse_test_6_no_eof() {
         //2 ^ 16;
-        let test = vec![
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Power),
-            get_token_n(Number, 16.0, 0.0),
-        ];
-        assert_eq!(
-            parse(test.into_iter().map(Ok)).unwrap_err(),
-            "No end token found"
-        );
+        let test = vec![Number(2.0), Power, Number(16.0)];
+        assert_eq!(parse_to_tokens(test).unwrap_err(), "No end token found");
     }
 
     #[test]
     fn parse_test_bad_function() {
         //2 ^ x;
-        let test = vec![
-            get_call_token("sin"),
-            get_token(Power),
-            get_token_n(Number, 1.0, 1.0),
-            get_token(End),
-        ];
+        let test = vec![get_call_token("sin"), Power, Number(1.0), End];
         assert_eq!(
-            parse(test.into_iter().map(Ok)).unwrap_err(),
-            "Invalid function"
+            parse_to_tokens(test).unwrap_err(),
+            "Invalid function at character 1"
         );
     }
 
     #[test]
     fn parse_test_bad_parens() {
         //2 ^ x;
-        let test = vec![
-            get_token(OpenParen),
-            get_token(Power),
-            get_token_n(Number, 1.0, 1.0),
-            get_token(End),
-        ];
+        let test = vec![OpenParen, Power, Number(1.0), End];
         assert_eq!(
-            parse(test.into_iter().map(Ok)).unwrap_err(),
-            "Invalid opening parenthesis"
+            parse_to_tokens(test).unwrap_err(),
+            "Invalid opening parenthesis at character 1"
         );
     }
 
     #[test]
     fn parse_test_bad_parens_2() {
-        let test = vec![
-            get_token(CloseParen),
-            get_token(Power),
-            get_token_n(Number, 1.0, 1.0),
-            get_token(End),
-        ];
+        let test = vec![CloseParen, Power, Number(1.0), End];
         assert_eq!(
-            parse(test.into_iter().map(Ok)).unwrap_err(),
-            "Invalid closing parenthesis"
+            parse_to_tokens(test).unwrap_err(),
+            "Invalid closing parenthesis at character 1"
         );
     }
 
@@ -460,12 +433,7 @@ mod rm_tests {
     fn test_1() {
         let eq = "y = 32.2";
 
-        let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(Number, 32.2, 0.0),
-            get_token(End),
-        ];
+        let ans = vec![Y, Equal, Number(32.2), End];
 
         assert_eq!(get_tokens(eq).unwrap(), ans);
     }
@@ -474,14 +442,14 @@ mod rm_tests {
     fn test_2() {
         let eq = "y=e +47- 9";
         let ans = vec![
-            get_token(Y),
-            get_token(Equal),
+            Y,
+            Equal,
             get_constant_token("e"),
-            get_token(Plus),
-            get_token_n(Number, 47.0, 0.0),
-            get_token(Minus),
-            get_token_n(Number, 9.0, 0.0),
-            get_token(End),
+            Plus,
+            Number(47.0),
+            Minus,
+            Number(9.0),
+            End,
         ];
 
         assert_eq!(get_tokens(eq).unwrap(), ans);
@@ -490,12 +458,7 @@ mod rm_tests {
     #[test]
     fn test_3() {
         let eq = "y=3";
-        let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(End),
-        ];
+        let ans = vec![Y, Equal, Number(3.0), End];
         assert_eq!(get_tokens(eq).unwrap(), ans);
     }
 
@@ -503,14 +466,14 @@ mod rm_tests {
     fn test_4() {
         let eq = "y= 3^2 +9";
         let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Power),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(Plus),
-            get_token_n(Number, 9.0, 0.0),
-            get_token(End),
+            Y,
+            Equal,
+            Number(3.0),
+            Power,
+            Number(2.0),
+            Plus,
+            Number(9.0),
+            End,
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
     }
@@ -519,14 +482,14 @@ mod rm_tests {
     fn test_5() {
         let eq = "y= sin(3+ 2 )";
         let ans = vec![
-            get_token(Y),
-            get_token(Equal),
+            Y,
+            Equal,
             get_call_token("sin"),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Plus),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(CloseParen),
-            get_token(End),
+            Number(3.0),
+            Plus,
+            Number(2.0),
+            CloseParen,
+            End,
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
     }
@@ -535,23 +498,23 @@ mod rm_tests {
     fn test_6() {
         let eq = "y= ln(3+ 2 ) * ( 3--2)/ 6";
         let ans = vec![
-            get_token(Y),
-            get_token(Equal),
+            Y,
+            Equal,
             get_call_token("ln"),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Plus),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(CloseParen),
-            get_token(Star),
-            get_token(OpenParen),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Minus),
-            get_token(UnaryMinus),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(CloseParen),
-            get_token(Slash),
-            get_token_n(Number, 6.0, 0.0),
-            get_token(End),
+            Number(3.0),
+            Plus,
+            Number(2.0),
+            CloseParen,
+            Star,
+            OpenParen,
+            Number(3.0),
+            Minus,
+            UnaryMinus,
+            Number(2.0),
+            CloseParen,
+            Slash,
+            Number(6.0),
+            End,
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
     }
@@ -559,14 +522,7 @@ mod rm_tests {
     #[test]
     fn test_7() {
         let eq = "y=log_3(3 )";
-        let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(Log, 3.0, 0.0),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(CloseParen),
-            get_token(End),
-        ];
+        let ans = vec![Y, Equal, Log { base: 3.0 }, Number(3.0), CloseParen, End];
         let tokens = get_tokens(eq).unwrap();
         assert_eq!(tokens, ans);
     }
@@ -574,14 +530,7 @@ mod rm_tests {
     #[test]
     fn test_8() {
         let eq = "y=3 ^10";
-        let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Power),
-            get_token_n(Number, 10.0, 0.0),
-            get_token(End),
-        ];
+        let ans = vec![Y, Equal, Number(3.0), Power, Number(10.0), End];
         assert_eq!(get_tokens(eq).unwrap(), ans);
     }
 
@@ -589,17 +538,17 @@ mod rm_tests {
     fn test_9() {
         let eq = "y= 3^(-1/2)";
         let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Power),
-            get_token(OpenParen),
-            get_token(UnaryMinus),
-            get_token_n(Number, 1.0, 0.0),
-            get_token(Slash),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(CloseParen),
-            get_token(End),
+            Y,
+            Equal,
+            Number(3.0),
+            Power,
+            OpenParen,
+            UnaryMinus,
+            Number(1.0),
+            Slash,
+            Number(2.0),
+            CloseParen,
+            End,
         ];
         assert_eq!(get_tokens(eq).unwrap(), ans);
     }
@@ -607,15 +556,7 @@ mod rm_tests {
     #[test]
     fn test_10() {
         let eq = "y= 3^-2";
-        let ans = vec![
-            get_token(Y),
-            get_token(Equal),
-            get_token_n(Number, 3.0, 0.0),
-            get_token(Power),
-            get_token(UnaryMinus),
-            get_token_n(Number, 2.0, 0.0),
-            get_token(End),
-        ];
+        let ans = vec![Y, Equal, Number(3.0), Power, UnaryMinus, Number(2.0), End];
         assert_eq!(get_tokens(eq).unwrap(), ans);
     }
 
@@ -623,7 +564,7 @@ mod rm_tests {
     fn eval_rpn_test_1() {
         let test = "3 + 4 * ( 2 - 1 )";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 7_f32);
     }
@@ -632,7 +573,7 @@ mod rm_tests {
     fn eval_rpn_test_2() {
         let test = "3 + 4 * 2 - 1";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 10_f32);
     }
@@ -641,7 +582,7 @@ mod rm_tests {
     fn eval_rpn_test_3() {
         let test = "y = 3 + 4 * ( 2 - 1 )";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 7_f32);
     }
@@ -650,7 +591,7 @@ mod rm_tests {
     fn eval_rpn_test_4() {
         let test = "y = 16^(1/2) + 16 + 3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 23_f32);
     }
@@ -659,7 +600,7 @@ mod rm_tests {
     fn eval_rpn_test_5() {
         let test = "y = 2^2 + 2*2 + 3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 11_f32);
     }
@@ -668,7 +609,7 @@ mod rm_tests {
     fn eval_rpn_test_6() {
         let test = "-2 + 3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 1_f32);
     }
@@ -677,7 +618,7 @@ mod rm_tests {
     fn eval_rpn_test_7() {
         let test = "-e + -π";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, -E + -PI);
     }
@@ -686,7 +627,7 @@ mod rm_tests {
     fn eval_rpn_test_8() {
         let test = "y = 2 ^ 2^2";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 16_f32);
     }
@@ -695,7 +636,7 @@ mod rm_tests {
     fn eval_rpn_test_9() {
         let test = "y = 2 ^ (3*2)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 64_f32);
     }
@@ -704,7 +645,7 @@ mod rm_tests {
     fn eval_rpn_test_10() {
         let test = "y = 2 ^ (2*2 + 1 )";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 32_f32);
     }
@@ -713,7 +654,7 @@ mod rm_tests {
     fn eval_rpn_test_trig_2() {
         let test = "sin( 3.14159265358979323846)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 0_f32));
     }
@@ -722,7 +663,7 @@ mod rm_tests {
     fn eval_rpn_test_trig_3() {
         let test = " sin( π )/ 2";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 0_f32));
     }
@@ -731,7 +672,7 @@ mod rm_tests {
     fn eval_rpn_test_trig_4() {
         let test = "sin( π/2 )";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 1_f32));
     }
@@ -740,7 +681,7 @@ mod rm_tests {
     fn eval_rpn_test_trig_5() {
         let test = "cos(π ) / 2";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, -0.5f32));
     }
@@ -749,7 +690,7 @@ mod rm_tests {
     fn eval_rpn_test_trig_6() {
         let test = "tan( π )+ cos( π+π ) + sin( 2 *π )";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap().round();
         assert!(is_close(ans, 1_f32));
     }
@@ -758,7 +699,7 @@ mod rm_tests {
     fn eval_rpn_test_trig_7() {
         let test = "sin( -π )";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 0_f32));
     }
@@ -767,7 +708,7 @@ mod rm_tests {
     fn eval_rpn_test_trig_8() {
         let test = "sin( π )";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 0_f32));
     }
@@ -776,7 +717,7 @@ mod rm_tests {
     fn eval_rpn_test_abs() {
         let test = "abs(2 - 3^2)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 7_f32);
     }
@@ -785,7 +726,7 @@ mod rm_tests {
     fn eval_rpn_test_abs_2() {
         let test = "abs(2 *3 - 3^2)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 3_f32);
     }
@@ -794,7 +735,7 @@ mod rm_tests {
     fn eval_rpn_test_sqrt() {
         let test = "sqrt(1764)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 42_f32);
     }
@@ -803,7 +744,7 @@ mod rm_tests {
     fn eval_rpn_test_min() {
         let test = "min(5,8,7,9)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 5_f32);
     }
@@ -812,7 +753,7 @@ mod rm_tests {
     fn eval_rpn_test_ln() {
         let test = "ln(e)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 1_f32));
     }
@@ -821,7 +762,7 @@ mod rm_tests {
     fn eval_rpn_test_log() {
         let test = "log_10(10)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 1_f32));
     }
@@ -830,7 +771,7 @@ mod rm_tests {
     fn eval_rpn_test_log_add() {
         let test = "log_10(10) + log_10(10)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 2_f32));
     }
@@ -839,7 +780,7 @@ mod rm_tests {
     fn eval_rpn_test_log_add_2() {
         let test = "log_10(10) + log_10(10) + log_10(10)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 3_f32));
     }
@@ -848,7 +789,7 @@ mod rm_tests {
     fn eval_rpn_test_log_add_3() {
         let test = "log_10(10) + log_10(5 + 5)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 2_f32));
     }
@@ -857,7 +798,7 @@ mod rm_tests {
     fn eval_rpn_test_log_base_7() {
         let test = "log_7(49)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert!(is_close(ans, 2_f32));
     }
@@ -865,15 +806,15 @@ mod rm_tests {
     #[test]
     fn eval_rpn_test_invalid_coefficient() {
         let test = "y = ax^2";
-        let tokens = get_tokens(test).unwrap_err();
-        assert_eq!(tokens, "Invalid input at character 4");
+        let tokens = get_tokens(test).unwrap_err().to_string();
+        assert_eq!(tokens, "Invalid input at character 5");
     }
 
     #[test]
     fn minus_test_1() {
         let test = "3-3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 0_f32);
     }
@@ -882,7 +823,7 @@ mod rm_tests {
     fn minus_test_2() {
         let test = "3- 3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 0_f32);
     }
@@ -891,7 +832,7 @@ mod rm_tests {
     fn minus_test_3() {
         let test = "log_3(3)- 3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, -2_f32);
     }
@@ -900,7 +841,7 @@ mod rm_tests {
     fn minus_test_4() {
         let test = "3--3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 6_f32);
     }
@@ -909,7 +850,7 @@ mod rm_tests {
     fn extra_pow_test() {
         let test = "2^2-3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 1_f32);
     }
@@ -918,7 +859,7 @@ mod rm_tests {
     fn extra_pow_test_4() {
         let test = "2^(2-3)";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 0.5);
     }
@@ -927,7 +868,7 @@ mod rm_tests {
     fn extra_pow_test_2() {
         let test = "10^10-3";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
         assert_eq!(ans, 9999999997_f32);
     }
@@ -1006,8 +947,11 @@ mod rm_tests {
     #[test]
     fn factorial_test_err() {
         let test = "(2.2)!";
-        let ans = calculator::calculate(test).unwrap_err();
-        assert_eq!(ans, "Factorial is only defined for non-negative integers");
+        let ans = calculator::calculate(test).unwrap_err().to_string();
+        assert_eq!(
+            ans,
+            "Factorial is only defined for non-negative integers at character 6"
+        );
     }
 
     #[test]
@@ -1081,50 +1025,50 @@ mod rm_tests {
     #[test]
     fn invalid_char_test() {
         let test = "3 ? 3";
-        let tokens = get_tokens(test).unwrap_err();
+        let tokens = get_tokens(test).unwrap_err().to_string();
         assert_eq!(tokens, "Invalid input at character 3");
     }
 
     #[test]
     fn eval_rpn_test_empty_eq() {
         let test = "";
-        let tokens = get_tokens(test).unwrap_err();
+        let tokens = get_tokens(test).unwrap_err().to_string();
         assert_eq!(tokens, "Invalid equation supplied");
     }
 
     #[test]
     fn eval_rpn_test_invalid_underscore() {
         let test = "sin_(5)";
-        let tokens = get_tokens(test).unwrap_err();
-        assert_eq!(tokens, "Invalid input at character 3");
+        let tokens = get_tokens(test).unwrap_err().to_string();
+        assert_eq!(tokens, "Invalid input at character 4");
     }
 
     #[test]
     fn eval_rpn_test_invalid_log() {
         let test = "log_(5)";
-        let tokens = get_tokens(test).unwrap_err();
-        assert_eq!(tokens, "Invalid use of log");
+        let tokens = get_tokens(test).unwrap_err().to_string();
+        assert_eq!(tokens, "Invalid use of log at character 1");
     }
 
     // #[test]
     // fn eval_rpn_test_invalid_power() {
     //     let test = "y = 3x^a";
-    //     let tokens = get_tokens(test).unwrap_err();
+    //     let tokens = get_tokens(test).unwrap_err().to_string();
     //     assert_eq!(tokens, "Invalid power");
     // }
 
     #[test]
     fn eval_rpn_test_fn_name() {
         let test = "cro(5)";
-        let tokens = get_tokens(test).unwrap_err();
-        assert_eq!(tokens, "Invalid function name cro");
+        let tokens = get_tokens(test).unwrap_err().to_string();
+        assert_eq!(tokens, "Invalid function name cro at character 1");
     }
 
     #[test]
     fn eval_rpn_test_power() {
         let test = "3^2";
         let tokens = get_tokens(test).unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), None).unwrap();
 
         assert!(is_close(ans, 9_f32));
@@ -1362,16 +1306,16 @@ mod rm_tests {
     #[test]
     fn choice_test_error() {
         let test = "ch(20,9, 0)";
-        let expected_result = "ch accepts at most 2 parameters, got 3";
-        let actual_result = calculator::calculate(test).unwrap_err();
+        let expected_result = "ch accepts at most 2 parameters, got 3 at character 1";
+        let actual_result = calculator::calculate(test).unwrap_err().to_string();
         assert_eq!(expected_result, actual_result);
     }
 
     #[test]
     fn choice_test_error_2() {
         let test = "ch(20,9.1)";
-        let expected_result = "Parameter 2 must be an integer, got 9.1";
-        let actual_result = calculator::calculate(test).unwrap_err();
+        let expected_result = "Parameter 2 must be an integer, got 9.1 at character 1";
+        let actual_result = calculator::calculate(test).unwrap_err().to_string();
         assert_eq!(expected_result, actual_result);
     }
 
@@ -1387,7 +1331,7 @@ mod rm_tests {
     fn y_test() {
         let test = "y";
         let expected_result = "Invalid equation supplied";
-        let actual_result = calculator::calculate(test).unwrap_err();
+        let actual_result = calculator::calculate(test).unwrap_err().to_string();
         assert_eq!(actual_result, expected_result);
     }
 
@@ -3326,13 +3270,15 @@ mod rm_tests {
 
     #[test]
     fn atan2_wrong_arity_one() {
-        let err = calculator::calculate("atan2(1)").unwrap_err();
+        let err = calculator::calculate("atan2(1)").unwrap_err().to_string();
         assert!(err.contains("atan2"));
     }
 
     #[test]
     fn atan2_wrong_arity_three() {
-        let err = calculator::calculate("atan2(1, 2, 3)").unwrap_err();
+        let err = calculator::calculate("atan2(1, 2, 3)")
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("atan2"));
     }
 
@@ -3482,7 +3428,7 @@ mod rm_tests {
     fn pipe_with_x_variable() {
         // y = x |> abs at x = -7 should be 7
         let tokens = get_tokens("x |> abs").unwrap();
-        let parsed_eq = parse(tokens.into_iter().map(Ok)).unwrap();
+        let parsed_eq = parse(spanned(tokens)).unwrap();
         let ans = evaluate(parsed_eq.iter().copied(), -7.0).unwrap();
         assert!(approx(ans, 7.0));
     }
@@ -3491,44 +3437,48 @@ mod rm_tests {
 
     #[test]
     fn pipe_rhs_number_errors() {
-        let err = calculator::calculate("5 |> 6").unwrap_err();
+        let err = calculator::calculate("5 |> 6").unwrap_err().to_string();
         assert!(err.contains("|>"));
     }
 
     #[test]
     fn pipe_rhs_variadic_errors() {
-        let err = calculator::calculate("5 |> avg").unwrap_err();
+        let err = calculator::calculate("5 |> avg").unwrap_err().to_string();
         assert!(err.contains("avg") && err.contains("|>"));
     }
 
     #[test]
     fn pipe_rhs_log_errors() {
         // log isn't a piped unary function (needs base)
-        let err = calculator::calculate("5 |> log").unwrap_err();
+        let err = calculator::calculate("5 |> log").unwrap_err().to_string();
         assert!(err.contains("log"));
     }
 
     #[test]
     fn pipe_rhs_with_parens_errors() {
-        let err = calculator::calculate("5 |> sin(2)").unwrap_err();
+        let err = calculator::calculate("5 |> sin(2)")
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("parentheses"));
     }
 
     #[test]
     fn pipe_rhs_unknown_name_errors() {
-        let err = calculator::calculate("5 |> foo").unwrap_err();
+        let err = calculator::calculate("5 |> foo").unwrap_err().to_string();
         assert!(err.contains("foo"));
     }
 
     #[test]
     fn pipe_dangling_errors() {
-        let err = calculator::calculate("5 |>").unwrap_err();
+        let err = calculator::calculate("5 |>").unwrap_err().to_string();
         assert!(err.contains("|>") || err.contains("Dangling"));
     }
 
     #[test]
     fn pipe_back_to_back_errors() {
-        let err = calculator::calculate("5 |> |> sin").unwrap_err();
+        let err = calculator::calculate("5 |> |> sin")
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("|>") || err.contains("unary"));
     }
 
@@ -3554,7 +3504,7 @@ mod rm_tests {
 
     #[test]
     fn pipe_single_bar_rhs_non_function_errors() {
-        let err = calculator::calculate("5 | 6").unwrap_err();
+        let err = calculator::calculate("5 | 6").unwrap_err().to_string();
         assert!(err.contains("|>") || err.contains("unary"));
     }
 
@@ -3595,7 +3545,7 @@ mod rm_tests {
         // and an empty value stack.
         for name in ["sin", "sqrt", "ln", "abs"] {
             let rpn = vec![get_call_token(name)];
-            let err = evaluate(rpn, None).unwrap_err();
+            let err = evaluate(spanned_rpn(rpn), None).unwrap_err().to_string();
             assert!(
                 err.contains(name),
                 "unary underflow error should name '{name}', got: {err}"
@@ -3603,20 +3553,20 @@ mod rm_tests {
         }
 
         // Variadic underflow names the function.
-        let err = calculator::calculate("min()").unwrap_err();
+        let err = calculator::calculate("min()").unwrap_err().to_string();
         assert!(
             err.contains("min"),
             "variadic error should name 'min', got: {err}"
         );
 
-        let err = calculator::calculate("avg()").unwrap_err();
+        let err = calculator::calculate("avg()").unwrap_err().to_string();
         assert!(
             err.contains("avg"),
             "variadic error should name 'avg', got: {err}"
         );
 
         // atan2 arity error names the function.
-        let err = calculator::calculate("atan2(1)").unwrap_err();
+        let err = calculator::calculate("atan2(1)").unwrap_err().to_string();
         assert!(
             err.contains("atan2"),
             "arity error should name 'atan2', got: {err}"
@@ -3707,5 +3657,272 @@ mod rm_tests {
                 );
             }
         }
+    }
+
+    // Regression: the tokenizer used to mix byte offsets with char indices,
+    // so a decimal literal after a multi-byte char (π) failed to lex.
+    #[test]
+    fn decimal_after_multibyte_char_test() {
+        let expected = std::f32::consts::PI + 3.5;
+        assert!(is_close(
+            calculator::calculate("π + 3.5").unwrap(),
+            expected
+        ));
+        assert!(is_close(
+            calculator::calculate("3.5 + π").unwrap(),
+            expected
+        ));
+        assert!(is_close(
+            calculator::calculate("π * 2.25 + π").unwrap(),
+            std::f32::consts::PI * 2.25 + std::f32::consts::PI
+        ));
+    }
+
+    // Regression: factorial past 20 used to panic instead of returning Err.
+    #[test]
+    fn factorial_out_of_range_is_err_test() {
+        assert!(calculator::calculate("21!")
+            .unwrap_err()
+            .to_string()
+            .contains("20"));
+        assert!(calculator::calculate("150!").is_err());
+        assert_eq!(
+            calculator::calculate("20!").unwrap(),
+            2_432_902_008_176_640_000_f32
+        );
+    }
+
+    // Regression: ch with n > 20 hit the same factorial panic.
+    #[test]
+    fn choose_out_of_range_is_err_test() {
+        assert!(calculator::calculate("ch(25, 2)").is_err());
+        assert_eq!(calculator::calculate("ch(20, 2)").unwrap(), 190.0);
+    }
+
+    // Regression: a non-positive step size used to loop forever in plot().
+    #[test]
+    fn plot_rejects_bad_step_size_test() {
+        assert!(calculator::plot("y = x", 0.0, 1.0, 0.0).is_err());
+        assert!(calculator::plot("y = x", 0.0, 1.0, -0.5).is_err());
+        assert!(calculator::plot("y = x", 0.0, 1.0, f32::NAN).is_err());
+    }
+
+    // Identifiers are scanned in full before single-char meanings apply, so
+    // an unknown name starting with x/y/e/π fails as one word instead of
+    // mis-lexing char by char (`exp(1)` used to lex as `e`, `x`, `p(1)`).
+    #[test]
+    fn identifiers_scan_as_full_words_test() {
+        let err = calculator::calculate("exp(1)").unwrap_err().to_string();
+        assert!(err.contains("exp"), "error should name 'exp', got: {err}");
+
+        let err = calculator::calculate("xor(1)").unwrap_err().to_string();
+        assert!(err.contains("xor"), "error should name 'xor', got: {err}");
+    }
+
+    // Juxtaposed coefficients: tighter than a preceding /, ^, mod, %;
+    // looser than an exponent on the x itself.
+    #[test]
+    fn juxtaposed_coefficient_binding_test() {
+        let points = calculator::plot("y = 2x^2", 2.0, 2.0, 1.0).unwrap();
+        assert!(is_close(points[0].y, 8.0)); // 2(x^2), not (2x)^2
+
+        let points = calculator::plot("y = 1/2x", 2.0, 2.0, 1.0).unwrap();
+        assert!(is_close(points[0].y, 0.25)); // 1/(2x), not (1/2)x
+    }
+
+    // A coefficient only attaches to a *bare* x — a longer identifier after
+    // the digits is scanned as its own word, so a future `xor` entry would
+    // resolve rather than losing its `x` to the coefficient path.
+    #[test]
+    fn juxtaposition_requires_bare_x_test() {
+        let err = calculator::calculate("2xor(1)").unwrap_err().to_string();
+        assert!(err.contains("xor"), "error should name 'xor', got: {err}");
+
+        assert!(calculator::calculate("2x2").is_err());
+
+        // A coefficient of exactly 1 still works.
+        let points = calculator::plot("y = 1x + 1", 2.0, 2.0, 1.0).unwrap();
+        assert!(is_close(points[0].y, 3.0));
+    }
+
+    // `xy` is a single unknown identifier, not `x` followed by a silently
+    // discarded equation marker.
+    #[test]
+    fn multiletter_reserved_prefix_is_one_word_test() {
+        assert!(calculator::calculate("xy").is_err());
+        assert!(calculator::calculate("yx + 1").is_err());
+    }
+
+    // Error positions count characters, not bytes, so they stay aligned
+    // after multi-byte input like π.
+    #[test]
+    fn error_positions_count_chars_test() {
+        let err = calculator::calculate("π ?").unwrap_err().to_string();
+        assert_eq!(err, "Invalid input at character 3");
+    }
+
+    // Only unary functions may follow `|>`.
+    #[test]
+    fn pipe_rejects_non_unary_targets_test() {
+        let err = calculator::calculate("2 |> pi").unwrap_err().to_string();
+        assert!(err.contains("pi"), "error should name 'pi', got: {err}");
+
+        let err = calculator::calculate("2 |> ch").unwrap_err().to_string();
+        assert!(err.contains("ch"), "error should name 'ch', got: {err}");
+
+        let err = calculator::calculate("2 |> mod").unwrap_err().to_string();
+        assert!(err.contains("mod"), "error should name 'mod', got: {err}");
+
+        let err = calculator::calculate("4 |> sqrt(2)")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("parentheses"),
+            "error should mention parentheses, got: {err}"
+        );
+    }
+
+    // The percent tag is one-shot: it scales a following +/- against the
+    // left operand, every other consumer reads the /100 value literally,
+    // and a tag on the left side is ignored.
+    #[test]
+    fn percent_tag_semantics_test() {
+        assert!(is_close(calculator::calculate("50% + 50%").unwrap(), 0.75));
+        assert!(is_close(calculator::calculate("20% + 10").unwrap(), 10.2));
+        assert!(is_close(calculator::calculate("5 * 20%").unwrap(), 1.0));
+    }
+
+    // sqrt dispatches to f32::sqrt — results must match std exactly.
+    #[test]
+    fn sqrt_matches_std_test() {
+        assert_eq!(calculator::calculate("sqrt(2)").unwrap(), 2.0_f32.sqrt());
+        assert_eq!(calculator::calculate("sqrt(0.5)").unwrap(), 0.5_f32.sqrt());
+        assert!(calculator::calculate("sqrt(-4)").unwrap().is_nan());
+    }
+
+    // An evaluation error at any sample point surfaces from plot()'s
+    // parallel map instead of being lost.
+    #[test]
+    fn plot_propagates_evaluation_errors_test() {
+        let result = calculator::plot("y = ch(x, 2)", 0.0, 25.0, 1.0);
+        assert!(result.is_err()); // factorial range exceeded at x = 21
+
+        let ok = calculator::plot("y = ch(x, 2)", 0.0, 20.0, 1.0).unwrap();
+        assert_eq!(ok.len(), 21);
+    }
+
+    // An inverted range yields no points rather than an error.
+    #[test]
+    fn plot_inverted_range_is_empty_test() {
+        let points = calculator::plot("y = x", 1.0, 0.0, 0.5).unwrap();
+        assert!(points.is_empty());
+    }
+
+    // Structural tokens reaching the evaluator are an error, not a panic
+    // or a silent misread.
+    #[test]
+    fn evaluator_rejects_structural_tokens_test() {
+        let err = evaluate(spanned_rpn(vec![Token::Pipe]), None)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("Unexpected token"), "got: {err}");
+
+        let err = evaluate(spanned_rpn(Vec::new()), None)
+            .unwrap_err()
+            .to_string();
+        assert_eq!(err, "Invalid equation supplied");
+    }
+
+    // EndCall is parser-synthesized; one arriving as parser *input* is an
+    // error, not an unreachable! panic.
+    #[test]
+    fn parser_rejects_synthetic_input_test() {
+        let avg = catalog::find("avg").unwrap();
+        let tokens = vec![Token::EndCall(avg), End];
+        let err = parse(spanned(tokens)).unwrap_err().to_string();
+        assert!(err.contains("Unexpected token"), "got: {err}");
+    }
+
+    // Errors carry the char-indexed, half-open span of the offending input
+    // so consumers (rm-repl) can point a caret at it.
+    #[test]
+    fn errors_carry_spans_test() {
+        let span = |eq: &str| calculator::calculate(eq).unwrap_err().span;
+
+        // Tokenizer: the unknown name, the bad character (chars, not bytes).
+        assert_eq!(span("2 + foo(3)"), Some(Span::new(4, 7)));
+        assert_eq!(span("3 ? 3"), Some(Span::new(2, 3)));
+        assert_eq!(span("\u{3c0} + $"), Some(Span::new(4, 5)));
+
+        // Parser: the unclosed opener; the non-function after a pipe --
+        // including a synthetic `2x` expansion, whose tokens all carry the
+        // span of the source lexeme.
+        assert_eq!(span("(2 + 3"), Some(Span::new(0, 1)));
+        assert_eq!(span("3-sqrt(4"), Some(Span::new(2, 7))); // unclosed call
+        assert_eq!(span("2 |> pi"), Some(Span::new(5, 7)));
+        assert_eq!(span("5 |> 2x"), Some(Span::new(5, 7)));
+
+        // Evaluator: the failing operator; a framed call's errors underline
+        // the whole call.
+        assert_eq!(span("21!"), Some(Span::new(2, 3)));
+        assert_eq!(span("ch(25, 2)"), Some(Span::new(0, 9)));
+
+        // Whole-expression problems have no location.
+        assert_eq!(span(""), None);
+    }
+
+    // Display appends a 1-based position when a span exists.
+    #[test]
+    fn error_display_includes_position_test() {
+        let err = calculator::calculate("2 + foo(3)").unwrap_err();
+        assert_eq!(err.to_string(), "Invalid function name foo at character 5");
+    }
+
+    // Every parenthesized call — unary or variadic — enforces the catalog's
+    // arity with the same message shape and a whole-call span.
+    #[test]
+    fn unary_calls_enforce_arity_like_variadics_test() {
+        let err = calculator::calculate("sin(2,2)").unwrap_err();
+        assert_eq!(err.message, "sin accepts at most 1 parameter, got 2");
+        assert_eq!(err.span, Some(Span::new(0, 8)));
+
+        let err = calculator::calculate("cos()").unwrap_err();
+        assert_eq!(err.message, "cos requires at least 1 parameter, got 0");
+        assert_eq!(err.span, Some(Span::new(0, 5)));
+
+        // Nested inside a variadic call, the inner arity still applies —
+        // this used to silently evaluate as avg(1, 2, sin(3)).
+        let err = calculator::calculate("avg(1, sin(2,3))").unwrap_err();
+        assert!(err.message.contains("sin accepts at most 1"), "got: {err}");
+
+        // Unary calls still work, framed: plain, nested, and piped.
+        assert_eq!(calculator::calculate("sin(0)").unwrap(), 0.0);
+        assert_eq!(calculator::calculate("avg(2, sqrt(16), 6)").unwrap(), 4.0);
+        assert_eq!(calculator::calculate("16 |> sqrt |> sqrt").unwrap(), 2.0);
+    }
+
+    // A comma is an argument separator, full stop. Anywhere else it errors
+    // immediately with a span instead of being silently skipped.
+    #[test]
+    fn comma_outside_call_is_an_error_test() {
+        let err = calculator::calculate("2,3").unwrap_err();
+        assert_eq!(err.message, "Unexpected ','");
+        assert_eq!(err.span, Some(Span::new(1, 2)));
+
+        let err = calculator::calculate("(1,2)").unwrap_err();
+        assert_eq!(err.message, "Unexpected ','");
+        assert_eq!(err.span, Some(Span::new(2, 3)));
+
+        let err = calculator::calculate("log_2(8,9)").unwrap_err();
+        assert_eq!(err.message, "log takes exactly one argument");
+    }
+
+    // Digit grouping is spelled with underscores, replacing the old idea of
+    // comma grouping (which is unresolvable against argument lists).
+    #[test]
+    fn underscore_digit_grouping_test() {
+        assert_eq!(calculator::calculate("1_000").unwrap(), 1000.0);
+        assert_eq!(calculator::calculate("1_000_000 / 1_000").unwrap(), 1000.0);
+        assert_eq!(calculator::calculate("1_234.5 * 2").unwrap(), 2469.0);
     }
 }

@@ -6,15 +6,14 @@
 //!
 //! # Naming constraint
 //!
-//! The tokenizer matches `x`, `y`, `π`, and `e` at the **character level**,
-//! before identifier scanning. An entry whose name starts with one of those
-//! characters (`exp`, `xor`, …) would mis-tokenize: the leading character is
-//! consumed as its single-char meaning and the rest of the name is scanned
-//! separately (`exp(1)` would lex as `e`, `x`, `p(1)`). Pick a different
-//! name, or teach the tokenizer to scan a full identifier before falling
-//! back to single-char matches.
+//! The tokenizer scans a full identifier (alphabetic start, alphanumeric
+//! continuation) before resolving it, so names like `exp` or `xor` are fine.
+//! The remaining rules: a name must start with an alphabetic character and
+//! contain only alphanumerics, must not be exactly `x` or `y` (reserved for
+//! the variable and the equation marker), and `log` keeps its special
+//! `log_N(...)` surface syntax.
 
-use crate::utilities::{abs_f32, factorial, square_root_f32};
+use crate::utilities::{abs_f32, factorial};
 use std::collections::HashMap;
 use std::f32::consts::{E, PI};
 
@@ -32,6 +31,18 @@ pub struct Symbol {
     pub example: &'static str,
     pub kind: SymbolKind,
 }
+
+// Symbols are interned: every reference originates from the single &'static
+// CATALOG slice, so pointer identity precisely means "same catalog entry".
+// Deriving field-wise equality would compare through fn pointers, whose
+// addresses aren't guaranteed unique — identity is both cheaper and correct.
+impl PartialEq for Symbol {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
+impl Eq for Symbol {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Category {
@@ -77,14 +88,14 @@ pub enum SymbolKind {
 }
 
 impl SymbolKind {
-    /// Takes exactly one argument, popped straight off the value stack —
-    /// the shape required after `|>` and for non-framed calls.
+    /// Takes exactly one argument — the only shape allowed after `|>`
+    /// (parenthesized calls enforce this arity through the call frame).
     pub fn is_unary(&self) -> bool {
         matches!(self, SymbolKind::Unary(_) | SymbolKind::UnaryChecked(_))
     }
 
-    /// Takes comma-separated arguments collected via a call frame
-    /// (includes fixed-arity comma functions like `atan2` and `ch`).
+    /// Takes a variable number of comma-separated arguments (includes
+    /// fixed-arity comma functions like `atan2` and `ch`).
     pub fn is_variadic(&self) -> bool {
         matches!(self, SymbolKind::Variadic { .. })
     }
@@ -134,7 +145,6 @@ pub const CATALOG: &[Symbol] = &[
     // Constants
     sym!(const "π", ["pi"], Constant, "ratio of a circle's circumference to its diameter", "π ≈ 3.14159", PI),
     sym!(const "e", [], Constant, "Euler's number", "e ≈ 2.71828", E),
-
     // Trigonometric
     sym!(unary "sin", [], Trig, "sine (argument in radians)", "sin(0) = 0", |x| x.sin()),
     sym!(unary "cos", [], Trig, "cosine (argument in radians)", "cos(0) = 1", |x| x.cos()),
@@ -142,32 +152,25 @@ pub const CATALOG: &[Symbol] = &[
     sym!(unary "sec", [], Trig, "secant — 1 / cos(x)", "sec(0) = 1", |x| 1.0 / x.cos()),
     sym!(unary "csc", [], Trig, "cosecant — 1 / sin(x)", "csc(π/2) = 1", |x| 1.0 / x.sin()),
     sym!(unary "cot", [], Trig, "cotangent — 1 / tan(x)", "cot(π/4) = 1", |x| 1.0 / x.tan()),
-
     // Inverse trigonometric
     sym!(unary "asin", ["arcsin"], InverseTrig, "arcsine — returns radians", "asin(1) = π/2", |x| x.asin()),
     sym!(unary "acos", ["arccos"], InverseTrig, "arccosine — returns radians", "acos(1) = 0", |x| x.acos()),
     sym!(unary "atan", ["arctan"], InverseTrig, "arctangent — returns radians", "atan(0) = 0", |x| x.atan()),
     sym!(variadic "atan2", [], InverseTrig, "two-argument arctangent — atan2(y, x)", "atan2(1, 1) = π/4",
          min: 2, max: Some(2), |xs| Ok(xs[0].atan2(xs[1]))),
-
     // Hyperbolic
     sym!(unary "sinh", [], Hyperbolic, "hyperbolic sine", "sinh(0) = 0", |x| x.sinh()),
     sym!(unary "cosh", [], Hyperbolic, "hyperbolic cosine", "cosh(0) = 1", |x| x.cosh()),
     sym!(unary "tanh", [], Hyperbolic, "hyperbolic tangent", "tanh(0) = 0", |x| x.tanh()),
-
     // Angle conversion
     sym!(unary "deg", [], AngleConversion, "radians → degrees", "deg(π) = 180", |x| x * 180.0 / PI),
     sym!(unary "rad", [], AngleConversion, "degrees → radians", "rad(180) = π", |x| x * PI / 180.0),
-
     // Arithmetic (function form)
     sym!(unary "abs", [], Arithmetic, "absolute value", "abs(-3) = 3", abs_f32),
-    sym!(unary_checked "sqrt", [], Arithmetic, "square root (NaN for negatives)", "sqrt(9) = 3",
-         |x| if x.is_sign_negative() { Ok(f32::NAN) } else { Ok(square_root_f32(x)) }),
-
+    sym!(unary "sqrt", [], Arithmetic, "square root (NaN for negatives)", "sqrt(9) = 3", |x| x.sqrt()),
     // Logarithms
     sym!(unary "ln", [], Logarithmic, "natural log (base e)", "ln(e) = 1", |x| x.ln()),
     sym!(log_base "log", [], Logarithmic, "log with explicit base — write log_N(x)", "log_2(8) = 3"),
-
     // Statistical / variadic
     sym!(variadic "min", [], Statistical, "minimum of arguments", "min(3, 1, 4) = 1", min: 1, max: None,
          |xs| Ok(xs.iter().copied().fold(f32::MAX, f32::min))),
@@ -176,60 +179,59 @@ pub const CATALOG: &[Symbol] = &[
     sym!(variadic "avg", [], Statistical, "arithmetic mean of arguments", "avg(2, 4, 6) = 4", min: 1, max: None,
          |xs| Ok(xs.iter().sum::<f32>() / xs.len() as f32)),
     sym!(variadic "med", [], Statistical, "median of arguments", "med(1, 3, 5) = 3", min: 1, max: None,
-         |xs| {
-             let mut params = xs.to_vec();
-             params.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-             let len = params.len();
-             let result = if len.is_multiple_of(2) {
-                 let mid = len / 2;
-                 (params[mid - 1] + params[mid]) / 2.0
-             } else {
-                 params[len / 2]
-             };
-             Ok(result)
-         }),
+    |xs| {
+        let mut params = xs.to_vec();
+        params.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = params.len();
+        let result = if len.is_multiple_of(2) {
+            let mid = len / 2;
+            (params[mid - 1] + params[mid]) / 2.0
+        } else {
+            params[len / 2]
+        };
+        Ok(result)
+    }),
     sym!(variadic "mode", [], Statistical, "most frequent value(s); NaN if all unique", "mode(1, 2, 2, 3) = 2", min: 1, max: None,
-         |xs| {
-             let mut seen: HashMap<u32, usize> = HashMap::new();
-             for &v in xs {
-                 *seen.entry(v.to_bits()).or_insert(0) += 1;
-             }
-             let max_count = *seen
-                 .values()
-                 .max()
-                 .ok_or_else(|| String::from("mode requires at least one parameter"))?;
-             let result = if max_count == 1 {
-                 f32::NAN
-             } else {
-                 let modes: Vec<f32> = seen
-                     .iter()
-                     .filter(|(_, &c)| c == max_count)
-                     .map(|(&bits, _)| f32::from_bits(bits))
-                     .collect();
-                 modes.iter().sum::<f32>() / modes.len() as f32
-             };
-             Ok(result)
-         }),
+    |xs| {
+        let mut seen: HashMap<u32, usize> = HashMap::new();
+        for &v in xs {
+            *seen.entry(v.to_bits()).or_insert(0) += 1;
+        }
+        let max_count = *seen
+            .values()
+            .max()
+            .ok_or_else(|| String::from("mode requires at least one parameter"))?;
+        let result = if max_count == 1 {
+            f32::NAN
+        } else {
+            let modes: Vec<f32> = seen
+                .iter()
+                .filter(|(_, &c)| c == max_count)
+                .map(|(&bits, _)| f32::from_bits(bits))
+                .collect();
+            modes.iter().sum::<f32>() / modes.len() as f32
+        };
+        Ok(result)
+    }),
     sym!(variadic "ch", [], Statistical, "binomial coefficient — ch(n, k) = n choose k", "ch(5, 2) = 10", min: 2, max: Some(2),
-         |xs| {
-             for (i, &v) in xs.iter().enumerate() {
-                 if v % 1.0 != 0.0 {
-                     return Err(format!("Parameter {} must be an integer, got {}", i + 1, v));
-                 }
-                 if v < 0.0 {
-                     return Err(format!("Parameter {} must be non-negative, got {}", i + 1, v));
-                 }
-             }
-             let n = xs[0] as isize;
-             let k = xs[1] as isize;
-             let result = if k > n {
-                 0.0
-             } else {
-                 (factorial(n) / (factorial(k) * factorial(n - k))) as f32
-             };
-             Ok(result)
-         }),
-
+    |xs| {
+        for (i, &v) in xs.iter().enumerate() {
+            if v % 1.0 != 0.0 {
+                return Err(format!("Parameter {} must be an integer, got {}", i + 1, v));
+            }
+            if v < 0.0 {
+                return Err(format!("Parameter {} must be non-negative, got {}", i + 1, v));
+            }
+        }
+        let n = xs[0] as isize;
+        let k = xs[1] as isize;
+        let result = if k > n {
+            0.0
+        } else {
+            (factorial(n)? / (factorial(k)? * factorial(n - k)?)) as f32
+        };
+        Ok(result)
+    }),
     // Operators (docs + precedence/assoc — dispatch stays glyph-tokenized in evaluator)
     sym!(op "+", [], Arithmetic, "addition", "2 + 3 = 5", glyph: "+", prec: 2, Left, Binary),
     sym!(op "-", [], Arithmetic, "subtraction (or unary negation)", "5 - 2 = 3", glyph: "-", prec: 2, Left, Binary),
@@ -240,7 +242,6 @@ pub const CATALOG: &[Symbol] = &[
     sym!(op "mod", ["%%"], Arithmetic, "modulo (remainder)", "17 mod 5 = 2", glyph: "mod", prec: 3, Left, Binary),
     sym!(op "!", [], Arithmetic, "factorial (postfix)", "5! = 120", glyph: "!", prec: 5, Left, Postfix),
     sym!(op "|>", ["|"], Piping, "pipe: pass LHS as sole argument to a unary function on the RHS", "π/2 |> sin", glyph: "|>", prec: 1, Left, Pipe),
-
     // Variable
     sym!(variable "x", [], Variable, "the running variable — set by plot(), 0 in calculate()", "y = x^2"),
 ];
@@ -250,13 +251,25 @@ pub fn all() -> &'static [Symbol] {
     CATALOG
 }
 
-/// Look up a symbol by its canonical name or any alias. Linear scan; the
-/// catalog is small and this is called at most once per identifier while
-/// tokenizing.
+/// Look up a symbol by its canonical name or any alias. O(1) via an index
+/// built from `CATALOG` on first use — the parser resolves operator
+/// metadata through this on every operator token.
 pub fn find(name: &str) -> Option<&'static Symbol> {
-    CATALOG
-        .iter()
-        .find(|s| s.name == name || s.aliases.contains(&name))
+    static INDEX: std::sync::OnceLock<HashMap<&'static str, &'static Symbol>> =
+        std::sync::OnceLock::new();
+    INDEX
+        .get_or_init(|| {
+            let mut index = HashMap::new();
+            for sym in CATALOG {
+                index.insert(sym.name, sym);
+                for alias in sym.aliases {
+                    index.insert(*alias, sym);
+                }
+            }
+            index
+        })
+        .get(name)
+        .copied()
 }
 
 /// Every symbol in a given category, in catalog declaration order.
@@ -292,6 +305,41 @@ mod tests {
                     "duplicate label '{label}' — every name/alias must be unique across CATALOG"
                 );
                 seen.push(label);
+            }
+        }
+    }
+
+    #[test]
+    fn catalog_names_lex_as_identifiers() {
+        // Enforces the module-header naming rules so a future entry that the
+        // tokenizer can't reach fails here instead of silently mis-lexing:
+        // names start alphabetic, continue alphanumeric, and don't shadow
+        // the reserved single letters `x`/`y`. Operators are exempt (their
+        // glyphs aren't identifiers), as is the variable entry itself.
+        for s in CATALOG {
+            if matches!(s.kind, SymbolKind::Operator { .. } | SymbolKind::Variable) {
+                continue;
+            }
+            for label in std::iter::once(s.name).chain(s.aliases.iter().copied()) {
+                let mut chars = label.chars();
+                let first = chars
+                    .next()
+                    .unwrap_or_else(|| panic!("empty label on '{}'", s.name));
+                assert!(
+                    first.is_alphabetic(),
+                    "label '{label}' of '{}' must start with an alphabetic character",
+                    s.name
+                );
+                assert!(
+                    chars.all(|c| c.is_alphabetic() || c.is_ascii_digit()),
+                    "label '{label}' of '{}' must contain only alphanumerics",
+                    s.name
+                );
+                assert!(
+                    label != "x" && label != "y",
+                    "label '{label}' of '{}' shadows a reserved single letter",
+                    s.name
+                );
             }
         }
     }
@@ -371,11 +419,11 @@ mod tests {
         }
 
         let sqrt = find("sqrt").unwrap();
-        if let SymbolKind::UnaryChecked(f) = sqrt.kind {
-            assert_eq!(f(9.0).unwrap(), 3.0);
-            assert!(f(-1.0).unwrap().is_nan());
+        if let SymbolKind::Unary(f) = sqrt.kind {
+            assert_eq!(f(9.0), 3.0);
+            assert!(f(-1.0).is_nan());
         } else {
-            panic!("sqrt should be UnaryChecked");
+            panic!("sqrt should be Unary");
         }
 
         let avg = find("avg").unwrap();
@@ -395,29 +443,24 @@ mod tests {
     }
 
     #[test]
-    fn operator_precedence_matches_operands_module() {
-        // Regression guard: catalog operator precedence must stay in sync with
-        // structs::operands (until we drive operands from the catalog in task 10).
-        let expect = |name: &str, prec: u8| {
+    fn operator_relative_precedence_holds() {
+        // The parser reads operator precedence straight from the catalog, so
+        // this guards the *relative* ordering the language depends on:
+        // pipe < additive < multiplicative < power < postfix.
+        let prec = |name: &str| -> u8 {
             let sym = find(name).unwrap_or_else(|| panic!("missing operator {name}"));
             match sym.kind {
-                SymbolKind::Operator { precedence, .. } => assert_eq!(
-                    precedence, prec,
-                    "operator '{name}' precedence mismatch"
-                ),
+                SymbolKind::Operator { precedence, .. } => precedence,
                 _ => panic!("'{name}' is not an Operator"),
             }
         };
-        expect("+", 2);
-        expect("-", 2);
-        expect("*", 3);
-        expect("/", 3);
-        expect("mod", 3);
-        expect("%%", 3); // alias of mod
-        expect("^", 4);
-        expect("!", 5);
-        expect("%", 5); // postfix, binds like factorial
+        assert!(prec("|>") < prec("+"));
+        assert_eq!(prec("+"), prec("-"));
+        assert!(prec("+") < prec("*"));
+        assert_eq!(prec("*"), prec("/"));
+        assert_eq!(prec("*"), prec("mod"));
+        assert!(prec("*") < prec("^"));
+        assert!(prec("^") < prec("!"));
+        assert_eq!(prec("!"), prec("%"));
     }
 }
-
-

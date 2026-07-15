@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 cargo build
 cargo build --release
 
-# Test (runs ~436 tests)
+# Test (runs ~480 tests)
 cargo test
 
 # Run a single test by name
@@ -43,11 +43,12 @@ StreamingTokenizer (Iterator<Item=Result<Token,String>>)
     → evaluate(tokens, x) → f32
 ```
 
-- **Tokenizer** (`pipeline/tokenizer.rs`): `StreamingTokenizer` is a lazy `Iterator` over a `&str`. It handles unary vs binary minus disambiguation, implicit coefficient syntax (`2x` → `Number(2) * X(1,1)`), and `log_N(...)` syntax. It emits an `End` token at the end of the stream.
-- **Parser** (`pipeline/parser.rs`): `parse<I>()` is generic over any `IntoIterator<Item=Result<Token,String>>`. Implements Dijkstra's Shunting Yard algorithm to convert infix tokens to RPN (`Vec<Token>`). Handles variadic functions (`avg`, `min`, `max`, `med`, `mode`, `ch`) via a frame stack and synthetic `End*` tokens.
-- **Evaluator** (`pipeline/evaluator.rs`): `evaluate<I>()` consumes RPN tokens with an optional `x` value. Uses a `Vec<f32>` stack and a `FunctionFrame` stack for variadic functions.
-- **Token** (`structs/token.rs`): `Token` holds a `TokenType` + two `f32` fields. For `X` tokens, `numeric_value_1` = coefficient and `numeric_value_2` = exponent. For `Log`, `numeric_value_1` = base. Synthetic `End*` tokens (`EndAvg`, `EndMin`, etc.) are produced by the parser, never by the tokenizer.
-- `plot()` parses once and then evaluates in parallel via Rayon over the x-values.
+- **Tokenizer** (`pipeline/tokenizer.rs`): `StreamingTokenizer` is a lazy `Iterator` over a `&str`; its char iterator is the only cursor (positions are counted in chars, for error messages only). It scans full identifiers before any single-character meaning applies, and handles unary vs binary minus disambiguation, juxtaposed coefficients (`2x` expands to `Number(2) * X`, parenthesized when the preceding operator binds at least as tightly as `*` — the binding is context-sensitive by design, see `coefficient_x`), and `log_N(...)` syntax. It emits an `End` token at the end of the stream.
+- **Parser** (`pipeline/parser.rs`): `parse<I>()` is generic over any `IntoIterator<Item=Result<SpannedToken,EquationError>>`. Implements Dijkstra's Shunting Yard algorithm to convert infix tokens to RPN. Every parenthesized call — unary and variadic alike — becomes a `CallStart`…`EndCall` frame whose arity the evaluator enforces from the catalog; a comma is valid only as an argument separator directly inside a call (digit grouping is `1_000`). Operator precedence/associativity comes from the catalog via `structs/operands.rs` (`UnaryMinus`, which the catalog doesn't name, mirrors `^`).
+- **Evaluator** (`pipeline/evaluator.rs`): `evaluate<I>()` consumes RPN tokens with an optional `x` value. Uses a value stack and a `FunctionFrame` stack; `EndCall` arity-checks (unary = exactly 1, dispatched without an argument buffer) and dispatches through the `&'static Symbol`. A bare `Call` token is a pipe target applying to the stack top.
+- **Errors** (`errors.rs`): `EquationError { message, span: Option<Span> }` — spans are char-indexed half-open ranges into the source, so consumers (rm-repl) can render carets. `Display` appends a 1-based position.
+- **Token** (`structs/token.rs`): an enum whose variants carry their own payloads — `Number(f32)`, `Log { base }`, `X`, and `Call`/`CallStart`/`EndCall`/`Constant` holding a `&'static Symbol` (compared by catalog identity). Tokens travel as `SpannedToken` (token + source span). `CallStart`/`EndCall` are produced by the parser, never by the tokenizer.
+- `plot()` parses once and then evaluates in parallel via Rayon over the x-values. It rejects non-positive/NaN step sizes; factorial (`!`, `ch`) is limited to n ≤ 20 and errors past that.
 
 ### Neural Network
 

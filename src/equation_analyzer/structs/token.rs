@@ -1,43 +1,38 @@
 use crate::equation_analyzer::catalog::Symbol;
+use crate::equation_analyzer::errors::Span;
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Token {
-    pub(crate) token_type: TokenType,
-    pub(crate) numeric_value_1: f32,
-    pub(crate) numeric_value_2: f32,
-    /// Backing catalog entry when the token corresponds to a named symbol
-    /// (function call, constant, operator). `None` for structural tokens
-    /// like `OpenParen`, `Number`, `End`, `X`.
-    pub(crate) symbol: Option<&'static Symbol>,
+/// A token plus the character range of the source equation it came from.
+/// Synthetic tokens (the `2x` expansion, the parser's `EndCall`) carry the
+/// span of the source construct that produced them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct SpannedToken {
+    pub(crate) token: Token,
+    pub(crate) span: Span,
 }
 
-// Manual PartialEq: symbols are compared by pointer identity because all
-// Symbol references originate from a single &'static CATALOG slice, so
-// pointer equality precisely means "same catalog entry" — cheaper and
-// safer than deriving PartialEq on the Symbol struct (which would compare
-// through fn pointers, whose addresses aren't guaranteed unique).
-impl PartialEq for Token {
-    fn eq(&self, other: &Self) -> bool {
-        self.token_type == other.token_type
-            && self.numeric_value_1 == other.numeric_value_1
-            && self.numeric_value_2 == other.numeric_value_2
-            && match (self.symbol, other.symbol) {
-                (Some(a), Some(b)) => std::ptr::eq(a, b),
-                (None, None) => true,
-                _ => false,
-            }
+impl SpannedToken {
+    pub(crate) fn new(token: Token, span: Span) -> Self {
+        SpannedToken { token, span }
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub(crate) enum TokenType {
+/// A lexical/RPN token. Payload-carrying variants hold everything the parser
+/// and evaluator need for that token — there are no out-of-band value fields.
+///
+/// Symbol-carrying variants compare by catalog identity (see `Symbol`'s
+/// `PartialEq`), so two tokens are equal only when they reference the same
+/// catalog entry.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum Token {
     Y,
     Equal,
     Comma,
 
-    /// log_N syntax — the base is baked into `numeric_value_1` on the token.
-    /// Structurally distinct from `Call` because its base is parsed lexically.
-    Log,
+    /// `log_N(` syntax — the base is parsed lexically from the `_N` suffix.
+    /// Structurally distinct from `Call` because of that surface syntax.
+    Log {
+        base: f32,
+    },
 
     OpenParen,
     CloseParen,
@@ -53,23 +48,30 @@ pub(crate) enum TokenType {
     Modulo,
     Percent,
 
-    Number,
+    Number(f32),
 
+    /// The variable `x` — `plot()` substitutes each sample value,
+    /// `calculate()` evaluates it as 0.
     X,
     End,
 
     Pipe,
 
-    /// A unary function call whose behavior comes from `token.symbol`.
-    /// The evaluator pops one arg, dispatches through the Symbol.
-    Call,
+    /// A function call dispatched through its catalog Symbol. In RPN this
+    /// appears only as a pipe target (`x |> sin`): the evaluator pops one
+    /// argument off the stack. Parenthesized calls are rewritten by the
+    /// parser into a `CallStart`…`EndCall` frame instead.
+    Call(&'static Symbol),
 
-    /// Emitted by the parser as the postfix marker for a comma-separated
-    /// call (variadic — includes atan2 / ch). Carries the backing Symbol
-    /// on `token.symbol` so the evaluator can pop the frame and dispatch.
-    EndCall,
+    /// Parser-synthesized frame opener for a parenthesized call — unary and
+    /// variadic alike. Arguments collect until the matching `EndCall`, where
+    /// the catalog's arity is enforced. Never produced by the tokenizer.
+    CallStart(&'static Symbol),
 
-    /// A named mathematical constant (π, e, …). Value comes from
-    /// `token.symbol` via `SymbolKind::Constant(v)`.
-    Constant,
+    /// Parser-synthesized frame closer; its span covers the whole call.
+    /// Never produced by the tokenizer.
+    EndCall(&'static Symbol),
+
+    /// A named constant (π, e, …) — the value comes from the Symbol.
+    Constant(&'static Symbol),
 }

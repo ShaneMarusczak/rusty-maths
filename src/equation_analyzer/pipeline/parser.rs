@@ -1,44 +1,48 @@
 use crate::equation_analyzer::catalog::Symbol;
+use crate::equation_analyzer::errors::{EquationError, Span};
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
-use crate::equation_analyzer::structs::token::{Token, TokenType};
+use crate::equation_analyzer::structs::token::{SpannedToken, Token};
 
-/// Represents a parser frame for a comma-separated function call.
-/// Tracks the backing catalog Symbol so we can emit the matching EndCall.
+/// Represents a parser frame for a parenthesized function call — unary and
+/// variadic alike. Tracks the backing catalog Symbol so we can emit the
+/// matching EndCall, and the call token's span so errors can underline the
+/// whole call.
 struct ParserFrame {
     symbol: &'static Symbol,
+    call_span: Span,
     operator_stack_position: usize,
 }
 
-// The two synthetic tokens this parser fabricates (they never come from the
-// tokenizer): the EndCall marker that closes a framed call in the RPN output,
-// and the `(` sentinel pushed to fence off a framed call's operators.
-
-fn make_end_call(symbol: &'static Symbol) -> Token {
-    Token {
-        token_type: TokenType::EndCall,
-        numeric_value_1: 0.0,
-        numeric_value_2: 0.0,
-        symbol: Some(symbol),
-    }
-}
-
-fn open_paren_marker() -> Token {
-    Token {
-        token_type: TokenType::OpenParen,
-        numeric_value_1: 0.0,
-        numeric_value_2: 0.0,
-        symbol: None,
-    }
-}
-
-/// Does this Call token dispatch through a frame (comma-separated args)?
-fn is_framed_call(token: &Token) -> bool {
-    token.symbol.is_some_and(|s| s.kind.is_variadic())
-}
-
 /// Is this a Call token whose sole arg comes off the value stack (no frame)?
-fn is_unary_call(token: &Token) -> bool {
-    token.symbol.is_some_and(|s| s.kind.is_unary())
+fn is_unary_call(token: Token) -> bool {
+    matches!(token, Token::Call(s) if s.kind.is_unary())
+}
+
+/// Pop operators to the output until a parenthesis opener (or an empty stack)
+/// is reached. The opener itself stays on the stack.
+fn pop_until_paren_opener(operator_stack: &mut Vec<Operand>, output: &mut Vec<SpannedToken>) {
+    while let Some(top) = operator_stack.last() {
+        if top.paren_opener {
+            break;
+        }
+        if let Some(op) = operator_stack.pop() {
+            output.push(op.token);
+        }
+    }
+}
+
+/// A comma is only valid directly inside a call's parentheses, separating
+/// arguments. Anywhere else — grouping parens, `log_N(...)`, or bare — it's
+/// an immediate error rather than a token to skip: digit grouping is spelled
+/// `1_000`, and a silently dropped comma either mis-splits an enclosing
+/// call's arguments or surfaces later as a confusing stack-shape error.
+fn comma_error(operator_stack: &[Operand], span: Span) -> EquationError {
+    let opener = operator_stack.iter().rev().find(|op| op.paren_opener);
+    let message = match opener.map(|op| op.token.token) {
+        Some(Token::Log { .. }) => String::from("log takes exactly one argument"),
+        _ => String::from("Unexpected ','"),
+    };
+    EquationError::spanned(message, span)
 }
 
 /// Generic Shunting Yard parser that works with any iterator of tokens.
@@ -47,11 +51,11 @@ fn is_unary_call(token: &Token) -> bool {
 /// Converts infix notation to Reverse Polish Notation (RPN) using Dijkstra's Shunting Yard algorithm.
 ///
 /// # Arguments
-/// * `tokens` - An iterator yielding tokens in infix notation (can be Result<Token, String>)
+/// * `tokens` - An iterator yielding spanned tokens in infix notation
 ///
 /// # Returns
-/// * `Ok(Vec<Token>)` - The tokens in RPN format
-/// * `Err(String)` - An error message if parsing fails
+/// * `Ok(Vec<SpannedToken>)` - The tokens in RPN format
+/// * `Err(EquationError)` - An error (with the offending span where one exists)
 ///
 /// # Algorithm
 /// Uses Dijkstra's Shunting Yard algorithm to convert infix notation to RPN:
@@ -63,69 +67,69 @@ fn is_unary_call(token: &Token) -> bool {
 ///
 /// # Note
 /// This algorithm requires buffering the output due to the nature of infix-to-RPN conversion.
-/// The output is always a Vec<Token>, but the input can be any iterator (streaming or not).
-pub(crate) fn parse<I>(tokens: I) -> Result<Vec<Token>, String>
+/// The output is always a Vec, but the input can be any iterator (streaming or not).
+pub(crate) fn parse<I>(tokens: I) -> Result<Vec<SpannedToken>, EquationError>
 where
-    I: IntoIterator<Item = Result<Token, String>>,
+    I: IntoIterator<Item = Result<SpannedToken, EquationError>>,
 {
     let mut operator_stack: Vec<Operand> = Vec::new();
-    let mut output: Vec<Token> = Vec::new();
+    let mut output: Vec<SpannedToken> = Vec::new();
     let mut paren_depth = 0;
     let mut frames: Vec<ParserFrame> = Vec::new();
     let mut found_end = false;
-    let mut expect_piped_function = false;
+    // Span of the pipe operator awaiting its function, when one is armed.
+    let mut expect_piped_function: Option<Span> = None;
 
     for token_result in tokens {
-        let token = token_result?;
+        let spanned = token_result?;
+        let token = spanned.token;
 
         // After a Pipe, the next token must be a unary Call. Emit it directly
         // to the output queue (it's already in postfix position).
-        if expect_piped_function {
-            if token.token_type == TokenType::Call && is_unary_call(&token) {
-                output.push(token);
-                expect_piped_function = false;
+        if expect_piped_function.is_some() {
+            if is_unary_call(token) {
+                output.push(spanned);
+                expect_piped_function = None;
                 continue;
             }
-            return Err(format!(
-                "Expected a unary function after '|>', got {:?}",
-                token.token_type
+            return Err(EquationError::spanned(
+                format!("Expected a unary function after '|>', got {:?}", token),
+                spanned.span,
             ));
         }
 
         // Handle variadic function parameter collection
         // With frame-based evaluation, we now allow full expressions in parameters
         if let Some(frame) = frames.last() {
-            match token.token_type {
+            match token {
                 // Comma: pop all pending operators (they belong to current parameter expression)
-                TokenType::Comma => {
-                    while !operator_stack.is_empty() {
-                        let last = operator_stack.last().ok_or("Missing operator on stack")?;
-                        if last.paren_opener {
-                            break;
-                        }
-                        let op = operator_stack.pop().ok_or("Operator stack empty")?;
-                        output.push(op.token);
+                Token::Comma => {
+                    pop_until_paren_opener(&mut operator_stack, &mut output);
+
+                    // The comma must sit directly at this frame's boundary;
+                    // one inside a nested unary call or plain parens would
+                    // otherwise silently re-split the frame's arguments
+                    // (`avg(1, sin(2,3))` must not become avg(1, 2, sin(3))).
+                    if operator_stack.len() != frame.operator_stack_position + 1 {
+                        return Err(comma_error(&operator_stack, spanned.span));
                     }
                     continue;
                 }
 
                 // CloseParen might end the variadic function, or a nested regular function
-                TokenType::CloseParen => {
-                    // Pop all operators until we find a paren_opener
-                    while !operator_stack.is_empty() {
-                        let last = operator_stack.last().ok_or("Missing operator on stack")?;
-                        if last.paren_opener {
-                            break;
-                        }
-                        let op = operator_stack.pop().ok_or("Operator stack empty")?;
-                        output.push(op.token);
-                    }
+                Token::CloseParen => {
+                    pop_until_paren_opener(&mut operator_stack, &mut output);
 
                     // Check if we've drained back to the frame boundary
                     if operator_stack.len() == frame.operator_stack_position + 1 {
                         operator_stack.pop();
                         paren_depth -= 1;
-                        output.push(make_end_call(frame.symbol));
+                        // The EndCall's span covers the whole call, from the
+                        // function name through this closing paren.
+                        output.push(SpannedToken::new(
+                            Token::EndCall(frame.symbol),
+                            Span::new(frame.call_span.start, spanned.span.end),
+                        ));
                         frames.pop();
                         continue;
                     }
@@ -138,94 +142,80 @@ where
             }
         }
 
-        match token.token_type {
-            // Skip equation markers and commas
-            TokenType::Y | TokenType::Equal | TokenType::Comma => continue,
+        match token {
+            // Skip equation markers
+            Token::Y | Token::Equal => continue,
 
-            // Constants go directly to output
-            TokenType::Constant => {
-                output.push(token);
-            }
+            // A comma outside a call's parentheses is an error, not a
+            // separator to skip (see comma_error).
+            Token::Comma => return Err(comma_error(&operator_stack, spanned.span)),
 
-            // Framed calls (variadic + comma-separated 2-arg like atan2/ch):
-            // start parameter collection. The tokenizer already consumed the
-            // OpenParen; we push a synthetic marker to fence off preceding
-            // operators until the matching CloseParen.
-            _ if token.token_type == TokenType::Call && is_framed_call(&token) => {
-                let sym = token
-                    .symbol
-                    .ok_or("Internal: Call token missing symbol")?;
-                output.push(token);
+            // Constants and operands go directly to output
+            Token::Constant(_) | Token::Number(_) | Token::X => output.push(spanned),
+
+            // Every parenthesized call — unary or variadic — starts a frame;
+            // the catalog's arity is enforced at the matching EndCall. The
+            // tokenizer already consumed the OpenParen; we push a synthetic
+            // marker to fence off preceding operators until the matching
+            // CloseParen.
+            Token::Call(sym) => {
+                output.push(SpannedToken::new(Token::CallStart(sym), spanned.span));
                 frames.push(ParserFrame {
                     symbol: sym,
+                    call_span: spanned.span,
                     operator_stack_position: operator_stack.len(),
                 });
-                operator_stack.push(get_operator(open_paren_marker())?);
+                operator_stack.push(get_operator(SpannedToken::new(
+                    Token::OpenParen,
+                    spanned.span,
+                ))?);
                 paren_depth += 1;
             }
 
-            // Unary Call, log_N, and opening parenthesis go on operator stack.
-            TokenType::Call | TokenType::Log | TokenType::OpenParen => {
+            // log_N and opening parenthesis go on operator stack.
+            Token::Log { .. } | Token::OpenParen => {
                 paren_depth += 1;
-                operator_stack.push(get_operator(token)?);
+                operator_stack.push(get_operator(spanned)?);
             }
 
             // Closing parenthesis: pop operators until matching open paren
-            TokenType::CloseParen => {
+            Token::CloseParen => {
                 paren_depth -= 1;
 
                 if paren_depth < 0 {
-                    return Err("Invalid closing parenthesis".to_string());
+                    return Err(EquationError::spanned(
+                        "Invalid closing parenthesis",
+                        spanned.span,
+                    ));
                 }
 
-                // Pop operators until we find the matching opening parenthesis
-                while !operator_stack.is_empty() {
-                    let last = operator_stack.last().ok_or("Missing operator on stack")?;
-                    if last.paren_opener {
-                        break;
-                    }
-                    let op = operator_stack.pop().ok_or_else(|| {
-                        String::from("Internal error: operator stack became empty")
-                    })?;
-                    output.push(op.token);
-                }
+                pop_until_paren_opener(&mut operator_stack, &mut output);
 
-                let last_op = operator_stack.last().ok_or("Mismatched parentheses")?;
-
-                // Remove the opening parenthesis
-                if last_op.token.token_type == TokenType::OpenParen {
-                    operator_stack.pop();
-                    continue;
-                }
-
-                // If there's a function waiting, add it to output
-                if !operator_stack.is_empty() {
-                    let last = operator_stack.last().ok_or("Missing operator on stack")?;
-                    if last.is_func {
-                        let func = operator_stack.pop().ok_or_else(|| {
-                            String::from("Internal error: operator stack became empty")
-                        })?;
-                        output.push(func.token);
-                    }
+                // The fence is either a plain parenthesis (dropped) or a
+                // pending function call / log_N (emitted now that its
+                // argument is complete).
+                let opener = operator_stack.pop().ok_or_else(|| {
+                    EquationError::spanned("Mismatched parentheses", spanned.span)
+                })?;
+                if opener.is_func {
+                    output.push(opener.token);
                 }
             }
 
             // Operators: apply precedence and associativity rules
-            TokenType::Star
-            | TokenType::Slash
-            | TokenType::Plus
-            | TokenType::Minus
-            | TokenType::UnaryMinus
-            | TokenType::Power
-            | TokenType::Modulo
-            | TokenType::Percent
-            | TokenType::Factorial => {
-                let o_1 = get_operator(token)?;
+            Token::Star
+            | Token::Slash
+            | Token::Plus
+            | Token::Minus
+            | Token::UnaryMinus
+            | Token::Power
+            | Token::Modulo
+            | Token::Percent
+            | Token::Factorial => {
+                let o_1 = get_operator(spanned)?;
 
                 // Pop higher precedence operators from stack
-                while !operator_stack.is_empty() {
-                    let last = operator_stack.last().ok_or("Missing operator on stack")?;
-
+                while let Some(last) = operator_stack.last() {
                     if last.paren_opener {
                         break;
                     }
@@ -239,7 +229,7 @@ where
                     }
 
                     let o_2_new = operator_stack.pop().ok_or_else(|| {
-                        String::from("Internal error: operator stack became empty")
+                        EquationError::new("Internal error: operator stack became empty")
                     })?;
                     output.push(o_2_new.token);
                 }
@@ -249,51 +239,61 @@ where
 
             // Pipe operator: flush pending operators (down to current paren depth)
             // and arm `expect_piped_function` so the next token is emitted directly.
-            TokenType::Pipe => {
-                while let Some(last) = operator_stack.last() {
-                    if last.paren_opener {
-                        break;
-                    }
-                    let op = operator_stack.pop().ok_or_else(|| {
-                        String::from("Internal error: operator stack became empty")
-                    })?;
-                    output.push(op.token);
-                }
-                expect_piped_function = true;
+            Token::Pipe => {
+                pop_until_paren_opener(&mut operator_stack, &mut output);
+                expect_piped_function = Some(spanned.span);
             }
 
-            // Operands go directly to output
-            TokenType::Number | TokenType::X => output.push(token),
-
             // End token marks completion
-            TokenType::End => {
+            Token::End => {
                 found_end = true;
             }
 
-            // Synthetic tokens should never appear in input
-            _ => unreachable!("Synthetic token should not be here"),
+            // Parser-synthesized tokens must never appear in the input stream
+            Token::CallStart(_) | Token::EndCall(_) => {
+                return Err(EquationError::spanned(
+                    format!("Unexpected token in input: {:?}", token),
+                    spanned.span,
+                ));
+            }
         }
     }
 
-    // Pop remaining operators from stack
+    // An unclosed call (`sqrt(4`) — its fence marker is still on the stack;
+    // report it against the call itself.
+    if let Some(frame) = frames.last() {
+        return Err(EquationError::spanned("Invalid function", frame.call_span));
+    }
+
+    // Pop remaining operators from stack. A leftover parenthesis opener —
+    // a bare `(` or an unclosed `log_N(` — is an error that points at the
+    // opener itself.
     while let Some(op) = operator_stack.pop() {
-        if op.token.token_type == TokenType::OpenParen {
-            return Err("Invalid opening parenthesis".to_string());
+        if op.paren_opener {
+            let message = if matches!(op.token.token, Token::OpenParen) {
+                "Invalid opening parenthesis"
+            } else {
+                "Invalid function"
+            };
+            return Err(EquationError::spanned(message, op.token.span));
         }
         output.push(op.token);
     }
 
     // Validation
     if paren_depth != 0 {
-        return Err("Invalid function".to_string());
+        return Err(EquationError::new("Invalid function"));
     }
 
     if !found_end {
-        return Err("No end token found".to_string());
+        return Err(EquationError::new("No end token found"));
     }
 
-    if expect_piped_function {
-        return Err("Dangling '|>': expected a unary function on the right side".to_string());
+    if let Some(pipe_span) = expect_piped_function {
+        return Err(EquationError::spanned(
+            "Dangling '|>': expected a unary function on the right side",
+            pipe_span,
+        ));
     }
 
     Ok(output)

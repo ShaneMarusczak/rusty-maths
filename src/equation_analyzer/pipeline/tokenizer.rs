@@ -1,32 +1,42 @@
-use crate::equation_analyzer::catalog::{self, Symbol, SymbolKind};
-use crate::equation_analyzer::structs::token::{Token, TokenType};
+use crate::equation_analyzer::catalog::{self, SymbolKind};
+use crate::equation_analyzer::errors::{EquationError, Span};
+use crate::equation_analyzer::structs::token::{SpannedToken, Token};
 use std::collections::VecDeque;
 use std::iter::Peekable;
 use std::str::Chars;
 
-/// A streaming tokenizer that implements Iterator, yielding tokens on demand
+/// May `c` continue an identifier? The first character must be alphabetic;
+/// continuation characters may also be ASCII digits (`atan2`, `log10`).
+fn continues_identifier(c: char) -> bool {
+    c.is_alphabetic() || c.is_ascii_digit()
+}
+
+/// A streaming tokenizer that implements Iterator, yielding tokens on demand.
+///
+/// `chars` is the only cursor; `position` counts characters and doubles as
+/// the source of token spans. Lookahead beyond one character clones the
+/// (cheap) char iterator instead of re-indexing the source, so multi-byte
+/// characters like `π` can never desynchronize scanning.
 pub(crate) struct StreamingTokenizer<'a> {
     chars: Peekable<Chars<'a>>,
-    eq: &'a str,
     position: usize,
     start_position: usize,
-    previous_token_type: Option<TokenType>,
+    previous_token: Option<Token>,
     finished: bool,
-    pending_tokens: VecDeque<Token>,
+    pending_tokens: VecDeque<SpannedToken>,
 }
 
 impl<'a> StreamingTokenizer<'a> {
-    pub(crate) fn new(eq: &'a str) -> Result<Self, String> {
+    pub(crate) fn new(eq: &'a str) -> Result<Self, EquationError> {
         if eq.is_empty() {
-            return Err(String::from("Invalid equation supplied"));
+            return Err(EquationError::new("Invalid equation supplied"));
         }
 
         Ok(Self {
             chars: eq.chars().peekable(),
-            eq,
             position: 0,
             start_position: 0,
-            previous_token_type: None,
+            previous_token: None,
             finished: false,
             pending_tokens: VecDeque::new(),
         })
@@ -34,8 +44,8 @@ impl<'a> StreamingTokenizer<'a> {
 
     fn advance(&mut self) -> Option<char> {
         let ch = self.chars.next();
-        if let Some(c) = ch {
-            self.position += c.len_utf8();
+        if ch.is_some() {
+            self.position += 1;
         }
         ch
     }
@@ -44,42 +54,27 @@ impl<'a> StreamingTokenizer<'a> {
         self.chars.peek().copied()
     }
 
-    fn peek_ahead(&self, n: usize) -> Option<char> {
-        self.eq.chars().nth(self.position + n)
+    /// The character `n` places past the current peek position.
+    fn peek_nth(&self, n: usize) -> Option<char> {
+        self.chars.clone().nth(n)
     }
 
-    fn previous_match(&self, types: &[TokenType]) -> bool {
-        self.previous_token_type
-            .as_ref()
-            .is_some_and(|prev| types.contains(prev))
+    /// The span of the lexeme currently being scanned.
+    fn lexeme_span(&self) -> Span {
+        Span::new(self.start_position, self.position)
     }
 
-    fn make_token(&mut self, token_type: TokenType) -> Token {
-        self.make_token_with_values(token_type, 0.0, 0.0)
+    fn emit(&mut self, token: Token) -> SpannedToken {
+        self.previous_token = Some(token);
+        SpannedToken::new(token, self.lexeme_span())
     }
 
-    fn make_token_with_values(&mut self, token_type: TokenType, val1: f32, val2: f32) -> Token {
-        let token = Token {
-            token_type,
-            numeric_value_1: val1,
-            numeric_value_2: val2,
-            symbol: None,
-        };
-        self.previous_token_type = Some(token_type);
-        token
+    /// An error pointing at the lexeme currently being scanned.
+    fn err_here(&self, message: impl Into<String>) -> EquationError {
+        EquationError::spanned(message, self.lexeme_span())
     }
 
-    fn make_token_with_symbol(&mut self, token_type: TokenType, symbol: &'static Symbol) -> Token {
-        self.previous_token_type = Some(token_type);
-        Token {
-            token_type,
-            numeric_value_1: 0.0,
-            numeric_value_2: 0.0,
-            symbol: Some(symbol),
-        }
-    }
-
-    fn scan_digit(&mut self) -> Result<String, String> {
+    fn scan_digits(&mut self) -> String {
         let mut literal = String::new();
 
         while let Some(c) = self.peek() {
@@ -91,7 +86,7 @@ impl<'a> StreamingTokenizer<'a> {
             }
         }
 
-        if self.peek() == Some('.') && self.peek_ahead(1).is_some_and(|c| c.is_ascii_digit()) {
+        if self.peek() == Some('.') && self.peek_nth(1).is_some_and(|c| c.is_ascii_digit()) {
             literal.push('.');
             self.advance();
 
@@ -105,137 +100,237 @@ impl<'a> StreamingTokenizer<'a> {
             }
         }
 
-        Ok(literal)
+        literal
     }
 
-    fn handle_x_token(&mut self, coefficient: f32) -> Result<Token, String> {
-        // Check if we need to wrap in parentheses (after operators with precedence >= 3)
-        // We wrap after: Power(4), Star(3), Slash(3), Modulo(3), Percent(3)
-        // We don't wrap after Plus(2) or Minus(2) because * has higher precedence
-        let needs_parens = self.previous_token_type.as_ref().is_some_and(|t| {
-            matches!(
-                t,
-                TokenType::Power
-                    | TokenType::Star
-                    | TokenType::Slash
-                    | TokenType::Modulo
-                    | TokenType::Percent
-            )
-        });
+    fn scan_number(&mut self) -> Result<SpannedToken, EquationError> {
+        let literal = self.scan_digits();
+        // Underscores are digit-grouping sugar (`1_000`); the float parser
+        // doesn't know them. Commas can't serve this role — they separate
+        // function arguments.
+        let val: f32 = literal
+            .replace('_', "")
+            .parse()
+            .map_err(|_| self.err_here(format!("Invalid number: {}", literal)))?;
 
-        if coefficient != 1.0 {
-            // Queue multiple tokens
-            if needs_parens {
-                self.pending_tokens.push_back(Token {
-                    token_type: TokenType::OpenParen,
-                    numeric_value_1: 0.0,
-                    numeric_value_2: 0.0,
-                    symbol: None,
-                });
-            }
-
-            self.pending_tokens.push_back(Token {
-                token_type: TokenType::Number,
-                numeric_value_1: coefficient,
-                numeric_value_2: 0.0,
-                symbol: None,
-            });
-
-            self.pending_tokens.push_back(Token {
-                token_type: TokenType::Star,
-                numeric_value_1: 0.0,
-                numeric_value_2: 0.0,
-                symbol: None,
-            });
-
-            self.pending_tokens.push_back(Token {
-                token_type: TokenType::X,
-                numeric_value_1: 1.0,
-                numeric_value_2: 1.0,
-                symbol: None,
-            });
-
-            if needs_parens {
-                self.pending_tokens.push_back(Token {
-                    token_type: TokenType::CloseParen,
-                    numeric_value_1: 0.0,
-                    numeric_value_2: 0.0,
-                    symbol: None,
-                });
-            }
-
-            // Return the first token (we just pushed at least one token above)
-            let first_token = self
-                .pending_tokens
-                .pop_front()
-                .ok_or_else(|| String::from("Internal error: expected token in pending queue"))?;
-            self.previous_token_type = Some(first_token.token_type);
-            Ok(first_token)
-        } else {
-            Ok(self.make_token_with_values(TokenType::X, 1.0, 1.0))
+        // A bare `x` right after a number literal is a juxtaposed coefficient
+        // (`2x`). A longer identifier is not (`2xor` stays `2`, `xor`).
+        if self.peek() == Some('x') && !self.peek_nth(1).is_some_and(continues_identifier) {
+            self.advance();
+            return Ok(self.coefficient_x(val));
         }
+
+        Ok(self.emit(Token::Number(val)))
     }
 
-    fn scan_token(&mut self) -> Result<Option<Token>, String> {
-        use TokenType::*;
+    /// Emit the token stream for a juxtaposed coefficient (`2x`).
+    ///
+    /// Juxtaposition binds tighter than a *preceding* high-precedence operator
+    /// (`1/2x` is 1/(2x), `x^2x` is x^(2x)) but looser than an exponent on the
+    /// x itself (`2x^3` is 2(x³)). No single operator precedence can express
+    /// both, so the pair is parenthesized exactly when the previous token
+    /// binds at least as tightly as multiplication. Pinned by
+    /// plot_test_linear/exp_2/exp_3.
+    ///
+    /// Every synthetic token carries the span of the whole `2x` lexeme.
+    fn coefficient_x(&mut self, coef: f32) -> SpannedToken {
+        if coef == 1.0 {
+            return self.emit(Token::X);
+        }
 
-        // Skip whitespace
-        while let Some(c) = self.peek() {
-            if !matches!(c, ' ' | '\r' | '\t') {
+        let needs_parens = matches!(
+            self.previous_token,
+            Some(Token::Power | Token::Star | Token::Slash | Token::Modulo | Token::Percent)
+        );
+
+        let span = self.lexeme_span();
+        if needs_parens {
+            self.pending_tokens
+                .push_back(SpannedToken::new(Token::OpenParen, span));
+        }
+        self.pending_tokens.extend([
+            SpannedToken::new(Token::Number(coef), span),
+            SpannedToken::new(Token::Star, span),
+            SpannedToken::new(Token::X, span),
+        ]);
+        if needs_parens {
+            self.pending_tokens
+                .push_back(SpannedToken::new(Token::CloseParen, span));
+        }
+
+        // The queue was populated just above, so the front always exists;
+        // fall back to a bare X only to keep this branch panic-free.
+        let first = self
+            .pending_tokens
+            .pop_front()
+            .unwrap_or(SpannedToken::new(Token::X, span));
+        self.previous_token = Some(first.token);
+        first
+    }
+
+    fn scan_word(&mut self) -> Result<SpannedToken, EquationError> {
+        // The two reserved single letters — the variable and the equation
+        // marker — are by far the most common identifiers; resolving them
+        // here avoids building a String. A longer word starting with x/y
+        // falls through to the general scan and can never resolve to them.
+        if let Some(c @ ('x' | 'y')) = self.peek() {
+            if !self.peek_nth(1).is_some_and(continues_identifier) {
+                self.advance();
+                let token = if c == 'x' { Token::X } else { Token::Y };
+                return Ok(self.emit(token));
+            }
+        }
+
+        let mut name = String::new();
+        while let Some(ch) = self.peek() {
+            if ch.is_alphabetic() || (!name.is_empty() && ch.is_ascii_digit()) {
+                name.push(ch);
+                self.advance();
+            } else {
                 break;
             }
+        }
+
+        // Pipe target: name must be a unary function, no parens follow.
+        if matches!(self.previous_token, Some(Token::Pipe)) {
+            let sym = catalog::find(&name)
+                .filter(|s| s.kind.is_unary())
+                .ok_or_else(|| {
+                    self.err_here(format!(
+                        "'{}' cannot be used after '|>'; only unary functions are allowed",
+                        name
+                    ))
+                })?;
+
+            if self.peek() == Some('(') {
+                return Err(self.err_here(format!(
+                    "Function '{}' after '|>' must not be called with parentheses; the piped value is its argument",
+                    name
+                )));
+            }
+
+            return Ok(self.emit(Token::Call(sym)));
+        }
+
+        // Handle log base
+        if self.peek() == Some('_') {
+            if name != "log" {
+                // Point at the unexpected underscore itself.
+                let underscore = Span::new(self.position, self.position + 1);
+                return Err(EquationError::spanned("Invalid input", underscore));
+            }
+            self.advance(); // consume '_'
+
+            if !self.peek().is_some_and(|c| c.is_ascii_digit()) {
+                return Err(self.err_here("Invalid use of log"));
+            }
+
+            let base_literal = self.scan_digits();
+            let base: f32 = base_literal
+                .parse()
+                .map_err(|_| self.err_here("Invalid log base"))?;
+
+            if self.peek() != Some('(') {
+                return Err(self.err_here("Invalid use of log: expected '(' after the base"));
+            }
+            self.advance(); // consume '('
+
+            return Ok(self.emit(Token::Log { base }));
+        }
+
+        // Named constants (π, e, and multi-char aliases like `pi`).
+        if let Some(sym) =
+            catalog::find(&name).filter(|s| matches!(s.kind, SymbolKind::Constant(_)))
+        {
+            return Ok(self.emit(Token::Constant(sym)));
+        }
+
+        // Word operators (`17 mod 5`). The catalog documents them;
+        // each one maps to its structural Token here.
+        if catalog::find(&name).is_some_and(|s| matches!(s.kind, SymbolKind::Operator { .. })) {
+            return match name.as_str() {
+                "mod" => Ok(self.emit(Token::Modulo)),
+                _ => Err(self.err_here(format!(
+                    "Operator '{}' cannot be written as a word here",
+                    name
+                ))),
+            };
+        }
+
+        if self.peek() != Some('(') {
+            return Err(self.err_here("Invalid input"));
+        }
+
+        let sym = catalog::find(&name)
+            .filter(|s| s.kind.is_unary() || s.kind.is_variadic())
+            .ok_or_else(|| self.err_here(format!("Invalid function name {}", name)))?;
+
+        self.advance(); // consume '('
+        Ok(self.emit(Token::Call(sym)))
+    }
+
+    fn scan_token(&mut self) -> Result<Option<SpannedToken>, EquationError> {
+        // Skip whitespace
+        while matches!(self.peek(), Some(' ' | '\r' | '\t')) {
             self.advance();
         }
 
         // Check if we're done
-        if self.peek().is_none() {
+        let Some(c) = self.peek() else {
             if !self.finished {
                 self.finished = true;
-                return Ok(Some(self.make_token(End)));
+                self.start_position = self.position;
+                return Ok(Some(self.emit(Token::End)));
             }
             return Ok(None);
-        }
+        };
 
         self.start_position = self.position;
-        let c = self
-            .advance()
-            .ok_or_else(|| String::from("Unexpected end of input"))?;
 
+        if c.is_ascii_digit() {
+            return self.scan_number().map(Some);
+        }
+
+        // Identifiers are scanned in full before any single-character
+        // meaning applies, so catalog names may start with x/y/e/π.
+        if c.is_alphabetic() {
+            return self.scan_word().map(Some);
+        }
+
+        self.advance();
         let token = match c {
-            'y' => self.make_token(Y),
-            '=' => self.make_token(Equal),
-            ',' => self.make_token(Comma),
-            'π' => {
-                let sym = catalog::find("π")
-                    .ok_or_else(|| String::from("Internal: catalog missing π"))?;
-                self.make_token_with_symbol(TokenType::Constant, sym)
-            }
-            'e' => {
-                let sym = catalog::find("e")
-                    .ok_or_else(|| String::from("Internal: catalog missing e"))?;
-                self.make_token_with_symbol(TokenType::Constant, sym)
-            }
-            '*' => self.make_token(Star),
-            '/' => self.make_token(Slash),
-            '+' => self.make_token(Plus),
-            '!' => self.make_token(Factorial),
+            '=' => self.emit(Token::Equal),
+            ',' => self.emit(Token::Comma),
+            '*' => self.emit(Token::Star),
+            '/' => self.emit(Token::Slash),
+            '+' => self.emit(Token::Plus),
+            '!' => self.emit(Token::Factorial),
             '%' => {
                 if self.peek() == Some('%') {
                     self.advance();
-                    self.make_token(Modulo)
+                    self.emit(Token::Modulo)
                 } else {
-                    self.make_token(Percent)
+                    self.emit(Token::Percent)
                 }
             }
             '-' => {
-                // Check if this is binary minus (subtraction) or unary minus (negation)
-                // Percent is in the operand list because it's postfix: `50% - 3`.
-                if self.previous_match(&[Constant, Number, CloseParen, X, Factorial, Percent]) {
-                    // Previous token was an operand, so this is binary subtraction
-                    self.make_token(Minus)
+                // Binary subtraction after an operand, unary negation
+                // otherwise. Percent is in the operand list because it's
+                // postfix: `50% - 3`.
+                if matches!(
+                    self.previous_token,
+                    Some(
+                        Token::Constant(_)
+                            | Token::Number(_)
+                            | Token::CloseParen
+                            | Token::X
+                            | Token::Factorial
+                            | Token::Percent
+                    )
+                ) {
+                    self.emit(Token::Minus)
                 } else {
-                    // Previous token was an operator, '(', or start of input - this is unary negation
-                    self.make_token(UnaryMinus)
+                    self.emit(Token::UnaryMinus)
                 }
             }
             '|' => {
@@ -243,133 +338,12 @@ impl<'a> StreamingTokenizer<'a> {
                 if self.peek() == Some('>') {
                     self.advance();
                 }
-                self.make_token(Pipe)
+                self.emit(Token::Pipe)
             }
-            '(' => self.make_token(OpenParen),
-            ')' => self.make_token(CloseParen),
-            '^' => self.make_token(Power),
-            'x' => return Ok(Some(self.handle_x_token(1.0)?)),
-            _ if c.is_ascii_digit() => {
-                // Put the digit back conceptually by starting from start_position
-                self.position = self.start_position;
-                self.chars = self.eq[self.position..].chars().peekable();
-
-                let literal = self.scan_digit()?;
-                if self.peek() != Some('x') {
-                    let val: f32 = literal
-                        .parse()
-                        .map_err(|_| format!("Invalid number: {}", literal))?;
-                    self.make_token_with_values(Number, val, 0.0)
-                } else {
-                    self.advance(); // consume 'x'
-                    let coef: f32 = literal
-                        .parse()
-                        .map_err(|_| format!("Invalid number: {}", literal))?;
-                    return Ok(Some(self.handle_x_token(coef)?));
-                }
-            }
-            _ if c.is_alphabetic() => {
-                // Scan function name
-                self.position = self.start_position;
-                self.chars = self.eq[self.position..].chars().peekable();
-
-                let mut name = String::new();
-                while let Some(ch) = self.peek() {
-                    if ch.is_alphabetic() || (!name.is_empty() && ch.is_ascii_digit()) {
-                        name.push(ch);
-                        self.advance();
-                    } else {
-                        break;
-                    }
-                }
-
-                // Pipe target: name must be a unary function, no parens follow.
-                if matches!(self.previous_token_type, Some(Pipe)) {
-                    let sym = catalog::find(&name)
-                        .filter(|s| s.kind.is_unary())
-                        .ok_or_else(|| format!(
-                            "'{}' cannot be used after '|>'; only unary functions are allowed",
-                            name
-                        ))?;
-
-                    if self.peek() == Some('(') {
-                        return Err(format!(
-                            "Function '{}' after '|>' must not be called with parentheses; the piped value is its argument",
-                            name
-                        ));
-                    }
-
-                    return Ok(Some(self.make_token_with_symbol(TokenType::Call, sym)));
-                }
-
-                // Handle log base
-                if self.peek() == Some('_') {
-                    if name != "log" {
-                        return Err(format!("Invalid input at character {}", self.position));
-                    }
-                    self.advance(); // consume '_'
-
-                    if !self.peek().is_some_and(|c| c.is_ascii_digit()) {
-                        return Err("Invalid use of log".to_string());
-                    }
-
-                    let base_literal = self.scan_digit()?;
-                    let base: f32 = base_literal
-                        .parse()
-                        .map_err(|_| "Invalid log base".to_string())?;
-
-                    if self.peek() != Some('(') {
-                        return Err(format!(
-                            "Invalid input at character {}",
-                            self.start_position
-                        ));
-                    }
-                    self.advance(); // consume '('
-
-                    return Ok(Some(self.make_token_with_values(Log, base, 0.0)));
-                }
-
-                // Bare constant written out by name (e.g. `pi` for π). The
-                // single-char constants (π, e) are matched earlier at the
-                // character level; this path covers multi-char aliases.
-                if let Some(sym) = catalog::find(&name)
-                    .filter(|s| matches!(s.kind, SymbolKind::Constant(_)))
-                {
-                    return Ok(Some(self.make_token_with_symbol(TokenType::Constant, sym)));
-                }
-
-                // Word operators (`17 mod 5`). The catalog documents them;
-                // each one maps to its structural TokenType here.
-                if catalog::find(&name)
-                    .is_some_and(|s| matches!(s.kind, SymbolKind::Operator { .. }))
-                {
-                    let token_type = match name.as_str() {
-                        "mod" => Modulo,
-                        _ => {
-                            return Err(format!(
-                                "Operator '{}' cannot be written as a word here",
-                                name
-                            ));
-                        }
-                    };
-                    return Ok(Some(self.make_token(token_type)));
-                }
-
-                if self.peek() != Some('(') {
-                    return Err(format!(
-                        "Invalid input at character {}",
-                        self.start_position
-                    ));
-                }
-                self.advance(); // consume '('
-
-                let sym = catalog::find(&name)
-                    .filter(|s| s.kind.is_unary() || s.kind.is_variadic())
-                    .ok_or_else(|| format!("Invalid function name {}", name))?;
-
-                self.make_token_with_symbol(TokenType::Call, sym)
-            }
-            _ => return Err(format!("Invalid input at character {}", self.position)),
+            '(' => self.emit(Token::OpenParen),
+            ')' => self.emit(Token::CloseParen),
+            '^' => self.emit(Token::Power),
+            _ => return Err(self.err_here("Invalid input")),
         };
 
         Ok(Some(token))
@@ -377,13 +351,13 @@ impl<'a> StreamingTokenizer<'a> {
 }
 
 impl<'a> Iterator for StreamingTokenizer<'a> {
-    type Item = Result<Token, String>;
+    type Item = Result<SpannedToken, EquationError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // First check if we have pending tokens from multi-token operations
-        if let Some(token) = self.pending_tokens.pop_front() {
-            self.previous_token_type = Some(token.token_type);
-            return Some(Ok(token));
+        // First drain any pending tokens from multi-token expansions
+        if let Some(spanned) = self.pending_tokens.pop_front() {
+            self.previous_token = Some(spanned.token);
+            return Some(Ok(spanned));
         }
 
         // Otherwise scan the next token
