@@ -15,14 +15,14 @@ mod rm_tests {
     // Internal testing utilities
     use crate::equation_analyzer::catalog;
     use crate::equation_analyzer::errors::{EquationError, Span};
-    use crate::equation_analyzer::pipeline::evaluator::evaluate;
+    use crate::equation_analyzer::pipeline::evaluator::evaluate_with;
     use crate::equation_analyzer::pipeline::parser::parse;
     use crate::equation_analyzer::pipeline::tokenizer::StreamingTokenizer;
     use crate::equation_analyzer::structs::token::Token::{
         CloseParen, End, Equal, Log, Minus, Number, OpenParen, Plus, Power, Slash, Star,
         UnaryMinus, Y,
     };
-    use crate::equation_analyzer::structs::token::{SpannedToken, Token};
+    use crate::equation_analyzer::structs::token::{Callee, SpannedToken, Token};
     use crate::utilities::abs_f32;
     use std::f32::consts::{E, PI};
 
@@ -30,10 +30,19 @@ mod rm_tests {
         abs_f32(x1 - x2) < f32::EPSILON
     }
 
+    /// Evaluate with no user definitions in scope — the shape nearly every
+    /// evaluator test wants.
+    fn evaluate<I: IntoIterator<Item = SpannedToken>>(
+        tokens: I,
+        x: impl Into<Option<f32>>,
+    ) -> Result<f32, EquationError> {
+        evaluate_with(tokens, x, None)
+    }
+
     // Helper function to get tokens from an equation. Strips spans and
     // stringifies errors so token-stream tests stay about token identity.
     fn get_tokens(eq: &str) -> Result<Vec<Token>, String> {
-        let tokenizer = StreamingTokenizer::new(eq).map_err(|e| e.to_string())?;
+        let tokenizer = StreamingTokenizer::new_with(eq, None).map_err(|e| e.to_string())?;
         tokenizer
             .map(|r| r.map(|st| st.token).map_err(|e| e.to_string()))
             .collect()
@@ -303,7 +312,7 @@ mod rm_tests {
     fn get_call_token(name: &'static str) -> Token {
         let sym =
             catalog::find(name).unwrap_or_else(|| panic!("catalog has no entry for '{name}'"));
-        Token::Call(sym)
+        Token::Call(Callee::Catalog(sym))
     }
 
     /// Build a `Constant` token backed by the given catalog symbol name.
@@ -807,7 +816,7 @@ mod rm_tests {
     fn eval_rpn_test_invalid_coefficient() {
         let test = "y = ax^2";
         let tokens = get_tokens(test).unwrap_err().to_string();
-        assert_eq!(tokens, "Invalid input at character 5");
+        assert_eq!(tokens, "Unknown name 'ax' at character 5");
     }
 
     #[test]
@@ -3838,7 +3847,7 @@ mod rm_tests {
     #[test]
     fn parser_rejects_synthetic_input_test() {
         let avg = catalog::find("avg").unwrap();
-        let tokens = vec![Token::EndCall(avg), End];
+        let tokens = vec![Token::EndCall(Callee::Catalog(avg)), End];
         let err = parse(spanned(tokens)).unwrap_err().to_string();
         assert!(err.contains("Unexpected token"), "got: {err}");
     }
@@ -3924,5 +3933,203 @@ mod rm_tests {
         assert_eq!(calculator::calculate("1_000").unwrap(), 1000.0);
         assert_eq!(calculator::calculate("1_000_000 / 1_000").unwrap(), 1000.0);
         assert_eq!(calculator::calculate("1_234.5 * 2").unwrap(), 2469.0);
+    }
+
+    // ---- User definitions (calculate_with / plot_with) ----
+
+    use crate::equation_analyzer::definitions::Definitions;
+
+    fn defs_with(values: &[(&str, f32)], functions: &[(&str, &str)]) -> Definitions {
+        let mut defs = Definitions::new();
+        for (name, v) in values {
+            defs.define_value(name, *v).unwrap();
+        }
+        for (name, body) in functions {
+            defs.define_function(name, body).unwrap();
+        }
+        defs
+    }
+
+    #[test]
+    fn user_value_test() {
+        let defs = defs_with(&[("a", 3.0)], &[]);
+        assert_eq!(calculator::calculate_with("a + 1", &defs).unwrap(), 4.0);
+        assert_eq!(calculator::calculate_with("2 - a", &defs).unwrap(), -1.0);
+        assert_eq!(calculator::calculate_with("a * a", &defs).unwrap(), 9.0);
+        assert_eq!(calculator::calculate_with("-a", &defs).unwrap(), -3.0);
+    }
+
+    #[test]
+    fn user_value_multichar_name_test() {
+        let defs = defs_with(&[("rate", 0.07), ("principal", 1000.0)], &[]);
+        let ans = calculator::calculate_with("principal * rate", &defs).unwrap();
+        assert!(is_close(ans, 70.0));
+    }
+
+    #[test]
+    fn user_function_test() {
+        let defs = defs_with(&[], &[("g", "2x^2")]);
+        assert_eq!(calculator::calculate_with("g(3)", &defs).unwrap(), 18.0);
+        assert_eq!(calculator::calculate_with("g(2) + 1", &defs).unwrap(), 9.0);
+        // The argument is a full expression.
+        assert_eq!(calculator::calculate_with("g(1 + 2)", &defs).unwrap(), 18.0);
+        // Nested calls compose.
+        assert_eq!(calculator::calculate_with("g(g(1))", &defs).unwrap(), 8.0);
+    }
+
+    #[test]
+    fn user_function_sees_current_values_test() {
+        // Late binding: the body reads `a` as it stands at call time.
+        let mut defs = defs_with(&[("a", 3.0)], &[("g", "a * x")]);
+        assert_eq!(calculator::calculate_with("g(2)", &defs).unwrap(), 6.0);
+
+        defs.define_value("a", 5.0).unwrap();
+        assert_eq!(calculator::calculate_with("g(2)", &defs).unwrap(), 10.0);
+    }
+
+    #[test]
+    fn user_function_calls_user_function_test() {
+        let defs = defs_with(&[], &[("g", "x + 1"), ("h", "g(x) * 2")]);
+        assert_eq!(calculator::calculate_with("h(3)", &defs).unwrap(), 8.0);
+    }
+
+    #[test]
+    fn user_function_as_pipe_target_test() {
+        let defs = defs_with(&[], &[("g", "2x^2")]);
+        assert_eq!(calculator::calculate_with("4 |> g", &defs).unwrap(), 32.0);
+        assert_eq!(
+            calculator::calculate_with("2 |> g |> sqrt", &defs).unwrap(),
+            8.0f32.sqrt()
+        );
+    }
+
+    #[test]
+    fn user_function_with_catalog_calls_in_body_test() {
+        let defs = defs_with(&[], &[("g", "max(x, 0) + sin(0)")]);
+        assert_eq!(calculator::calculate_with("g(-5)", &defs).unwrap(), 0.0);
+        assert_eq!(calculator::calculate_with("g(5)", &defs).unwrap(), 5.0);
+    }
+
+    #[test]
+    fn user_function_recursion_is_capped_test() {
+        let defs = defs_with(&[], &[("g", "g(x)")]);
+        let err = calculator::calculate_with("g(1)", &defs).unwrap_err();
+        assert!(err.message.contains("Call depth limit"), "got: {err}");
+        assert_eq!(err.in_function.as_deref(), Some("g"));
+
+        // Mutual recursion hits the same cap instead of blowing the stack.
+        let defs = defs_with(&[], &[("f", "g(x)"), ("g", "f(x)")]);
+        let err = calculator::calculate_with("f(1)", &defs).unwrap_err();
+        assert!(err.message.contains("Call depth limit"), "got: {err}");
+    }
+
+    #[test]
+    fn user_function_arity_is_exactly_one_test() {
+        let defs = defs_with(&[], &[("g", "2x")]);
+        let err = calculator::calculate_with("g(1, 2)", &defs).unwrap_err();
+        assert_eq!(err.message, "g takes exactly 1 parameter (x), got 2");
+        // The span underlines the whole call.
+        assert_eq!(err.span, Some(Span::new(0, 7)));
+    }
+
+    #[test]
+    fn user_value_called_as_function_test() {
+        let defs = defs_with(&[("a", 3.0)], &[]);
+        let err = calculator::calculate_with("a(3)", &defs).unwrap_err();
+        assert_eq!(err.message, "'a' is a value, not a function");
+    }
+
+    #[test]
+    fn user_function_used_bare_test() {
+        let defs = defs_with(&[], &[("g", "2x")]);
+        let err = calculator::calculate_with("g + 1", &defs).unwrap_err();
+        assert_eq!(err.message, "Function 'g' requires parentheses");
+        assert_eq!(err.span, Some(Span::new(0, 1)));
+    }
+
+    #[test]
+    fn unknown_bare_name_has_span_test() {
+        let err = calculator::calculate("2 + foo").unwrap_err();
+        assert_eq!(err.message, "Unknown name 'foo'");
+        assert_eq!(err.span, Some(Span::new(4, 7)));
+
+        // A catalog function used bare points at the fix instead.
+        let err = calculator::calculate("2 + sin").unwrap_err();
+        assert_eq!(err.message, "Function 'sin' requires parentheses");
+        assert_eq!(err.span, Some(Span::new(4, 7)));
+    }
+
+    #[test]
+    fn broken_body_only_errors_when_called_test() {
+        let defs = defs_with(&[], &[("g", "nope + 1")]);
+        // `g` is broken, but this equation never calls it.
+        assert_eq!(calculator::calculate_with("1 + 1", &defs).unwrap(), 2.0);
+
+        // Calling it surfaces the body error, tagged and body-spanned.
+        let err = calculator::calculate_with("g(1)", &defs).unwrap_err();
+        assert_eq!(err.in_function.as_deref(), Some("g"));
+        assert_eq!(err.message, "Unknown name 'nope'");
+        assert_eq!(err.span, Some(Span::new(0, 4))); // "nope" in the body
+    }
+
+    #[test]
+    fn body_error_tags_innermost_function_test() {
+        let defs = defs_with(&[], &[("f", "g(x) + 1"), ("g", "sqrt(x, 2)")]);
+        let err = calculator::calculate_with("f(1)", &defs).unwrap_err();
+        assert_eq!(err.in_function.as_deref(), Some("g"));
+    }
+
+    #[test]
+    fn body_tagged_error_ignores_offset_test() {
+        // A body-relative span must not move when the top-level equation is
+        // embedded in a larger string (rm-repl's multi-equation graphs).
+        let defs = defs_with(&[], &[("g", "nope")]);
+        let err = calculator::calculate_with("g(1)", &defs).unwrap_err();
+        let span_before = err.span;
+        let err = err.offset(10);
+        assert_eq!(err.span, span_before);
+    }
+
+    #[test]
+    fn plot_with_user_function_test() {
+        let defs = defs_with(&[], &[("g", "2x^2")]);
+        let points = calculator::plot_with("y = g(x)", -1.0, 1.0, 1.0, &defs).unwrap();
+        assert_eq!(
+            points,
+            vec![
+                Point::new(-1.0, 2.0),
+                Point::new(0.0, 0.0),
+                Point::new(1.0, 2.0)
+            ]
+        );
+    }
+
+    #[test]
+    fn plot_with_user_value_test() {
+        let defs = defs_with(&[("a", 3.0)], &[]);
+        let points = calculator::plot_with("y = a * x", 0.0, 2.0, 1.0, &defs).unwrap();
+        assert_eq!(
+            points,
+            vec![
+                Point::new(0.0, 0.0),
+                Point::new(1.0, 3.0),
+                Point::new(2.0, 6.0)
+            ]
+        );
+    }
+
+    #[test]
+    fn calculate_without_defs_rejects_user_syntax_test() {
+        // Plain calculate has no definitions in scope.
+        let err = calculator::calculate("g(1)").unwrap_err();
+        assert_eq!(err.message, "Invalid function name g");
+    }
+
+    #[test]
+    fn user_value_keeps_exact_bits_test() {
+        // Values bind as f32, not through a decimal-string round trip.
+        let v = 0.1f32 + 0.2f32;
+        let defs = defs_with(&[("k", v)], &[]);
+        assert_eq!(calculator::calculate_with("k", &defs).unwrap(), v);
     }
 }

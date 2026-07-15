@@ -39,6 +39,12 @@ impl Span {
 pub struct EquationError {
     pub message: String,
     pub span: Option<Span>,
+    /// When the error arose inside a user-defined function's body (see
+    /// [`crate::equation_analyzer::definitions::Definitions`]), the name of
+    /// the innermost such function. `span` then refers to that function's
+    /// *body* source, not the top-level equation — renderers that draw
+    /// carets must point at the body text instead.
+    pub in_function: Option<String>,
 }
 
 impl EquationError {
@@ -47,6 +53,7 @@ impl EquationError {
         EquationError {
             message: message.into(),
             span: None,
+            in_function: None,
         }
     }
 
@@ -55,16 +62,33 @@ impl EquationError {
         EquationError {
             message: message.into(),
             span: Some(span),
+            in_function: None,
         }
+    }
+
+    /// Tags the error as originating inside the named user-defined
+    /// function's body. The innermost function wins: an already-tagged
+    /// error passes through unchanged as the call stack unwinds.
+    pub(crate) fn for_function(mut self, name: &str) -> Self {
+        if self.in_function.is_none() {
+            self.in_function = Some(name.to_string());
+        }
+        self
     }
 
     /// Shifts the span right by `delta` characters. For embedders that
     /// evaluate a substring of a larger input (rm-repl's `|`-separated
     /// multi-equation graphs), this maps the span back onto the full text.
+    ///
+    /// A body-tagged error (`in_function` set) is returned unchanged: its
+    /// span refers to the function's body source, which does not move when
+    /// the top-level equation is embedded in a larger string.
     pub fn offset(mut self, delta: usize) -> Self {
-        if let Some(span) = self.span.as_mut() {
-            span.start += delta;
-            span.end += delta;
+        if self.in_function.is_none() {
+            if let Some(span) = self.span.as_mut() {
+                span.start += delta;
+                span.end += delta;
+            }
         }
         self
     }
@@ -72,6 +96,9 @@ impl EquationError {
 
 impl fmt::Display for EquationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(name) = &self.in_function {
+            write!(f, "in {name}(x): ")?;
+        }
         match self.span {
             // 1-based: "character 1" is the first character a human counts.
             Some(span) => write!(f, "{} at character {}", self.message, span.start + 1),

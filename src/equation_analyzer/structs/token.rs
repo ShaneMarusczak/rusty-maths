@@ -1,6 +1,16 @@
 use crate::equation_analyzer::catalog::Symbol;
 use crate::equation_analyzer::errors::Span;
 
+/// What a call token dispatches to: a built-in catalog symbol, or a
+/// user-defined function referenced by its index into the `Definitions`
+/// that were in scope when the equation was tokenized. Index-based so the
+/// token stays `Copy`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum Callee {
+    Catalog(&'static Symbol),
+    User(usize),
+}
+
 /// A token plus the character range of the source equation it came from.
 /// Synthetic tokens (the `2x` expansion, the parser's `EndCall`) carry the
 /// span of the source construct that produced them.
@@ -57,20 +67,20 @@ pub(crate) enum Token {
 
     Pipe,
 
-    /// A function call dispatched through its catalog Symbol. In RPN this
-    /// appears only as a pipe target (`x |> sin`): the evaluator pops one
-    /// argument off the stack. Parenthesized calls are rewritten by the
-    /// parser into a `CallStart`…`EndCall` frame instead.
-    Call(&'static Symbol),
+    /// A function call — catalog or user-defined — dispatched through its
+    /// `Callee`. In RPN this appears only as a pipe target (`x |> sin`): the
+    /// evaluator pops one argument off the stack. Parenthesized calls are
+    /// rewritten by the parser into a `CallStart`…`EndCall` frame instead.
+    Call(Callee),
 
     /// Parser-synthesized frame opener for a parenthesized call — unary and
     /// variadic alike. Arguments collect until the matching `EndCall`, where
-    /// the catalog's arity is enforced. Never produced by the tokenizer.
-    CallStart(&'static Symbol),
+    /// the callee's arity is enforced. Never produced by the tokenizer.
+    CallStart(Callee),
 
     /// Parser-synthesized frame closer; its span covers the whole call.
     /// Never produced by the tokenizer.
-    EndCall(&'static Symbol),
+    EndCall(Callee),
 
     /// A named constant (π, e, …) — the value comes from the Symbol.
     Constant(&'static Symbol),
