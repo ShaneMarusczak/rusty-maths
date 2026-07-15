@@ -3721,8 +3721,9 @@ mod rm_tests {
     // mis-lexing char by char (`exp(1)` used to lex as `e`, `x`, `p(1)`).
     #[test]
     fn identifiers_scan_as_full_words_test() {
-        let err = calculator::calculate("exp(1)").unwrap_err().to_string();
-        assert!(err.contains("exp"), "error should name 'exp', got: {err}");
+        // `exp` must scan as one word and resolve to the function — not as
+        // the constant `e` followed by stray characters.
+        assert!(is_close(calculator::calculate("exp(1)").unwrap(), E));
 
         let err = calculator::calculate("xor(1)").unwrap_err().to_string();
         assert!(err.contains("xor"), "error should name 'xor', got: {err}");
@@ -4170,5 +4171,103 @@ mod rm_tests {
         let v = 0.1f32 + 0.2f32;
         let defs = defs_with(&[("k", v)], &[]);
         assert_eq!(calculator::calculate_with("k", &defs).unwrap(), v);
+    }
+
+    // ---- Catalog fill: exp/floor/ceil/round/sum/root/pow/perm/inverse hyperbolics ----
+
+    #[test]
+    fn exp_test() {
+        assert!(is_close(calculator::calculate("exp(1)").unwrap(), E));
+        assert_eq!(calculator::calculate("exp(0)").unwrap(), 1.0);
+        assert!(is_close(calculator::calculate("ln(exp(3))").unwrap(), 3.0));
+        assert!(is_close(calculator::calculate("1 |> exp").unwrap(), E));
+    }
+
+    #[test]
+    fn rounding_trio_test() {
+        assert_eq!(calculator::calculate("floor(2.7)").unwrap(), 2.0);
+        assert_eq!(calculator::calculate("floor(-2.1)").unwrap(), -3.0);
+        assert_eq!(calculator::calculate("ceil(2.1)").unwrap(), 3.0);
+        assert_eq!(calculator::calculate("ceil(-2.1)").unwrap(), -2.0);
+        assert_eq!(calculator::calculate("round(2.5)").unwrap(), 3.0);
+        assert_eq!(calculator::calculate("round(-2.5)").unwrap(), -3.0);
+        assert_eq!(calculator::calculate("round(2.4)").unwrap(), 2.0);
+    }
+
+    #[test]
+    fn sum_test() {
+        assert_eq!(calculator::calculate("sum(1, 2, 3)").unwrap(), 6.0);
+        assert_eq!(calculator::calculate("sum(5)").unwrap(), 5.0);
+        assert_eq!(calculator::calculate("sum(1 + 1, 2 * 2)").unwrap(), 6.0);
+    }
+
+    #[test]
+    fn root_test() {
+        assert!(is_close(calculator::calculate("root(27, 3)").unwrap(), 3.0));
+        assert!(is_close(calculator::calculate("root(16, 4)").unwrap(), 2.0));
+        // The reason root() exists: odd roots of negatives are real.
+        assert!(is_close(
+            calculator::calculate("root(-27, 3)").unwrap(),
+            -3.0
+        ));
+        // Negative degree: root(4, -2) = 4^(-1/2) = 0.5.
+        assert!(is_close(calculator::calculate("root(4, -2)").unwrap(), 0.5));
+        assert!(is_close(
+            calculator::calculate("root(-8, -3)").unwrap(),
+            -0.5
+        ));
+
+        let err = calculator::calculate("root(-4, 2)").unwrap_err();
+        assert!(err.message.contains("not a real number"), "got: {err}");
+        let err = calculator::calculate("root(9, 0)").unwrap_err();
+        assert!(err.message.contains("undefined"), "got: {err}");
+    }
+
+    #[test]
+    fn pow_test() {
+        assert_eq!(calculator::calculate("pow(2, 10)").unwrap(), 1024.0);
+        assert!(is_close(
+            calculator::calculate("pow(2, 0.5)").unwrap(),
+            2.0f32.sqrt()
+        ));
+        assert_eq!(
+            calculator::calculate("pow(2, 3)").unwrap(),
+            calculator::calculate("2^3").unwrap()
+        );
+    }
+
+    #[test]
+    fn perm_test() {
+        assert_eq!(calculator::calculate("perm(5, 2)").unwrap(), 20.0);
+        assert_eq!(calculator::calculate("perm(5, 0)").unwrap(), 1.0);
+        assert_eq!(calculator::calculate("perm(5, 5)").unwrap(), 120.0);
+        assert_eq!(calculator::calculate("perm(2, 5)").unwrap(), 0.0);
+        // perm(n, k) = ch(n, k) * k!
+        assert_eq!(
+            calculator::calculate("perm(6, 2)").unwrap(),
+            calculator::calculate("ch(6, 2) * 2!").unwrap()
+        );
+        assert!(calculator::calculate("perm(5, 2.5)").is_err());
+        assert!(calculator::calculate("perm(-5, 2)").is_err());
+    }
+
+    #[test]
+    fn inverse_hyperbolic_test() {
+        assert_eq!(calculator::calculate("asinh(0)").unwrap(), 0.0);
+        assert_eq!(calculator::calculate("acosh(1)").unwrap(), 0.0);
+        assert_eq!(calculator::calculate("atanh(0)").unwrap(), 0.0);
+        // Round-trips with the forward functions.
+        assert!(is_close(
+            calculator::calculate("asinh(sinh(1))").unwrap(),
+            1.0
+        ));
+        assert!(is_close(
+            calculator::calculate("atanh(tanh(0.5))").unwrap(),
+            0.5
+        ));
+        // Out of domain follows the sqrt convention: NaN, not an error.
+        assert!(calculator::calculate("acosh(0)").unwrap().is_nan());
+        // The arc* aliases resolve like the inverse-trig family's do.
+        assert_eq!(calculator::calculate("arcsinh(0)").unwrap(), 0.0);
     }
 }

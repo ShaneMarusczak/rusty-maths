@@ -162,14 +162,38 @@ pub const CATALOG: &[Symbol] = &[
     sym!(unary "sinh", [], Hyperbolic, "hyperbolic sine", "sinh(0) = 0", |x| x.sinh()),
     sym!(unary "cosh", [], Hyperbolic, "hyperbolic cosine", "cosh(0) = 1", |x| x.cosh()),
     sym!(unary "tanh", [], Hyperbolic, "hyperbolic tangent", "tanh(0) = 0", |x| x.tanh()),
+    sym!(unary "asinh", ["arcsinh"], Hyperbolic, "inverse hyperbolic sine", "asinh(0) = 0", |x| x.asinh()),
+    sym!(unary "acosh", ["arccosh"], Hyperbolic, "inverse hyperbolic cosine (NaN below 1)", "acosh(1) = 0", |x| x.acosh()),
+    sym!(unary "atanh", ["arctanh"], Hyperbolic, "inverse hyperbolic tangent (|x| < 1)", "atanh(0) = 0", |x| x.atanh()),
     // Angle conversion
     sym!(unary "deg", [], AngleConversion, "radians → degrees", "deg(π) = 180", |x| x * 180.0 / PI),
     sym!(unary "rad", [], AngleConversion, "degrees → radians", "rad(180) = π", |x| x * PI / 180.0),
     // Arithmetic (function form)
     sym!(unary "abs", [], Arithmetic, "absolute value", "abs(-3) = 3", abs_f32),
     sym!(unary "sqrt", [], Arithmetic, "square root (NaN for negatives)", "sqrt(9) = 3", |x| x.sqrt()),
+    sym!(unary "floor", [], Arithmetic, "round down to the nearest integer", "floor(2.7) = 2", |x| x.floor()),
+    sym!(unary "ceil", [], Arithmetic, "round up to the nearest integer", "ceil(2.1) = 3", |x| x.ceil()),
+    sym!(unary "round", [], Arithmetic, "round to the nearest integer (halves away from zero)", "round(2.5) = 3", |x| x.round()),
+    sym!(variadic "pow", [], Arithmetic, "x raised to the power y — same as x^y", "pow(2, 10) = 1024", min: 2, max: Some(2),
+         |xs| Ok(xs[0].powf(xs[1]))),
+    sym!(variadic "root", [], Arithmetic, "nth root — root(x, n); odd roots of negatives are real", "root(27, 3) = 3", min: 2, max: Some(2),
+    |xs| {
+        let (x, n) = (xs[0], xs[1]);
+        if n == 0.0 {
+            return Err(String::from("root(x, 0) is undefined"));
+        }
+        if x >= 0.0 {
+            return Ok(x.powf(1.0 / n));
+        }
+        // A negative radicand only has a real root for odd integer degrees.
+        if n % 2.0 == 0.0 || n % 1.0 != 0.0 {
+            return Err(format!("root({x}, {n}) is not a real number"));
+        }
+        Ok(-((-x).powf(1.0 / n)))
+    }),
     // Logarithms
     sym!(unary "ln", [], Logarithmic, "natural log (base e)", "ln(e) = 1", |x| x.ln()),
+    sym!(unary "exp", [], Logarithmic, "e raised to the power x — inverse of ln", "exp(1) = e", |x| x.exp()),
     sym!(log_base "log", [], Logarithmic, "log with explicit base — write log_N(x)", "log_2(8) = 3"),
     // Statistical / variadic
     sym!(variadic "min", [], Statistical, "minimum of arguments", "min(3, 1, 4) = 1", min: 1, max: None,
@@ -178,6 +202,8 @@ pub const CATALOG: &[Symbol] = &[
          |xs| Ok(xs.iter().copied().fold(f32::MIN, f32::max))),
     sym!(variadic "avg", [], Statistical, "arithmetic mean of arguments", "avg(2, 4, 6) = 4", min: 1, max: None,
          |xs| Ok(xs.iter().sum::<f32>() / xs.len() as f32)),
+    sym!(variadic "sum", [], Statistical, "sum of arguments", "sum(1, 2, 3) = 6", min: 1, max: None,
+         |xs| Ok(xs.iter().sum())),
     sym!(variadic "med", [], Statistical, "median of arguments", "med(1, 3, 5) = 3", min: 1, max: None,
     |xs| {
         let mut params = xs.to_vec();
@@ -229,6 +255,25 @@ pub const CATALOG: &[Symbol] = &[
             0.0
         } else {
             (factorial(n)? / (factorial(k)? * factorial(n - k)?)) as f32
+        };
+        Ok(result)
+    }),
+    sym!(variadic "perm", [], Statistical, "permutations — perm(n, k) = n!/(n−k)!", "perm(5, 2) = 20", min: 2, max: Some(2),
+    |xs| {
+        for (i, &v) in xs.iter().enumerate() {
+            if v % 1.0 != 0.0 {
+                return Err(format!("Parameter {} must be an integer, got {}", i + 1, v));
+            }
+            if v < 0.0 {
+                return Err(format!("Parameter {} must be non-negative, got {}", i + 1, v));
+            }
+        }
+        let n = xs[0] as isize;
+        let k = xs[1] as isize;
+        let result = if k > n {
+            0.0
+        } else {
+            (factorial(n)? / factorial(n - k)?) as f32
         };
         Ok(result)
     }),
