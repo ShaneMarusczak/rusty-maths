@@ -12,6 +12,28 @@ fn continues_identifier(c: char) -> bool {
     c.is_alphabetic() || c.is_ascii_digit()
 }
 
+/// Levenshtein distance using a single rolling row of DP state. Byte-based:
+/// every "did you mean" candidate is an ASCII function name, and a multi-byte
+/// input just inflates the distance toward "no suggestion".
+fn levenshtein(word1: &str, word2: &str) -> usize {
+    let (a, b) = (word1.as_bytes(), word2.as_bytes());
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut curr = vec![0usize; b.len() + 1];
+
+    for i in 1..=a.len() {
+        curr[0] = i;
+        for j in 1..=b.len() {
+            curr[j] = if a[i - 1] == b[j - 1] {
+                prev[j - 1]
+            } else {
+                1 + curr[j - 1].min(prev[j]).min(prev[j - 1])
+            };
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+    prev[b.len()]
+}
+
 /// A streaming tokenizer that implements Iterator, yielding tokens on demand.
 ///
 /// `chars` is the only cursor; `position` counts characters and doubles as
@@ -309,10 +331,48 @@ impl<'a> StreamingTokenizer<'a> {
 
         let sym = catalog::find(&name)
             .filter(|s| s.kind.is_unary() || s.kind.is_variadic())
-            .ok_or_else(|| self.err_here(format!("Invalid function name {}", name)))?;
+            .ok_or_else(|| match self.suggest_function(&name) {
+                Some(s) => self.err_here(format!(
+                    "Invalid function name {} — did you mean '{s}'?",
+                    name
+                )),
+                None => self.err_here(format!("Invalid function name {}", name)),
+            })?;
 
         self.advance(); // consume '('
         Ok(self.emit(Token::Call(Callee::Catalog(sym))))
+    }
+
+    /// The closest callable name to `name` — catalog functions, their
+    /// aliases, and user-defined functions — for "did you mean" on a bad
+    /// call. Strict on distance (1 edit, or 2 for names of five+ chars):
+    /// a missed suggestion beats a silly one.
+    fn suggest_function(&self, name: &str) -> Option<String> {
+        let max_dist = if name.len() >= 5 { 2 } else { 1 };
+
+        let catalog_names = catalog::all()
+            .iter()
+            .filter(|s| s.kind.is_unary() || s.kind.is_variadic())
+            .flat_map(|s| std::iter::once(s.name).chain(s.aliases.iter().copied()));
+        let user_names = self
+            .defs
+            .into_iter()
+            .flat_map(|d| d.iter())
+            .filter_map(|def| match def {
+                crate::equation_analyzer::definitions::Definition::Function { name, .. } => {
+                    Some(name)
+                }
+                _ => None,
+            });
+
+        let mut best: Option<(usize, &str)> = None;
+        for candidate in catalog_names.chain(user_names) {
+            let dist = levenshtein(name, candidate);
+            if dist <= max_dist && best.is_none_or(|(d, _)| dist < d) {
+                best = Some((dist, candidate));
+            }
+        }
+        best.map(|(_, n)| n.to_string())
     }
 
     fn scan_token(&mut self) -> Result<Option<SpannedToken>, EquationError> {

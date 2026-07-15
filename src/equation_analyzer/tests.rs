@@ -4126,6 +4126,45 @@ mod rm_tests {
     }
 
     #[test]
+    fn did_you_mean_on_bad_function_call_test() {
+        let msg = |eq: &str| calculator::calculate(eq).unwrap_err().message;
+
+        // One edit away — suggest.
+        assert_eq!(
+            msg("sinq(2)"),
+            "Invalid function name sinq — did you mean 'sin'?"
+        );
+        assert_eq!(
+            msg("avq(1, 2)"),
+            "Invalid function name avq — did you mean 'avg'?"
+        );
+        // Aliases count as candidates; longer names get two edits.
+        assert_eq!(
+            msg("arcsinq(1)"),
+            "Invalid function name arcsinq — did you mean 'arcsin'?"
+        );
+        assert_eq!(
+            msg("sqirt(4)"),
+            "Invalid function name sqirt — did you mean 'sqrt'?"
+        );
+
+        // Too far — stay silent rather than guess (foo→cos is 2 edits,
+        // over the limit for a 3-char name).
+        assert_eq!(msg("foo(3)"), "Invalid function name foo");
+        assert_eq!(msg("zzzzzz(3)"), "Invalid function name zzzzzz");
+    }
+
+    #[test]
+    fn did_you_mean_includes_user_functions_test() {
+        let defs = defs_with(&[], &[("growth", "2^x")]);
+        let err = calculator::calculate_with("growht(3)", &defs).unwrap_err();
+        assert_eq!(
+            err.message,
+            "Invalid function name growht — did you mean 'growth'?"
+        );
+    }
+
+    #[test]
     fn user_value_keeps_exact_bits_test() {
         // Values bind as f32, not through a decimal-string round trip.
         let v = 0.1f32 + 0.2f32;
