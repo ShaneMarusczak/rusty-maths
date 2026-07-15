@@ -15,6 +15,7 @@
 // Public API
 pub mod calculator;
 pub mod catalog;
+pub mod definitions;
 pub mod errors;
 
 /// The pipeline's error type and its character-span companion, re-exported
@@ -27,6 +28,18 @@ pub mod errors;
 /// assert!(err.span.is_some());
 /// ```
 pub use errors::{EquationError, Span};
+
+/// User definitions — named values and single-parameter functions —
+/// re-exported for convenience.
+///
+/// ```
+/// use rusty_maths::equation_analyzer::{calculator, Definitions};
+///
+/// let mut defs = Definitions::new();
+/// defs.define_value("a", 2.0).unwrap();
+/// assert_eq!(calculator::calculate_with("a + 1", &defs).unwrap(), 3.0);
+/// ```
+pub use definitions::{Definition, Definitions};
 
 /// The plot-point type returned by [`calculator::plot`], re-exported so
 /// downstream crates can name it.

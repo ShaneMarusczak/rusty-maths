@@ -1,6 +1,7 @@
 use crate::equation_analyzer::catalog::{self, SymbolKind};
+use crate::equation_analyzer::definitions::{Definitions, Resolved};
 use crate::equation_analyzer::errors::{EquationError, Span};
-use crate::equation_analyzer::structs::token::{SpannedToken, Token};
+use crate::equation_analyzer::structs::token::{Callee, SpannedToken, Token};
 use std::collections::VecDeque;
 use std::iter::Peekable;
 use std::str::Chars;
@@ -24,10 +25,15 @@ pub(crate) struct StreamingTokenizer<'a> {
     previous_token: Option<Token>,
     finished: bool,
     pending_tokens: VecDeque<SpannedToken>,
+    /// User definitions consulted for identifiers the catalog doesn't claim.
+    defs: Option<&'a Definitions>,
 }
 
 impl<'a> StreamingTokenizer<'a> {
-    pub(crate) fn new(eq: &'a str) -> Result<Self, EquationError> {
+    pub(crate) fn new_with(
+        eq: &'a str,
+        defs: Option<&'a Definitions>,
+    ) -> Result<Self, EquationError> {
         if eq.is_empty() {
             return Err(EquationError::new("Invalid equation supplied"));
         }
@@ -39,7 +45,14 @@ impl<'a> StreamingTokenizer<'a> {
             previous_token: None,
             finished: false,
             pending_tokens: VecDeque::new(),
+            defs,
         })
+    }
+
+    /// Looks `name` up in the user definitions. Only called after the
+    /// catalog has declined the name — catalog resolution always wins.
+    fn resolve_user(&self, name: &str) -> Option<Resolved> {
+        self.defs.and_then(|d| d.resolve(name))
     }
 
     fn advance(&mut self) -> Option<char> {
@@ -191,16 +204,21 @@ impl<'a> StreamingTokenizer<'a> {
             }
         }
 
-        // Pipe target: name must be a unary function, no parens follow.
+        // Pipe target: name must be a unary function — catalog or
+        // user-defined (user functions are always unary) — no parens follow.
         if matches!(self.previous_token, Some(Token::Pipe)) {
-            let sym = catalog::find(&name)
-                .filter(|s| s.kind.is_unary())
-                .ok_or_else(|| {
-                    self.err_here(format!(
-                        "'{}' cannot be used after '|>'; only unary functions are allowed",
-                        name
-                    ))
-                })?;
+            let callee = match catalog::find(&name).filter(|s| s.kind.is_unary()) {
+                Some(sym) => Callee::Catalog(sym),
+                None => match self.resolve_user(&name) {
+                    Some(Resolved::Function(i)) => Callee::User(i),
+                    _ => {
+                        return Err(self.err_here(format!(
+                            "'{}' cannot be used after '|>'; only unary functions are allowed",
+                            name
+                        )))
+                    }
+                },
+            };
 
             if self.peek() == Some('(') {
                 return Err(self.err_here(format!(
@@ -209,7 +227,7 @@ impl<'a> StreamingTokenizer<'a> {
                 )));
             }
 
-            return Ok(self.emit(Token::Call(sym)));
+            return Ok(self.emit(Token::Call(callee)));
         }
 
         // Handle log base
@@ -257,8 +275,36 @@ impl<'a> StreamingTokenizer<'a> {
             };
         }
 
-        if self.peek() != Some('(') {
-            return Err(self.err_here("Invalid input"));
+        // User definitions resolve after every catalog form: values become
+        // number literals carrying the identifier's span, functions become
+        // calls. The value is read at tokenize time, which *is* call time
+        // for function bodies — they're compiled fresh each evaluation pass.
+        let called_with_parens = self.peek() == Some('(');
+        match self.resolve_user(&name) {
+            Some(Resolved::Value(v)) if !called_with_parens => {
+                return Ok(self.emit(Token::Number(v)));
+            }
+            Some(Resolved::Value(_)) => {
+                return Err(self.err_here(format!("'{}' is a value, not a function", name)));
+            }
+            Some(Resolved::Function(i)) if called_with_parens => {
+                self.advance(); // consume '('
+                return Ok(self.emit(Token::Call(Callee::User(i))));
+            }
+            Some(Resolved::Function(_)) => {
+                return Err(self.err_here(format!("Function '{}' requires parentheses", name)));
+            }
+            None => {}
+        }
+
+        if !called_with_parens {
+            // A known function used bare gets a pointer at the fix; a name
+            // nothing claims gets called what it is: unknown.
+            return Err(if catalog::find(&name).is_some() {
+                self.err_here(format!("Function '{}' requires parentheses", name))
+            } else {
+                self.err_here(format!("Unknown name '{}'", name))
+            });
         }
 
         let sym = catalog::find(&name)
@@ -266,7 +312,7 @@ impl<'a> StreamingTokenizer<'a> {
             .ok_or_else(|| self.err_here(format!("Invalid function name {}", name)))?;
 
         self.advance(); // consume '('
-        Ok(self.emit(Token::Call(sym)))
+        Ok(self.emit(Token::Call(Callee::Catalog(sym))))
     }
 
     fn scan_token(&mut self) -> Result<Option<SpannedToken>, EquationError> {

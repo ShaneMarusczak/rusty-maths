@@ -1,21 +1,24 @@
-use crate::equation_analyzer::catalog::Symbol;
 use crate::equation_analyzer::errors::{EquationError, Span};
 use crate::equation_analyzer::structs::operands::{get_operator, Assoc, Operand};
-use crate::equation_analyzer::structs::token::{SpannedToken, Token};
+use crate::equation_analyzer::structs::token::{Callee, SpannedToken, Token};
 
 /// Represents a parser frame for a parenthesized function call — unary and
-/// variadic alike. Tracks the backing catalog Symbol so we can emit the
-/// matching EndCall, and the call token's span so errors can underline the
-/// whole call.
+/// variadic alike. Tracks the backing callee so we can emit the matching
+/// EndCall, and the call token's span so errors can underline the whole call.
 struct ParserFrame {
-    symbol: &'static Symbol,
+    callee: Callee,
     call_span: Span,
     operator_stack_position: usize,
 }
 
 /// Is this a Call token whose sole arg comes off the value stack (no frame)?
+/// User-defined functions are always unary (their one parameter is `x`).
 fn is_unary_call(token: Token) -> bool {
-    matches!(token, Token::Call(s) if s.kind.is_unary())
+    match token {
+        Token::Call(Callee::Catalog(s)) => s.kind.is_unary(),
+        Token::Call(Callee::User(_)) => true,
+        _ => false,
+    }
 }
 
 /// Pop operators to the output until a parenthesis opener (or an empty stack)
@@ -127,7 +130,7 @@ where
                         // The EndCall's span covers the whole call, from the
                         // function name through this closing paren.
                         output.push(SpannedToken::new(
-                            Token::EndCall(frame.symbol),
+                            Token::EndCall(frame.callee),
                             Span::new(frame.call_span.start, spanned.span.end),
                         ));
                         frames.pop();
@@ -153,15 +156,15 @@ where
             // Constants and operands go directly to output
             Token::Constant(_) | Token::Number(_) | Token::X => output.push(spanned),
 
-            // Every parenthesized call — unary or variadic — starts a frame;
-            // the catalog's arity is enforced at the matching EndCall. The
-            // tokenizer already consumed the OpenParen; we push a synthetic
-            // marker to fence off preceding operators until the matching
-            // CloseParen.
-            Token::Call(sym) => {
-                output.push(SpannedToken::new(Token::CallStart(sym), spanned.span));
+            // Every parenthesized call — unary or variadic, catalog or
+            // user-defined — starts a frame; the callee's arity is enforced
+            // at the matching EndCall. The tokenizer already consumed the
+            // OpenParen; we push a synthetic marker to fence off preceding
+            // operators until the matching CloseParen.
+            Token::Call(callee) => {
+                output.push(SpannedToken::new(Token::CallStart(callee), spanned.span));
                 frames.push(ParserFrame {
-                    symbol: sym,
+                    callee,
                     call_span: spanned.span,
                     operator_stack_position: operator_stack.len(),
                 });

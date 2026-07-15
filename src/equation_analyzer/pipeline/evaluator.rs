@@ -1,7 +1,12 @@
 use crate::equation_analyzer::catalog::SymbolKind;
-use crate::equation_analyzer::errors::EquationError;
-use crate::equation_analyzer::structs::token::{SpannedToken, Token};
+use crate::equation_analyzer::definitions::CompiledDefinitions;
+use crate::equation_analyzer::errors::{EquationError, Span};
+use crate::equation_analyzer::structs::token::{Callee, SpannedToken, Token};
 use crate::utilities::factorial;
+
+/// Deep enough for legitimate composition, shallow enough that a recursive
+/// definition (`g(x) = g(x)`) errors quickly instead of blowing the stack.
+const MAX_CALL_DEPTH: u8 = 32;
 
 /// Represents a function call frame for variadic functions
 struct FunctionFrame {
@@ -60,12 +65,62 @@ fn plural(n: u8) -> &'static str {
 ///    - Variadic Calls: Mark stack position with a frame
 ///    - EndCall: Collect params since the frame position, arity-check,
 ///      dispatch through the Symbol, push result
+///    - User calls: run the callee's compiled body RPN with x = the argument
 /// 4. Returns final stack value (should be exactly 1 value)
-pub(crate) fn evaluate<I>(tokens: I, x: impl Into<Option<f32>>) -> Result<f32, EquationError>
+///
+/// `ctx` carries compiled user definitions for user-call dispatch (`None`
+/// when no definitions are in scope); it must be compiled from the same
+/// `Definitions` the tokens were tokenized against — user-call indices
+/// refer into it.
+pub(crate) fn evaluate_with<I>(
+    tokens: I,
+    x: impl Into<Option<f32>>,
+    ctx: Option<&CompiledDefinitions>,
+) -> Result<f32, EquationError>
 where
     I: IntoIterator<Item = SpannedToken>,
 {
-    let x = x.into().unwrap_or(0.0);
+    evaluate_at_depth(tokens, x.into().unwrap_or(0.0), ctx, 0)
+}
+
+/// Runs one user-defined function call: depth-checks, fetches the compiled
+/// body, and evaluates it with `x` bound to `arg`. Errors from inside the
+/// body are tagged with the function's name (innermost wins) so renderers
+/// know their spans refer to the body source.
+fn call_user(
+    ctx: Option<&CompiledDefinitions>,
+    index: usize,
+    arg: f32,
+    depth: u8,
+    call_span: Span,
+) -> Result<f32, EquationError> {
+    let Some(ctx) = ctx else {
+        return Err(EquationError::spanned(
+            "Internal error: user call without definitions in scope",
+            call_span,
+        ));
+    };
+    let name = ctx.name(index);
+    if depth >= MAX_CALL_DEPTH {
+        return Err(EquationError::spanned(
+            format!("Call depth limit ({MAX_CALL_DEPTH}) exceeded — is '{name}' defined in terms of itself?"),
+            call_span,
+        ));
+    }
+    let body = ctx.body_rpn(index).map_err(|e| e.for_function(name))?;
+    evaluate_at_depth(body.iter().copied(), arg, Some(ctx), depth + 1)
+        .map_err(|e| e.for_function(name))
+}
+
+fn evaluate_at_depth<I>(
+    tokens: I,
+    x: f32,
+    ctx: Option<&CompiledDefinitions>,
+    depth: u8,
+) -> Result<f32, EquationError>
+where
+    I: IntoIterator<Item = SpannedToken>,
+{
     let mut stack: Vec<StackVal> = Vec::new();
     let mut frames: Vec<FunctionFrame> = Vec::new();
     let mut token_count = 0;
@@ -80,7 +135,7 @@ where
             // Call: a pipe target (`x |> sin`) — the sole argument is
             // already on the stack. Parenthesized calls never produce this;
             // they arrive as CallStart…EndCall frames.
-            Token::Call(sym) => match sym.kind {
+            Token::Call(Callee::Catalog(sym)) => match sym.kind {
                 SymbolKind::Unary(f) => {
                     let v = stack.pop().ok_or_else(|| {
                         fail(format!("Insufficient operands for {} function", sym.name))
@@ -100,6 +155,14 @@ where
                     )));
                 }
             },
+            // A user-defined function as a pipe target (`3 |> g`).
+            Token::Call(Callee::User(i)) => {
+                let v = stack.pop().ok_or_else(|| {
+                    let name = ctx.map_or("?", |c| c.name(i));
+                    fail(format!("Insufficient operands for {name} function"))
+                })?;
+                stack.push(plain(call_user(ctx, i, v.num, depth, spanned.span)?));
+            }
             // CallStart: a parenthesized call opens a frame; its arguments
             // collect on the stack until the matching EndCall.
             Token::CallStart(_) => {
@@ -107,10 +170,28 @@ where
                     stack_position: stack.len(),
                 });
             }
+            // A parenthesized user-defined call closes: enforce the fixed
+            // arity of 1 (the parameter is always `x`), then run the body.
+            Token::EndCall(Callee::User(i)) => {
+                let name = ctx.map_or("?", |c| c.name(i));
+                let frame = frames
+                    .pop()
+                    .ok_or_else(|| fail(format!("Unexpected end of {name} call")))?;
+                let n = stack.len().saturating_sub(frame.stack_position);
+                if n != 1 {
+                    return Err(fail(format!(
+                        "{name} takes exactly 1 parameter (x), got {n}"
+                    )));
+                }
+                let arg = stack
+                    .pop()
+                    .ok_or_else(|| fail(format!("Insufficient operands for {name}")))?;
+                stack.push(plain(call_user(ctx, i, arg.num, depth, spanned.span)?));
+            }
             // EndCall: close the frame, enforce the catalog's arity, and
             // dispatch. Its span covers the whole call (`ch(25, 2)`), so
             // every error here underlines the full call site.
-            Token::EndCall(sym) => {
+            Token::EndCall(Callee::Catalog(sym)) => {
                 let frame = frames
                     .pop()
                     .ok_or_else(|| fail(format!("Unexpected end of {} call", sym.name)))?;
