@@ -13,7 +13,7 @@
 //! the variable and the equation marker), and `log` keeps its special
 //! `log_N(...)` surface syntax.
 
-use crate::utilities::{abs_f32, factorial};
+use crate::utilities::abs_f32;
 use std::collections::HashMap;
 use std::f32::consts::{E, PI};
 
@@ -115,6 +115,29 @@ pub enum OpArity {
     /// The `|>` pipe: infix but with an asymmetric right-hand-side (must be a
     /// bare unary function name).
     Pipe,
+}
+
+/// Shared validation for the counting functions (`ch`, `perm`): both take
+/// two non-negative integers. Returned as f64 so the multiplicative loops
+/// stay exact well past f32's integer range.
+fn counting_params(xs: &[f32]) -> Result<(f64, f64), String> {
+    for (i, &v) in xs.iter().enumerate() {
+        if v % 1.0 != 0.0 {
+            return Err(format!("Parameter {} must be an integer, got {}", i + 1, v));
+        }
+        if v < 0.0 {
+            return Err(format!(
+                "Parameter {} must be non-negative, got {}",
+                i + 1,
+                v
+            ));
+        }
+    }
+    Ok((f64::from(xs[0]), f64::from(xs[1])))
+}
+
+fn counting_overflow(name: &str, n: f64, k: f64) -> String {
+    format!("{name}({n}, {k}) is too large to represent (max ~3.4e38)")
 }
 
 macro_rules! sym {
@@ -241,41 +264,45 @@ pub const CATALOG: &[Symbol] = &[
     }),
     sym!(variadic "ch", [], Statistical, "binomial coefficient — ch(n, k) = n choose k", "ch(5, 2) = 10", min: 2, max: Some(2),
     |xs| {
-        for (i, &v) in xs.iter().enumerate() {
-            if v % 1.0 != 0.0 {
-                return Err(format!("Parameter {} must be an integer, got {}", i + 1, v));
-            }
-            if v < 0.0 {
-                return Err(format!("Parameter {} must be non-negative, got {}", i + 1, v));
-            }
+        let (n, k) = counting_params(xs)?;
+        if k > n {
+            return Ok(0.0);
         }
-        let n = xs[0] as isize;
-        let k = xs[1] as isize;
-        let result = if k > n {
-            0.0
-        } else {
-            (factorial(n)? / (factorial(k)? * factorial(n - k)?)) as f32
-        };
-        Ok(result)
+        // Multiplicative form, not factorials: intermediates never exceed
+        // the answer, so ch(30, 2) = 435 works where 30! cannot.
+        // Symmetry halves the loop; each partial product is itself a
+        // binomial, so the running value only ever grows.
+        let k_orig = k;
+        let k = k.min(n - k);
+        let mut result = 1.0f64;
+        let mut i = 1.0f64;
+        while i <= k {
+            result = result * (n - k + i) / i;
+            if result > f64::from(f32::MAX) {
+                return Err(counting_overflow("ch", n, k_orig));
+            }
+            i += 1.0;
+        }
+        Ok(result.round() as f32)
     }),
     sym!(variadic "perm", [], Statistical, "permutations — perm(n, k) = n!/(n−k)!", "perm(5, 2) = 20", min: 2, max: Some(2),
     |xs| {
-        for (i, &v) in xs.iter().enumerate() {
-            if v % 1.0 != 0.0 {
-                return Err(format!("Parameter {} must be an integer, got {}", i + 1, v));
-            }
-            if v < 0.0 {
-                return Err(format!("Parameter {} must be non-negative, got {}", i + 1, v));
-            }
+        let (n, k) = counting_params(xs)?;
+        if k > n {
+            return Ok(0.0);
         }
-        let n = xs[0] as isize;
-        let k = xs[1] as isize;
-        let result = if k > n {
-            0.0
-        } else {
-            (factorial(n)? / factorial(n - k)?) as f32
-        };
-        Ok(result)
+        // Product of n · (n−1) ⋯ (n−k+1); factors are ≥ 1, so the running
+        // value only grows and the overflow check bounds the loop.
+        let mut result = 1.0f64;
+        let mut i = 0.0f64;
+        while i < k {
+            result *= n - i;
+            if result > f64::from(f32::MAX) {
+                return Err(counting_overflow("perm", n, k));
+            }
+            i += 1.0;
+        }
+        Ok(result.round() as f32)
     }),
     // Operators (docs + precedence/assoc — dispatch stays glyph-tokenized in evaluator)
     sym!(op "+", [], Arithmetic, "addition", "2 + 3 = 5", glyph: "+", prec: 2, Left, Binary),
