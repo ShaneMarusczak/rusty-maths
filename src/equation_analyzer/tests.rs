@@ -3704,8 +3704,11 @@ mod rm_tests {
     // Regression: ch with n > 20 hit the same factorial panic.
     #[test]
     fn choose_out_of_range_is_err_test() {
-        assert!(calculator::calculate("ch(25, 2)").is_err());
+        // Since the multiplicative rewrite, ch only errors when the *result*
+        // exceeds f32 — n past 20 is fine.
+        assert_eq!(calculator::calculate("ch(25, 2)").unwrap(), 300.0);
         assert_eq!(calculator::calculate("ch(20, 2)").unwrap(), 190.0);
+        assert!(calculator::calculate("ch(5000, 2500)").is_err());
     }
 
     // Regression: a non-positive step size used to loop forever in plot().
@@ -3814,10 +3817,10 @@ mod rm_tests {
     // parallel map instead of being lost.
     #[test]
     fn plot_propagates_evaluation_errors_test() {
-        let result = calculator::plot("y = ch(x, 2)", 0.0, 25.0, 1.0);
+        let result = calculator::plot("y = x!", 0.0, 25.0, 1.0);
         assert!(result.is_err()); // factorial range exceeded at x = 21
 
-        let ok = calculator::plot("y = ch(x, 2)", 0.0, 20.0, 1.0).unwrap();
+        let ok = calculator::plot("y = x!", 0.0, 20.0, 1.0).unwrap();
         assert_eq!(ok.len(), 21);
     }
 
@@ -3875,7 +3878,7 @@ mod rm_tests {
         // Evaluator: the failing operator; a framed call's errors underline
         // the whole call.
         assert_eq!(span("21!"), Some(Span::new(2, 3)));
-        assert_eq!(span("ch(25, 2)"), Some(Span::new(0, 9)));
+        assert_eq!(span("ch(5000, 2500)"), Some(Span::new(0, 14)));
 
         // Whole-expression problems have no location.
         assert_eq!(span(""), None);
@@ -4269,5 +4272,34 @@ mod rm_tests {
         assert!(calculator::calculate("acosh(0)").unwrap().is_nan());
         // The arc* aliases resolve like the inverse-trig family's do.
         assert_eq!(calculator::calculate("arcsinh(0)").unwrap(), 0.0);
+    }
+
+    #[test]
+    fn counting_functions_beyond_factorial_range_test() {
+        // The old factorial-based ch/perm errored above 20! even when the
+        // answer was tiny. The multiplicative form only fails when the
+        // *result* doesn't fit.
+        assert_eq!(calculator::calculate("ch(30, 2)").unwrap(), 435.0);
+        assert_eq!(calculator::calculate("ch(100, 4)").unwrap(), 3_921_225.0);
+        assert_eq!(calculator::calculate("perm(50, 3)").unwrap(), 117_600.0);
+        assert_eq!(calculator::calculate("perm(25, 1)").unwrap(), 25.0);
+
+        // 30! ≈ 2.65e32 fits f32 even though the old isize path could not
+        // have computed it.
+        let expected = (2..=30).map(f64::from).product::<f64>() as f32;
+        assert_eq!(calculator::calculate("perm(30, 30)").unwrap(), expected);
+
+        // Results beyond f32 fail with a message, not a silent inf — and
+        // the growth check bounds the loop, so huge args return fast.
+        let err = calculator::calculate("ch(5000, 2500)").unwrap_err();
+        assert!(err.message.contains("too large"), "got: {err}");
+        let err = calculator::calculate("perm(1000000000, 1000000000)").unwrap_err();
+        assert!(err.message.contains("too large"), "got: {err}");
+
+        // Validation messages are unchanged.
+        let err = calculator::calculate("ch(20, 9.1)").unwrap_err();
+        assert_eq!(err.message, "Parameter 2 must be an integer, got 9.1");
+        let err = calculator::calculate("perm(-5, 2)").unwrap_err();
+        assert_eq!(err.message, "Parameter 1 must be non-negative, got -5");
     }
 }
